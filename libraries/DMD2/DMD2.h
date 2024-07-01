@@ -27,6 +27,7 @@
 
 #include "Print.h"
 #include "SPI.h"
+#include "DMD2.h"
 
 // Dimensions of a single display
 const unsigned int PANEL_WIDTH = 32;
