@@ -20,23 +20,23 @@ void setup() {
     pinMode(buttonPins[i], INPUT_PULLUP);
   }
 
-  randomSeed(analogRead(0));  // Seed the random number generator
+  //randomSeed(analogRead(0));  // Seed the random number generator
 }
 
 void loop() {
-  while(true)
-  {
-    for(int i = 0; i < 8; i++)
-    {
-        digitalWrite(ledPins[i],HIGH);
-        delay(1000);
-    }
+  // while(true)
+  // {
+  //   for(int i = 0; i < 8; i++)
+  //   {
+  //       digitalWrite(ledPins[i],HIGH);
+  //       delay(1000);
+  //   }
 
-    for(int i = 0; i < 8; i++)
-    {
-        digitalWrite(ledPins[i],LOW);
-    }
-  }
+  //   for(int i = 0; i < 8; i++)
+  //   {
+  //       digitalWrite(ledPins[i],LOW);
+  //   }
+  // }
   if (digitalRead(startButton) == LOW) {
     delay(50);  // Debounce delay
     if (digitalRead(startButton) == LOW) {
@@ -52,10 +52,10 @@ void loop() {
 
   if (gameActive && !gamePaused) {
     if (millis() - startTime >= gameDuration) {
-      Serial.println("Left Time: " + String(millis() - startTime));
+      //Serial.println("Left Time: " + String(millis() - startTime));
       endGame();
     } else {
-      Serial.println("Left Time: " + String(millis() - startTime));
+      //Serial.println("Left Time: " + String(millis() - startTime));
       checkGameButtons();
     }
   }
@@ -113,7 +113,7 @@ void nextLed() {
   if (currentLed != -1) {
     digitalWrite(ledPins[currentLed], LOW);
   }
-  currentLed = random(1, 7);  // Select a random LED from the 7 game LEDs
+  currentLed = random(1, 8);  // Select a random LED from the 7 game LEDs
   digitalWrite(ledPins[currentLed], HIGH);
   Serial.print("LED ");
   Serial.print(currentLed);
