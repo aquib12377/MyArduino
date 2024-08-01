@@ -65,7 +65,7 @@ BLYNK_WRITE(V3) {  // Virtual pin for controlling the car's left turn
   analogWrite(EN2, motorSpeed);  // Set speed for motor B
 }
 
-BLYNK_WRITE(V4) {  // Virtual pin for controlling the car's right turn
+BLYNK_WRITE(V0) {  // Virtual pin for controlling the car's right turn
   Serial.println("Right");
   digitalWrite(IN1, HIGH);
   digitalWrite(IN2, LOW);
@@ -73,16 +73,6 @@ BLYNK_WRITE(V4) {  // Virtual pin for controlling the car's right turn
   digitalWrite(IN4, HIGH);
   analogWrite(EN1, motorSpeed);  // Set speed for motor A
   analogWrite(EN2, motorSpeed);  // Set speed for motor B
-}
-
-BLYNK_WRITE(V0) {  // Virtual pin for stopping the car
-  Serial.println("Stop");
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, LOW);
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, LOW);
-  analogWrite(EN1, 0);  // Stop motor A
-  analogWrite(EN2, 0);  // Stop motor B
 }
 
 BLYNK_WRITE(V5) {  // Virtual pin for speed control slider

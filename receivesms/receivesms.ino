@@ -6,7 +6,7 @@ const int motor1Pin2 = 11;
 const int motor2Pin1 = 12;
 const int motor2Pin2 = 13;
 
-SoftwareSerial mySerial(7, 8);  //SIM800L Tx & Rx is connected to Arduino #3 & #2
+SoftwareSerial mySerial(2, 3);  //SIM800L Tx & Rx is connected to Arduino #3 & #2
 
 void setup() {
   Serial.begin(9600);
@@ -64,6 +64,7 @@ String readSMS() {
   while (mySerial.available()) {
     Serial.println("SMS Starts");
     sms = mySerial.readString();
+    Serial.println("Unparsed SMS: "+String(sms));
     sms.trim();
     if (sms.startsWith("+CMT:")) {
       int lIdx = sms.indexOf("\n");
