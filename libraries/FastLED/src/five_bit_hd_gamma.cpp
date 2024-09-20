@@ -1,7 +1,12 @@
+
+
+#define FASTLED_INTERNAL 1
+
 #include "FastLED.h"
 #include "five_bit_hd_gamma.h"
 #include "fastled_progmem.h"
 #include "lib8tion/scale8.h"
+#include "namespace.h"
 
 // Author: Zach Vorhies
 
@@ -11,7 +16,6 @@
 
 FASTLED_NAMESPACE_BEGIN
 
-#ifndef FASTLED_FIVE_BIT_HD_GAMMA_BITSHIFT_FUNCTION_OVERRIDE
 #ifndef FASTLED_FIVE_BIT_HD_GAMMA_FUNCTION_2_8
 // Fast a memory efficient gamma=2 function.
 void five_bit_hd_gamma_function(
@@ -58,11 +62,9 @@ void five_bit_hd_gamma_function(uint8_t r8, uint8_t g8,
   *b16 = _gamma_2_8[b8];
 }
 #endif  // FASTLED_FIVE_BIT_HD_GAMMA_FUNCTION_2_8
-#endif  // FASTLED_FIVE_BIT_HD_GAMMA_BITSHIFT_FUNCTION_OVERRIDE
 
-#ifndef FASTLED_FIVE_BIT_HD_BITSHIFT_FUNCTION_OVERRIDE
 
-void five_bit_hd_gamma_bitshift(
+void __builtin_five_bit_hd_gamma_bitshift(
     uint8_t r8, uint8_t g8, uint8_t b8,
     uint8_t r8_scale, uint8_t g8_scale, uint8_t b8_scale,
     uint8_t* out_r8,
@@ -184,6 +186,5 @@ void five_bit_hd_gamma_bitshift(
     *out_power_5bit = v8;
 }
 
-#endif // FASTLED_FIVE_BIT_HD_BITSHIFT_FUNCTION_OVERRIDE
 
 FASTLED_NAMESPACE_END

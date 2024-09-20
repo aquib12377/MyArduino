@@ -1,4 +1,3 @@
-
 #include <SPI.h>
 #include <DMD2.h>
 #include <fonts/Arial14.h>
@@ -7,11 +6,10 @@
 #define DISPLAYS_WIDE 3
 #define DISPLAYS_HIGH 1
 
-
 SoftwareSerial mySerial(2, 3);
 
-SoftDMD dmd(DISPLAYS_WIDE, DISPLAYS_HIGH);
-DMD_TextBox box(dmd, 0, 0, 32, 16);
+SoftDMD dmd(5, DISPLAYS_HIGH);
+DMD_TextBox box(dmd, 0, 0, 96, 16);  // Adjust width to fit your display configuration
 
 void setup() {
   Serial.begin(9600);
@@ -20,30 +18,20 @@ void setup() {
   dmd.setBrightness(255);
   dmd.selectFont(Arial14);
   dmd.begin();
-  dmd.drawString(0, 1, F("Waiting for SMS"));
+  box.print(F("ABCDEFGHIJKLMNOPQRSTUVWXYZ"));
 }
 
-int phase = 0;
 void loop() {
   String c = readSMS();
   if (c.length() > 0) {
     Serial.println("Received SMS: " + c);
     char char_array_txt_1[c.length() + 1];
     c.toCharArray(char_array_txt_1, c.length() + 1);
-    dmd.clearScreen();
+    box.clear();
     delay(1000);
-    dmd.drawString(-1, 0, char_array_txt_1);
+    dmd.drawString(0,0.);  // Use the text box to handle the text display
   }
   dmd.marqueeScrollX(-1);
-}
-
-void updateSerial() {
-  while (Serial.available()) {
-    mySerial.write(Serial.read());  // Forward what Serial received to Software Serial Port
-  }
-  while (mySerial.available()) {
-    Serial.write(mySerial.read());  // Forward what Software Serial received to Serial Port
-  }
 }
 
 String readSMS() {
@@ -62,7 +50,7 @@ String readSMS() {
       sms = sms.substring(lIdx);
       sms.replace("\n", "");
     }
-    Serial.println(sms);  // Forward what Software Serial received to Serial Port
+    Serial.println(sms);
     Serial.println("SMS Ends");
   }
   Serial.flush();
