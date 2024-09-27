@@ -1,10 +1,10 @@
 #include <Wire.h>
 #include <Keyboard.h>  // Include Keyboard library
 
-// Pins for 14 switches
-const int buttonPins[] = {4, 5, 6, 7, 8, 9, 10, 16, 14, 15, A0, A1, A2, A3}; 
+// Pins for 13 switches (Removed button at pin 16)
+const int buttonPins[] = {4, 5, 6, 7, 8, 9, 10, 14, 15, A0, A1, A2, A3}; 
 const int resetButtonPin = A3;  // Reset button
-int lastButtonState[14];  // Store previous states to detect button presses
+int lastButtonState[13];  // Store previous states to detect button presses
 
 bool gameActive = false;
 unsigned long gameStartTime = 0;
@@ -17,7 +17,7 @@ void setup() {
   Serial.begin(9600);  // Start serial communication for debugging
   Keyboard.begin();  // Start Keyboard functionality
   
-  for (int i = 0; i < 14; i++) {
+  for (int i = 0; i < 13; i++) {
     pinMode(buttonPins[i], INPUT_PULLUP);  // Setup all buttons as input with pullup
     lastButtonState[i] = HIGH;  // Initialize button states as unpressed
   }
@@ -30,7 +30,7 @@ void loop() {
   int currentResetButtonState = digitalRead(resetButtonPin);
 
   // Check for reset button press (LOW indicates pressed)
-  if (currentResetButtonState == LOW && lastButtonState[13] == HIGH) {
+  if (currentResetButtonState == LOW && lastButtonState[12] == HIGH) {  // Last button in array is now at index 12
     delay(10);  // Debounce delay
     // Re-read to confirm it's still pressed
     if (digitalRead(resetButtonPin) == LOW) {
@@ -53,7 +53,7 @@ void loop() {
   }
 
   // Update the last state of the reset button
-  lastButtonState[13] = currentResetButtonState;
+  lastButtonState[12] = currentResetButtonState;  // Adjusted index
 }
 
 // Start the game
@@ -70,7 +70,7 @@ void startGame() {
 void stopGame() {
   gameActive = false;
   currentLed = -1;
-  sendCommand(14);  // Send reset command to turn off all LEDs
+  sendCommand(13);  // Send reset command to turn off all LEDs
   Serial.print("Game stopped. Final score: ");
   Serial.println(score);
   Keyboard.write('3');  // Send key press '3' for game end
@@ -78,8 +78,7 @@ void stopGame() {
 
 // Select a random LED to turn on
 void selectRandomLed() {
-  currentLed = random(0, 13);  // Random LED from 0 to 12
-  currentLed = currentLed == 9 || currentLed == 8|| currentLed == 7 ? 10 : currentLed;
+  currentLed = random(0, 12);  // Random LED from 0 to 11
   sendCommand(currentLed);  // Send LED index to Pro Micro 2
   Serial.print("LED ");
   Serial.print(currentLed);
@@ -88,11 +87,16 @@ void selectRandomLed() {
 
 // Check if any game button is pressed
 void checkGameButtons() {
-  for (int i = 0; i < 13; i++) {  // Only check game buttons (0 to 12)
+  for (int i = 0; i < 12; i++) {  // Only check game buttons (0 to 11)
     int buttonState = digitalRead(buttonPins[i]);
     
     if (buttonState == LOW && lastButtonState[i] == HIGH) {  // Button pressed
       delay(50);  // Debounce delay
+      Serial.println(buttonState);
+      Serial.println(i);
+      Serial.println(buttonPins[i]);
+      Serial.println("LED: "+String(currentLed));
+      Serial.println("-------------------------");
       if (digitalRead(buttonPins[i]) == LOW && i == currentLed) {  // Correct button
         score++;  // Increase score
         Serial.print("Correct button! Score: ");
@@ -110,4 +114,5 @@ void sendCommand(int buttonIndex) {
   Wire.beginTransmission(8);  // Address of Pro Micro 2 (Slave)
   Wire.write(buttonIndex);  // Send button index or reset command
   Wire.endTransmission();
+  Serial.println("Sent Data: "+String(buttonIndex));
 }

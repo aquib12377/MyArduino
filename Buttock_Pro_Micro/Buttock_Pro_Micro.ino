@@ -1,7 +1,7 @@
 #include <Keyboard.h>
 
-const int ledPins[] = { 10,16,14,15,A0,A1,A2,A3};  // Buttons connected to digital pins 10-17
-const int buttonPins[] = { 2, 3, 4, 5, 6, 7, 8, 9 };       // LEDs connected to digital pins 2-9
+const int ledPins[] = { 10,16,14,15,A0,A1,A2,A3}; //Buttons connected to digital pins 10-17
+const int buttonPins[] = { 2, 3, 4, 5, 6, 7, 8, 9 }; // LEDs connected to digital pins 2-9
 
 const int startButton = 2;  // Start button pin
 

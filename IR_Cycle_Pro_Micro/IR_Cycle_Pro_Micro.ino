@@ -35,11 +35,9 @@ void loop() {
       leds[currentLED] = CRGB(0, 255, 0);  // Turn on the current LED
       FastLED.show();
       currentLED++;  // Move to the next LED
-      if (currentLED > 119) {
         Keyboard.press('1');
         delay(5);  // Adjust delay as needed
         Keyboard.release('1');
-      }
     }
   }
 

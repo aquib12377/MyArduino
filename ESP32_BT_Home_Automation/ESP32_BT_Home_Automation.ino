@@ -1,48 +1,47 @@
-#include <ESP32Servo.h>
-
 #include <BluetoothSerial.h>
+#include <ESP32Servo.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 
-// Bluetooth Serial object
 BluetoothSerial SerialBT;
 
-// Servo object
 Servo doorServo;
 
-// LCD setup
-LiquidCrystal_I2C lcd(0x27, 16, 2); // Adjust the I2C address if needed
+LiquidCrystal_I2C lcd(0x27, 16, 2); // Adjust I2C address if needed
 
-// GPIO pins
-const int ledPins[] = { 15, 2, 4, 16 }; // Replace with your LED pins
-const int relayPin = 17;
-const int servoPin = 18;
+const int ledPins[] = {14, 27, 26, 25}; 
+const int relayPin = 12;
+const int servoPin = 13;
+
+char lastCommand = '\0';  // Variable to store the last command
+String lastLCDMessage = ""; // Variable to store the last LCD message
 
 void setup() {
   // Start Serial communication for debugging
   Serial.begin(115200);
 
-  // Start Bluetooth
+  // Start Bluetooth communication
   SerialBT.begin("ESP32_Home_Automation");
 
-  // Setup LEDs as outputs
+  // Set up LEDs as outputs
   for (int i = 0; i < 4; i++) {
     pinMode(ledPins[i], OUTPUT);
   }
 
-  // Setup relay as output
+  // Set up relay and servo
   pinMode(relayPin, OUTPUT);
-  
-  // Attach the servo
   doorServo.attach(servoPin);
-  doorServo.write(0); // Initial position
-  
+  doorServo.write(0);  // Initial position
+
   // Initialize LCD
   lcd.begin();
   lcd.backlight();
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Home Automation");
+
+  // Debug messages
+  Serial.println("ESP32 Home Automation Initialized");
 }
 
 void loop() {
@@ -50,54 +49,115 @@ void loop() {
   if (SerialBT.available()) {
     char receivedChar = SerialBT.read();
     
-    // Process received command
+    // Debug the received character
+    Serial.print("Received: ");
+    Serial.println(receivedChar);
+    
     switch (receivedChar) {
       case '1':
-        digitalWrite(ledPins[0], HIGH);
+        if (lastCommand != '1') {
+          digitalWrite(ledPins[0], HIGH);
+          Serial.println("LED 1 ON");
+          lastCommand = '1';
+        }
         break;
       case '2':
-        digitalWrite(ledPins[0], LOW);
+        if (lastCommand != '2') {
+          digitalWrite(ledPins[0], LOW);
+          Serial.println("LED 1 OFF");
+          lastCommand = '2';
+        }
         break;
       case '3':
-        digitalWrite(ledPins[1], HIGH);
+        if (lastCommand != '3') {
+          digitalWrite(ledPins[1], HIGH);
+          Serial.println("LED 2 ON");
+          lastCommand = '3';
+        }
         break;
       case '4':
-        digitalWrite(ledPins[1], LOW);
+        if (lastCommand != '4') {
+          digitalWrite(ledPins[1], LOW);
+          Serial.println("LED 2 OFF");
+          lastCommand = '4';
+        }
         break;
       case '5':
-        digitalWrite(ledPins[2], HIGH);
+        if (lastCommand != '5') {
+          digitalWrite(ledPins[2], HIGH);
+          Serial.println("LED 3 ON");
+          lastCommand = '5';
+        }
         break;
       case '6':
-        digitalWrite(ledPins[2], LOW);
+        if (lastCommand != '6') {
+          digitalWrite(ledPins[2], LOW);
+          Serial.println("LED 3 OFF");
+          lastCommand = '6';
+        }
         break;
       case '7':
-        digitalWrite(ledPins[3], HIGH);
+        if (lastCommand != '7') {
+          digitalWrite(ledPins[3], HIGH);
+          Serial.println("LED 4 ON");
+          lastCommand = '7';
+        }
         break;
       case '8':
-        digitalWrite(ledPins[3], LOW);
+        if (lastCommand != '8') {
+          digitalWrite(ledPins[3], LOW);
+          Serial.println("LED 4 OFF");
+          lastCommand = '8';
+        }
         break;
-      case 'R': // Relay ON
-        digitalWrite(relayPin, HIGH);
+      case 'R':  // Relay ON
+        if (lastCommand != 'R') {
+          digitalWrite(relayPin, HIGH);
+          Serial.println("Relay ON");
+          lastCommand = 'R';
+        }
         break;
-      case 'r': // Relay OFF
-        digitalWrite(relayPin, LOW);
+      case 'r':  // Relay OFF
+        if (lastCommand != 'r') {
+          digitalWrite(relayPin, LOW);
+          Serial.println("Relay OFF");
+          lastCommand = 'r';
+        }
         break;
-      case 'D': // Open door
-        doorServo.write(90); // Adjust the angle as needed
+      case 'D':  // Open door
+        if (lastCommand != 'D') {
+          doorServo.write(90);  // Adjust the angle if necessary
+          Serial.println("Door Opened");
+          lastCommand = 'D';
+        }
         break;
-      case 'd': // Close door
-        doorServo.write(0);
+      case 'd':  // Close door
+        if (lastCommand != 'd') {
+          doorServo.write(0);
+          Serial.println("Door Closed");
+          lastCommand = 'd';
+        }
         break;
       default:
-        // If the received data is a string to display on the LCD
+        // If it's a message for the LCD
         String message = "";
         message += receivedChar;
         while (SerialBT.available()) {
           message += (char)SerialBT.read();
         }
-        lcd.clear();
-        lcd.setCursor(0, 0);
-        lcd.print(message);
+        message.trim();
+
+        // Check if the message is different from the last message
+        if (message != lastLCDMessage) {
+          lcd.clear();
+          lcd.setCursor(0, 0);
+          lcd.print(message);
+          lastLCDMessage = message; // Update the last LCD message
+          
+          // Debug the received message
+          Serial.print("LCD Message: ");
+          Serial.println(message);
+        }
         break;
     }
   }
