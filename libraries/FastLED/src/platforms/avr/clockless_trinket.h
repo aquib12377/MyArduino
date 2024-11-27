@@ -169,7 +169,8 @@ protected:
 
 		// Adjust the timer
 #if (!defined(NO_CLOCK_CORRECTION) || (NO_CLOCK_CORRECTION == 0)) && (FASTLED_ALLOW_INTERRUPTS == 0)
-        uint32_t microsTaken = (uint32_t)pixels.size() * (uint32_t)CLKS_TO_MICROS(24 * (T1 + T2 + T3));
+		uint32_t microsTaken = pixels.size();
+		microsTaken *= CLKS_TO_MICROS(24 * (T1 + T2 + T3));
 
         // adust for approximate observed actal runtime (as of January 2015)
         // roughly 9.6 cycles per pixel, which is 0.6us/pixel at 16MHz
@@ -210,8 +211,10 @@ protected:
         // a 16-bit variable.  The difference between /1000 and /1024 only starts showing
         // up in the range of about 100 pixels, so many ATtiny projects won't even
         // see a clock difference due to the approximation there.
-		uint16_t microsTaken = (uint32_t)nLeds * (uint32_t)CLKS_TO_MICROS((24) * (T1 + T2 + T3));
-        MS_COUNTER += (microsTaken >> 10);
+		uint32_t microsTaken = nLeds;
+		microsTaken *= CLKS_TO_MICROS(24 * (T1 + T2 + T3));
+		//uint16_t microsTaken = (uint32_t)nLeds * (uint32_t)CLKS_TO_MICROS((24) * (T1 + T2 + T3));
+        MS_COUNTER += static_cast<uint16_t>(microsTaken >> 10);
 #endif
 
 #endif
@@ -223,12 +226,21 @@ protected:
 	}
 #define USE_ASM_MACROS
 
+
 #if defined(__AVR_ATmega4809__)
 // Not used - place holder so existing ASM_VARS macro can remain the same
 #define ASM_VAR_PORT "r" (*FastPin<DATA_PIN>::port())
+
+#elif defined(__AVR_ATtinyxy7__) || defined(__AVR_ATtinyxy6__) || defined(__AVR_ATtinyxy4__) || defined(__AVR_ATtinyxy2__)
+// Probably unused - place holder so existing ASM_VARS macro can remain the same
+#define ASM_VAR_PORT "r" (((PORT_t*)FastPin<DATA_PIN>::port())->OUT)
+
 #else
+// existing ASM_VARS macro for other AVR platforms
 #define ASM_VAR_PORT "M" (FastPin<DATA_PIN>::port() - 0x20)
-#endif
+
+#endif // ASM_VAR_PORT
+
 
 // The variables that our various asm statements use.  The same block of variables needs to be declared for
 // all the asm blocks because GCC is pretty stupid and it would clobber variables happily or optimize code away too aggressively
@@ -432,9 +444,9 @@ protected:
 		int16_t advanceBy = pixels.advanceBy();
 		uint16_t count = pixels.mLen;
 
-		uint8_t s0 = pixels.mScale.raw[RO(0)];
-		uint8_t s1 = pixels.mScale.raw[RO(1)];
-		uint8_t s2 = pixels.mScale.raw[RO(2)];
+		uint8_t s0 = pixels.mColorAdjustment.premixed.raw[RO(0)];
+		uint8_t s1 = pixels.mColorAdjustment.premixed.raw[RO(1)];
+		uint8_t s2 = pixels.mColorAdjustment.premixed.raw[RO(2)];
 #if (FASTLED_SCALE8_FIXED==1)
 		s0++; s1++; s2++;
 #endif

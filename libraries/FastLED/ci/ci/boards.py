@@ -7,14 +7,16 @@ from dataclasses import dataclass
 # gives esp32 boards the same build environment as the Arduino 2.3.1+.
 
 # Set to a specific release, we may want to update this in the future.
-ESP32_IDF_5_1 = "https://github.com/pioarduino/platform-espressif32/releases/download/51.03.04/platform-espressif32.zip"
-ESP32_IDF_5_1_LATEST = "https://github.com/pioarduino/platform-espressif32.git#develop"
-ESP32_IDF_ARDUINO_LATEST = "platformio/espressif32"
+ESP32_IDF_5_1_PIOARDUINO = "https://github.com/pioarduino/platform-espressif32/releases/download/51.03.04/platform-espressif32.zip"
+ESP32_IDF_5_1_PIOARDUINO_LATEST = (
+    "https://github.com/pioarduino/platform-espressif32.git#develop"
+)
+ESP32_IDF_4_4_LATEST = "platformio/espressif32"
 # Top of trunk.
-# ESP32_IDF_5_1 = "https://github.com/pioarduino/platform-espressif32"
+# ESP32_IDF_5_1_PIOARDUINO = "https://github.com/pioarduino/platform-espressif32"
 
 # Old fork that we were using
-# ESP32_IDF_5_1 = "https://github.com/zackees/platform-espressif32#Arduino/IDF5"
+# ESP32_IDF_5_1_PIOARDUINO = "https://github.com/zackees/platform-espressif32#Arduino/IDF5"
 
 
 @dataclass
@@ -23,6 +25,9 @@ class Board:
     real_board_name: str | None = None
     platform: str | None = None
     platform_needs_install: bool = False
+    use_pio_run: bool = (
+        False  # some platforms like esp32-c2-devkitm-1 will only work with pio run
+    )
     platform_packages: str | None = None
     framework: str | None = None
     board_build_core: str | None = None
@@ -63,39 +68,46 @@ class Board:
 
 ESP32DEV = Board(
     board_name="esp32dev",
-    platform=ESP32_IDF_5_1_LATEST,
+    platform=ESP32_IDF_5_1_PIOARDUINO_LATEST,
+)
+
+ESP32DEV_IDF4_4 = Board(
+    board_name="esp32dev_idf44",
+    real_board_name="esp32dev",
+    platform=ESP32_IDF_4_4_LATEST,
 )
 
 # ESP01 = Board(
 #     board_name="esp01",
-#     platform=ESP32_IDF_5_1,
+#     platform=ESP32_IDF_5_1_PIOARDUINO,
 # )
 
 ESP32_C2_DEVKITM_1 = Board(
     board_name="esp32-c2-devkitm-1",
-    platform_needs_install=True,  # Install platform package to get the boards
-    platform=ESP32_IDF_5_1_LATEST,
+    # platform_needs_install=True,  # Install platform package to get the boards
+    use_pio_run=True,
+    platform="https://github.com/Jason2866/platform-espressif32.git",  # No support from PIO so we use a fork.
 )
 
 ESP32_C3_DEVKITM_1 = Board(
     board_name="esp32-c3-devkitm-1",
-    platform=ESP32_IDF_5_1,
+    platform=ESP32_IDF_5_1_PIOARDUINO,
 )
 
 ESP32_C6_DEVKITC_1 = Board(
     board_name="esp32-c6-devkitc-1",
-    platform=ESP32_IDF_5_1,
+    platform=ESP32_IDF_5_1_PIOARDUINO,
 )
 
 ESP32_S3_DEVKITC_1 = Board(
     board_name="esp32-s3-devkitc-1",
-    platform=ESP32_IDF_5_1,
+    platform=ESP32_IDF_5_1_PIOARDUINO,
 )
 
 ESP32_H2_DEVKITM_1 = Board(
     board_name="esp32-h2-devkitm-1",
     platform_needs_install=True,  # Install platform package to get the boards
-    platform=ESP32_IDF_5_1_LATEST,
+    platform=ESP32_IDF_5_1_PIOARDUINO_LATEST,
 )
 
 ADA_FEATHER_NRF52840_SENSE = Board(
@@ -107,6 +119,13 @@ XIAOBLESENSE_ADAFRUIT_NRF52 = Board(
     board_name="xiaoblesense_adafruit",
     platform="https://github.com/maxgerhardt/platform-nordicnrf52",
     platform_needs_install=True,  # Install platform package to get the boards
+)
+
+NRF52840 = Board(
+    board_name="nrf52840_dk",
+    real_board_name="xiaoble_adafruit",
+    platform="https://github.com/maxgerhardt/platform-nordicnrf52",
+    platform_needs_install=True,
 )
 
 RPI_PICO = Board(
@@ -129,6 +148,25 @@ RPI_PICO2 = Board(
     board_build_filesystem_size="0.5m",
 )
 
+BLUEPILL = Board(
+    board_name="bluepill",
+    real_board_name="bluepill_f103c8",
+    platform="ststm32",
+)
+
+# maple_mini_b20
+MAPLE_MINI = Board(
+    board_name="maple_mini",
+    real_board_name="maple_mini_b20",
+    platform="ststm32",
+)
+
+# ATtiny1604
+ATTINY1616 = Board(
+    board_name="ATtiny1616",
+    platform="atmelmegaavr",
+)
+
 UNO_R4_WIFI = Board(
     board_name="uno_r4_wifi",
     platform="renesas-ra",
@@ -142,23 +180,24 @@ NANO_EVERY = Board(
 ESP32DEV_I2S = Board(
     board_name="esp32dev_i2s",
     real_board_name="esp32dev",
-    platform=ESP32_IDF_ARDUINO_LATEST,
+    platform=ESP32_IDF_4_4_LATEST,
     defines=["FASTLED_ESP32_I2S"],
 )
 
 ESP32S3_RMT51 = Board(
-    board_name="esp32-s3-rmt51",
+    board_name="esp32rmt_51",
     real_board_name="esp32-s3-devkitc-1",
     platform_needs_install=True,
-    platform=ESP32_IDF_5_1,
+    platform=ESP32_IDF_5_1_PIOARDUINO,
     defines=[
-        "FASTLED_ESP32_COMPONENT_LED_STRIP_BUILT_IN=1",
-        "FASTLED_ESP32_COMPONENT_LED_STRIP_BUILT_IN_COMPILE_PROBLEMATIC_CODE=1",
+        "FASTLED_RMT5=1",
     ],
 )
 
+
 ALL: list[Board] = [
     ESP32DEV,
+    ESP32DEV_IDF4_4,
     ESP32DEV_I2S,
     # ESP01,
     ESP32_C2_DEVKITM_1,
@@ -173,6 +212,9 @@ ALL: list[Board] = [
     NANO_EVERY,
     XIAOBLESENSE_ADAFRUIT_NRF52,
     ESP32S3_RMT51,
+    BLUEPILL,
+    MAPLE_MINI,
+    NRF52840,
 ]
 
 

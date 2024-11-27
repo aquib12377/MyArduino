@@ -6,6 +6,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
+#include "crgb.h"
 
 FASTLED_NAMESPACE_BEGIN
 
@@ -44,6 +45,14 @@ struct PixelControllerVtable {
     PixelControllerT* pc = static_cast<PixelControllerT*>(pixel_controller);
     return pc->has(n);
   }
+
+  // function for getHdScale
+  #if FASTLED_HD_COLOR_MIXING
+  static void getHdScale(void* pixel_controller, uint8_t* c0, uint8_t* c1, uint8_t* c2, uint8_t* brightness) {
+    PixelControllerT* pc = static_cast<PixelControllerT*>(pixel_controller);
+    pc->getHdScale(c0, c1, c2, brightness);
+  }
+  #endif
 };
 
 typedef void (*loadAndScaleRGBWFunction)(void* pixel_controller, Rgbw rgbw, uint8_t* b0_out, uint8_t* b1_out, uint8_t* b2_out, uint8_t* b3_out);
@@ -53,6 +62,8 @@ typedef void (*stepDitheringFunction)(void* pixel_controller);
 typedef void (*advanceDataFunction)(void* pixel_controller);
 typedef int (*sizeFunction)(void* pixel_controller);
 typedef bool (*hasFunction)(void* pixel_controller, int n);
+typedef uint8_t (*globalBrightness)(void* pixel_controller);
+typedef void (*getHdScaleFunction)(void* pixel_controller, uint8_t* c0, uint8_t* c1, uint8_t* c2, uint8_t* brightness);
 
 
 // PixelIterator is turns a PixelController<> into a concrete object that can be used to iterate
@@ -61,8 +72,32 @@ typedef bool (*hasFunction)(void* pixel_controller, int n);
 class PixelIterator {
   public:
     template<typename PixelControllerT>
-    PixelIterator(PixelControllerT* pc, Rgbw rgbw) : mPixelController(pc), mRgbw(rgbw) {
-      // manually build up a vtable.
+    PixelIterator(PixelControllerT* pc, Rgbw rgbw)
+         : mPixelController(pc), mRgbw(rgbw) {
+      // Manually build up a vtable.
+      // Wait... what? Stupid nerds trying to show off how smart they are...
+      // Why not just use a virtual function?!
+      //
+      // Before you think this then you should know that the alternative straight
+      // forward way is to have a virtual interface class that PixelController inherits from.
+      // ...and that was already tried. And if you try to do this yourself
+      // this then let me tell you what is going to happen...
+      //
+      // EVERY SINGLE PLATFORM THAT HAS A COMPILED BINARY SIZE CHECK WILL IMMEDIATELY
+      // FAIL AS THE BINARY BLOWS UP BY 10-30%!!! It doesn't matter if only one PixelController
+      // with a vtable is used, gcc seems not to de-virtualize the calls. And we really care
+      // about binary size since FastLED needs to run on those tiny little microcontrollers like
+      // the Attiny85 (and family) which are in the sub $1 range used for commercial products.
+      //
+      // So to satisfy these tight memory requirements we make the dynamic dispatch used in PixelIterator
+      // an optional zero-cost abstraction which doesn't affect the binary size for platforms that
+      // don't use it. So that's why we are using this manual construction of the vtable that is built
+      // up using template magic. If your platform has lots of memory then you'll gladly trade
+      // a sliver of memory for the convenience of having a concrete implementation of
+      // PixelController that you can use without having to make all your driver code a template.
+      //
+      // Btw, this pattern in C++ is called the "type-erasure pattern". It allows non virtual
+      // polymorphism by leveraging the C++ template system to ensure type safety.
       typedef PixelControllerVtable<PixelControllerT> Vtable;
       mLoadAndScaleRGBW = &Vtable::loadAndScaleRGBW;
       mLoadAndScaleRGB = &Vtable::loadAndScaleRGB;
@@ -71,6 +106,9 @@ class PixelIterator {
       mAdvanceData = &Vtable::advanceData;
       mSize = &Vtable::size;
       mHas = &Vtable::has;
+      #if FASTLED_HD_COLOR_MIXING
+      mGetHdScale = &Vtable::getHdScale;
+      #endif
     }
 
     bool has(int n) { return mHas(mPixelController, n); }
@@ -90,17 +128,26 @@ class PixelIterator {
     void set_rgbw(Rgbw rgbw) { mRgbw = rgbw; }
     Rgbw get_rgbw() const { return mRgbw; }
 
+    #if FASTLED_HD_COLOR_MIXING
+    void getHdScale(uint8_t* c0, uint8_t* c1, uint8_t* c2, uint8_t* brightness) {
+      mGetHdScale(mPixelController, c0, c1, c2, brightness);
+    }
+    #endif
+
   private:
     // vtable emulation
-    void* mPixelController;
+    void* mPixelController = nullptr;
     Rgbw mRgbw;
-    loadAndScaleRGBWFunction mLoadAndScaleRGBW;
-    loadAndScaleRGBFunction mLoadAndScaleRGB;
-    loadAndScale_APA102_HDFunction mLoadAndScale_APA102_HD;
-    stepDitheringFunction mStepDithering;
-    advanceDataFunction mAdvanceData;
-    sizeFunction mSize;
-    hasFunction mHas;
+    loadAndScaleRGBWFunction mLoadAndScaleRGBW = nullptr;
+    loadAndScaleRGBFunction mLoadAndScaleRGB = nullptr;
+    loadAndScale_APA102_HDFunction mLoadAndScale_APA102_HD = nullptr;
+    stepDitheringFunction mStepDithering = nullptr;
+    advanceDataFunction mAdvanceData = nullptr;
+    sizeFunction mSize = nullptr;
+    hasFunction mHas = nullptr;
+    #if FASTLED_HD_COLOR_MIXING
+    getHdScaleFunction mGetHdScale = nullptr;
+    #endif
 };
 
 

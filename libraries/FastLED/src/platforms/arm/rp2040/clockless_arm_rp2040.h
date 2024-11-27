@@ -3,10 +3,6 @@
 
 #include "hardware/structs/sio.h"
 
-#pragma GCC push_options
-// Attempt to fix https://github.com/FastLED/FastLED/issues/1629
-#pragma GCC optimize ("Os")
-
 #if FASTLED_RP2040_CLOCKLESS_M0_FALLBACK || !FASTLED_RP2040_CLOCKLESS_PIO
 #include "../common/m0clockless.h"
 #endif
@@ -312,9 +308,9 @@ public:
         data.d[0] = pixels.d[0];
         data.d[1] = pixels.d[1];
         data.d[2] = pixels.d[2];
-        data.s[0] = pixels.mScale[0];
-        data.s[1] = pixels.mScale[1];
-        data.s[2] = pixels.mScale[2];
+        data.s[0] = pixels.mColorAdjustment.premixed[0];
+        data.s[1] = pixels.mColorAdjustment.premixed[1];
+        data.s[2] = pixels.mColorAdjustment.premixed[2];
         data.e[0] = pixels.e[0];
         data.e[1] = pixels.e[1];
         data.e[2] = pixels.e[2];
@@ -335,6 +331,5 @@ public:
 
 FASTLED_NAMESPACE_END
 
-#pragma GCC pop_options
 
 #endif // __INC_CLOCKLESS_ARM_RP2040

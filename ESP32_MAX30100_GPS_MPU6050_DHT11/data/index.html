@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ESP32 Sensor Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Leaflet CSS for Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" 
+          integrity="sha512-xodZBntM13A6vX+I5s6LG8CUGt5rQJ1kYk0u3qzD5FMB5KvJ11TU1bYvTB3iA9zT+X7n5unY1JoTjD4gFQ3rnQ==" 
+          crossorigin=""/>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+        .container { padding: 20px; }
+        h1 { text-align: center; }
+        #map { height: 300px; width: 100%; margin-bottom: 20px; }
+        .sensor-data { display: flex; flex-wrap: wrap; justify-content: space-around; }
+        .sensor-box { border: 1px solid #ccc; border-radius: 8px; padding: 15px; margin: 10px; width: 45%; box-shadow: 2px 2px 12px rgba(0,0,0,0.1); }
+        .sensor-box h2 { text-align: center; }
+        .sensor-box p { font-size: 1.2em; }
+        @media (max-width: 600px) {
+            .sensor-box { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ESP32 Sensor Dashboard</h1>
+        <div id="map"></div>
+        <div class="sensor-data">
+            <div class="sensor-box">
+                <h2>Pulse Oximeter</h2>
+                <p>Heart Rate: <span id="heartRate">--</span> bpm</p>
+                <p>SpO2: <span id="spO2">--</span> %</p>
+            </div>
+            <div class="sensor-box">
+                <h2>DHT11</h2>
+                <p>Temperature: <span id="temperature">--</span> &deg;C</p>
+                <p>Humidity: <span id="humidity">--</span> %</p>
+            </div>
+            <div class="sensor-box">
+                <h2>MPU6050</h2>
+                <p>Accelerometer: X=<span id="ax">--</span>, Y=<span id="ay">--</span>, Z=<span id="az">--</span></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS for Map -->
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" 
+            integrity="sha512-1w7R0MQXVrKq6WWXK9VRFU0wGJbzXl4gV+VUZwzPQTmXAn7CEmgnQZH3Xp3FvQ5It2m6mbtwW4W5jIoc6B20Pw==" 
+            crossorigin=""></script>
+    <script>
+        // Initialize the map
+        var map = L.map('map').setView([0, 0], 2); // Default to [0,0] with zoom level 2
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+        }).addTo(map);
+
+        var marker = L.marker([0, 0]).addTo(map);
+
+        function updateSensorData() {
+            fetch('/data')
+                .then(function(response) {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(function(data) {
+                    // Update Pulse Oximeter
+                    document.getElementById('heartRate').innerText = data.heartRate;
+                    document.getElementById('spO2').innerText = data.spO2;
+
+                    // Update DHT11
+                    document.getElementById('temperature').innerText = data.temperature;
+                    document.getElementById('humidity').innerText = data.humidity;
+
+                    // Update MPU6050
+                    document.getElementById('ax').innerText = data.ax;
+                    document.getElementById('ay').innerText = data.ay;
+                    document.getElementById('az').innerText = data.az;
+
+                    // Update GPS Location on Map
+                    if(data.latitude !== 0 && data.longitude !== 0){
+                        map.setView([data.latitude, data.longitude], 16); // Zoom level 16 for closer view
+                        marker.setLatLng([data.latitude, data.longitude]);
+                    }
+                })
+                .catch(function(error) {
+                    console.error('Error fetching sensor data:', error);
+                });
+        }
+
+        // Initial sensor data update
+        updateSensorData();
+
+        // Update sensor data every second
+        setInterval(updateSensorData, 1000);
+    </script>
+</body>
+</html>

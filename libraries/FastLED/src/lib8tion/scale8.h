@@ -1,6 +1,9 @@
 #ifndef __INC_LIB8TION_SCALE_H
 #define __INC_LIB8TION_SCALE_H
 
+#include "lib8static.h"
+#include "crgb.h"
+
 /// @file scale8.h
 /// Fast, efficient 8-bit scaling functions specifically
 /// designed for high-performance LED programming.
@@ -94,6 +97,10 @@ LIB8STATIC_ALWAYS_INLINE uint8_t scale8(uint8_t i, fract8 scale) {
 #else
 #error "No implementation for scale8 available."
 #endif
+}
+
+constexpr uint8_t scale8_constexpr(uint8_t i, fract8 scale) {
+    return (((uint16_t)i) * (1 + (uint16_t)(scale))) >> 8;
 }
 
 /// The "video" version of scale8() guarantees that the output will
@@ -326,6 +333,11 @@ LIB8STATIC_ALWAYS_INLINE void cleanup_R1() {
     // Restore r1 to "0"; it's expected to always be that
     asm volatile("clr __zero_reg__  \n\t" : : : "r1");
 #endif
+}
+
+constexpr CRGB nscale8x3_constexpr(uint8_t r, uint8_t g, uint8_t b, fract8 scale) {
+    return CRGB(((int)r * (int)(scale)) >> 8, ((int)g * (int)(scale)) >> 8,
+                ((int)b * (int)(scale)) >> 8);
 }
 
 /// @} ScalingDirty

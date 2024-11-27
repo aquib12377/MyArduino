@@ -4,6 +4,10 @@
 #ifdef ESP32
 #ifndef FASTLED_ESP32_I2S
 
+#include "led_strip/enabled.h"
+
+#if !FASTLED_RMT5
+
 #define FASTLED_INTERNAL
 
 #include "FastLED.h"
@@ -39,6 +43,7 @@ extern "C"
 #endif
 
 #pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragmas"
 #pragma GCC diagnostic ignored "-Wvolatile"
 
 
@@ -165,6 +170,8 @@ private:
 
 
 #pragma GCC diagnostic pop
+
+#endif // FASTLED_RMT5
 
 #endif // ! FASTLED_ESP32_I2S
 

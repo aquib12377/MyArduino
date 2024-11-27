@@ -15,14 +15,9 @@
 
 template <class modemType>
 class TinyGsmSMS {
-  /* =========================================== */
-  /* =========================================== */
-  /*
-   * Define the interface
-   */
  public:
   /*
-   * Text messaging (SMS) functions
+   * Messaging functions
    */
   String sendUSSD(const String& code) {
     return thisModem().sendUSSDImpl(code);
@@ -44,10 +39,9 @@ class TinyGsmSMS {
   inline modemType& thisModem() {
     return static_cast<modemType&>(*this);
   }
-  ~TinyGsmSMS() {}
 
   /*
-   * Utilities
+   * Messaging functions
    */
  protected:
   static inline String TinyGsmDecodeHex7bit(String& instr) {
@@ -60,7 +54,7 @@ class TinyGsmSMS {
       };
       buf[0] = instr[i];
       buf[1] = instr[i + 1];
-      byte b = strtol(buf, nullptr, 16);
+      byte b = strtol(buf, NULL, 16);
 
       byte bb = b << (7 - bitstate);
       char c  = (bb + reminder) & 0x7F;
@@ -85,7 +79,7 @@ class TinyGsmSMS {
       };
       buf[0] = instr[i];
       buf[1] = instr[i + 1];
-      char b = strtol(buf, nullptr, 16);
+      char b = strtol(buf, NULL, 16);
       result += b;
     }
     return result;
@@ -99,7 +93,7 @@ class TinyGsmSMS {
       };
       buf[0] = instr[i];
       buf[1] = instr[i + 1];
-      char b = strtol(buf, nullptr, 16);
+      char b = strtol(buf, NULL, 16);
       if (b) {  // If high byte is non-zero, we can't handle it ;(
 #if defined(TINY_GSM_UNICODE_TO_HEX)
         result += "\\x";
@@ -110,22 +104,12 @@ class TinyGsmSMS {
       } else {
         buf[0] = instr[i + 2];
         buf[1] = instr[i + 3];
-        b      = strtol(buf, nullptr, 16);
+        b      = strtol(buf, NULL, 16);
         result += b;
       }
     }
     return result;
   }
-
-  /* =========================================== */
-  /* =========================================== */
-  /*
-   * Define the default function implementations
-   */
-
-  /*
-   * Text messaging (SMS) functions
-   */
 
   String sendUSSDImpl(const String& code) {
     // Set preferred message format to text mode
@@ -189,11 +173,11 @@ class TinyGsmSMS {
     Print&  p;
     uint8_t prv = 0;
     void    printHex(const uint16_t v) {
-         uint8_t c = v >> 8;
-         if (c < 0x10) p.print('0');
+      uint8_t c = v >> 8;
+      if (c < 0x10) p.print('0');
       p.print(c, HEX);
-         c = v & 0xFF;
-         if (c < 0x10) p.print('0');
+      c = v & 0xFF;
+      if (c < 0x10) p.print('0');
       p.print(c, HEX);
     }
   };

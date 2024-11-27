@@ -2,6 +2,7 @@ FastLED
 ===========
 [![arduino-library-badge](https://www.ardu-badge.com/badge/FastLED.svg)](https://www.ardu-badge.com/FastLED)
 [![build status](https://github.com/FastLED/FastLED/workflows/build/badge.svg)](https://github.com/FastLED/FastLED/actions/workflows/build.yml)
+[![unit tests](https://github.com/FastLED/FastLED/actions/workflows/build_unit_test.yml/badge.svg)](https://github.com/FastLED/FastLED/actions/workflows/build_unit_test.yml)
 [![Arduino Library Lint](https://github.com/FastLED/FastLED/actions/workflows/arduino_library_lint.yml/badge.svg)](https://github.com/FastLED/FastLED/actions/workflows/arduino_library_lint.yml)
 [![Documentation](https://img.shields.io/badge/Docs-Doxygen-blue.svg)](http://fastled.io/docs)
 [![Reddit](https://img.shields.io/badge/reddit-/r/FastLED-orange.svg?logo=reddit)](https://www.reddit.com/r/FastLED/)
@@ -10,6 +11,11 @@ FastLED
 
 
 ## About
+
+The led driver for tiny computers the size of a quarter, more or less.
+
+esp32, teensy, arduino,
+raspberri pi, attiny family and more.
 
 This is a library for easily & efficiently controlling a wide variety of LED chipsets, like the ones
 sold by Adafruit (NeoPixel, DotStar, LPD8806), Sparkfun (WS2801), and AliExpress.  In addition to writing to the
@@ -25,8 +31,6 @@ We have multiple goals with this library:
 
 ## Example
 
-Examples [link](examples)
-
 *This is an Arduino Sketch that will run on Arduino Uno/Esp32/Raspberri Pi*
 ```C++
 #include <FastLED.h>
@@ -40,11 +44,29 @@ void loop() {
 }
 ```
 
+For more examples see this [link](examples).
 
 ## Supported Platforms
 #### Arduino
 
 [![uno](https://github.com/FastLED/FastLED/actions/workflows/build_uno.yml/badge.svg)](https://github.com/FastLED/FastLED/actions/workflows/build_uno.yml)
+
+
+[![attiny13](https://github.com/FastLED/FastLED/actions/workflows/build_attiny13.yml/badge.svg)](https://github.com/FastLED/FastLED/actions/workflows/build_attiny13.yml)
+*needs pin definitions for this board*
+
+
+[![attiny85](https://github.com/FastLED/FastLED/actions/workflows/build_attiny85.yml/badge.svg)](https://github.com/FastLED/FastLED/actions/workflows/build_attiny85.yml)
+
+
+[![attiny1604](https://github.com/FastLED/FastLED/actions/workflows/build_attiny1604.yml/badge.svg)](https://github.com/FastLED/FastLED/actions/workflows/build_attiny1604.yml)
+
+
+[![attiny1616](https://github.com/FastLED/FastLED/actions/workflows/build_attiny1616.yml/badge.svg)](https://github.com/FastLED/FastLED/actions/workflows/build_attiny1616.yml)
+
+
+[![attiny4313](https://github.com/FastLED/FastLED/actions/workflows/build_attiny4313.yml/badge.svg)](https://github.com/FastLED/FastLED/actions/workflows/build_attiny4313.yml)
+*needs pin definitions for this board*
 
 
 [![yun](https://github.com/FastLED/FastLED/actions/workflows/build_yun.yml/badge.svg)](https://github.com/FastLED/FastLED/actions/workflows/build_yun.yml)
@@ -57,7 +79,7 @@ void loop() {
 
 
 [![nano_every](https://github.com/FastLED/FastLED/actions/workflows/build_nano_every.yml/badge.svg)](https://github.com/FastLED/FastLED/actions/workflows/build_nano_every.yml)
-This used to work, but an atmel update broke the pins. See issue https://github.com/FastLED/FastLED/issues/716
+
 
 #### Teensy
 [![teensy30](https://github.com/FastLED/FastLED/actions/workflows/build_teensy30.yml/badge.svg)](https://github.com/FastLED/FastLED/actions/workflows/build_teensy30.yml)
@@ -82,7 +104,19 @@ This used to work, but an atmel update broke the pins. See issue https://github.
 
 [![nrf52840_sense](https://github.com/FastLED/FastLED/actions/workflows/build_adafruit_feather_nrf52840_sense.yml/badge.svg)](https://github.com/FastLED/FastLED/actions/workflows/build_adafruit_feather_nrf52840_sense.yml)
 
+[![nordicnrf52_dk](https://github.com/FastLED/FastLED/actions/workflows/build_nrf52840_dk.yml/badge.svg)](https://github.com/FastLED/FastLED/actions/workflows/build_nrf52840_dk.yml)
+(new board, for some reason it's missing nrf.h, nrf_spim.h, nrf_pwm.h and nrf_nvic.h on our platformio based build system, might work in arduino.h)
+
 [![adafruit_xiaoblesense](https://github.com/FastLED/FastLED/actions/workflows/build_adafruit_xiaoblesense.yml/badge.svg)](https://github.com/FastLED/FastLED/actions/workflows/build_adafruit_xiaoblesense.yml)
+
+#### STM
+
+[![bluepill](https://github.com/FastLED/FastLED/actions/workflows/build_bluepill.yml/badge.svg)](https://github.com/FastLED/FastLED/actions/workflows/build_bluepill.yml)
+
+[![maple_mini](https://github.com/FastLED/FastLED/actions/workflows/build_maple_map.yml/badge.svg)](https://github.com/FastLED/FastLED/actions/workflows/build_maple_map.yml)
+
+[![stm103tb](https://github.com/FastLED/FastLED/actions/workflows/build_stm103tb.yml/badge.svg)](https://github.com/FastLED/FastLED/actions/workflows/build_stm103tb.yml)
+(PlatformIO doesn't support this board yet and we don't know what the build info is to support this is yet)
 
 #### Raspberry Pi
 
@@ -104,6 +138,7 @@ This used to work, but an atmel update broke the pins. See issue https://github.
 
 
 [![esp32c2](https://github.com/FastLED/FastLED/actions/workflows/build_esp32c2.yml/badge.svg)](https://github.com/FastLED/FastLED/actions/workflows/build_esp32c2.yml)
+*might work with alternative settings, missing RMT device*
 
 
 [![esp32c3](https://github.com/FastLED/FastLED/actions/workflows/build_esp32c3.yml/badge.svg)](https://github.com/FastLED/FastLED/actions/workflows/build_esp32c3.yml)
@@ -119,18 +154,26 @@ This used to work, but an atmel update broke the pins. See issue https://github.
 
 *Specific features*
 
-[![esp32rmt_51](https://github.com/FastLED/FastLED/actions/workflows/build_esp32rmt.yml/badge.svg)](https://github.com/FastLED/FastLED/actions/workflows/build_esp32rmt.yml) (in progress)
+[![esp32rmt_51](https://github.com/FastLED/FastLED/actions/workflows/build_esp32rmt.yml/badge.svg)](https://github.com/FastLED/FastLED/actions/workflows/build_esp32rmt.yml) (prototype 5.1 driver working)
 
 
 [![esp32_i2s_ws2812](https://github.com/FastLED/FastLED/actions/workflows/build_esp32_i2s_ws2812.yml/badge.svg)](https://github.com/FastLED/FastLED/actions/workflows/build_esp32_i2s_ws2812.yml)
 
+Espressif's current evaluation of FastLED's compatibility with their product sheet can be found [here](https://github.com/espressif/arduino-esp32/blob/gh-pages/LIBRARIES_TEST.md)
 
-## x86
+
+### x86
 
 [![linux_native](https://github.com/FastLED/FastLED/actions/workflows/build_linux.yml/badge.svg)](https://github.com/FastLED/FastLED/actions/workflows/build_linux.yml)
 
+### Wasm
+
+[![wasm](https://github.com/FastLED/FastLED/actions/workflows/build_wasm.yml/badge.svg)](https://github.com/FastLED/FastLED/actions/workflows/build_wasm.yml)
+
 
 ## Compiled Library Size Check
+
+[![attiny85_binary_size](https://github.com/FastLED/FastLED/actions/workflows/check_attiny85.yml/badge.svg)](https://github.com/FastLED/FastLED/actions/workflows/check_attiny85.yml)
 
 [![uno_binary_size](https://github.com/FastLED/FastLED/actions/workflows/check_uno_size.yml/badge.svg)](https://github.com/FastLED/FastLED/actions/workflows/check_uno_size.yml)
 
@@ -226,19 +269,20 @@ HL1606, and "595"-style shift registers are no longer supported by the library. 
 
 ## Supported Platforms
 
-Right now the library is supported on a variety of Arduino compatible platforms.  If it's ARM or AVR and uses the Arduino software (or a modified version of it to build) then it is likely supported.  Note that we have a long list of upcoming platforms to support, so if you don't see what you're looking for here, ask, it may be on the roadmap (or may already be supported).  N.B. at the moment we are only supporting the stock compilers that ship with the Arduino software.  Support for upgraded compilers, as well as using AVR Studio and skipping the Arduino entirely, should be coming in a near future release.
+Right now the library is supported on a variety of arduino compatible platforms.  If it's ARM or AVR and uses the arduino software (or a modified version of it to build) then it is likely supported.  Note that we have a long list of upcoming platforms to support, so if you don't see what you're looking for here, ask, it may be on the roadmap (or may already be supported).  N.B. at the moment we are only supporting the stock compilers that ship with the arduino software.  Support for upgraded compilers, as well as using AVR studio and skipping the arduino entirely, should be coming in a near future release.
 
-* Arduino & compatibles - straight up Arduino devices, Uno, Duo, Leonardo, Mega, Nano, etc...
-* Arduino Yún
 * Adafruit Trinket & Gemma - Trinket Pro may be supported, but haven't tested to confirm yet
-* Teensy 2, Teensy++ 2, Teensy 3.0, Teensy 3.1/3.2, Teensy LC, Teensy 3.5, Teensy 3.6, and Teensy 4.0 - Arduino compatible from pjrc.com with some extra goodies (note the Teensy LC, 3.2, 3.5, 3.6, 4.0 are ARM, not AVR!)
+* Arduino & compatibles - straight up Arduino devices, Uno, Duo, Leonardo, Mega, Nano, etc...
 * Arduino Due and the digistump DigiX
+* Arduino Yún
+* Arduino Zero
+* AVR microcontrollers - ATtiny, ATmega and more families
+* ESP32 based boards
+* ESP8266 using the Arduino board definitions from http://arduino.esp8266.com/stable/package_esp8266com_index.json - please be sure to also read https://github.com/FastLED/FastLED/wiki/ESP8266-notes for information specific to the 8266.
+* Teensy 2, Teensy++ 2, Teensy 3.0, Teensy 3.1/3.2, Teensy LC, Teensy 3.5, Teensy 3.6, and Teensy 4.0 - arduino compatible from pjrc.com with some extra goodies (note the teensy LC, 3.2, 3.5, 3.6, 4.0 are ARM, not AVR!)
 * RFDuino
 * SparkCore
-* Arduino Zero
-* ESP8266 using the Arduino board definitions from http://arduino.esp8266.com/stable/package_esp8266com_index.json - please be sure to also read https://github.com/FastLED/FastLED/wiki/ESP8266-notes for information specific to the 8266.
 * The wino board - http://wino-board.com
-* ESP32 based boards
 
 What types of platforms are we thinking about supporting in the future?  Here's a short list:  ChipKit32, Maple, Beagleboard
 

@@ -1,8 +1,12 @@
 
 #ifdef ESP32
 #ifndef FASTLED_ESP32_I2S
-
 #define FASTLED_INTERNAL
+
+#include "led_strip/enabled.h"
+
+#if !FASTLED_RMT5
+
 
 // Inlines the rmt_set_tx_intr_en function to avoid the overhead of a function call
 #define INLINE_RMT_SET_TX_INTR_DISABLE 0
@@ -42,6 +46,7 @@ extern "C"
 #endif
 
 #pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragmas"
 #pragma GCC diagnostic ignored "-Wvolatile"
 
 // ignore warnings like: ignoring attribute 'section (".iram1.11")' because it conflicts with previous 'section (".iram1.2")' [-Wattributes]
@@ -928,6 +933,8 @@ void ESP32RMTController::ingest(uint8_t byteval)
 }
 
 #pragma GCC diagnostic pop
+
+#endif // FASTLED_RMT5
 
 #endif // ! FASTLED_ESP32_I2S
 

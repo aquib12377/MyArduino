@@ -16,6 +16,9 @@ from ci.locked_print import locked_print
 
 HERE = Path(__file__).parent.resolve()
 
+LIBS = ["src", "ci"]
+BUILD_FLAGS = ["-Wl,-Map,firmware.map", "-fopt-info-all=optimization_report.txt"]
+
 # Default boards to compile for. You can use boards not defined here but
 # if the board isn't part of the officially supported platformio boards then
 # you will need to add the board to the ~/.platformio/platforms directory.
@@ -26,28 +29,34 @@ DEFAULT_BOARDS_NAMES = [
     "esp32dev",
     "esp01",  # ESP8266
     "esp32-c3-devkitm-1",
-    # "esp32-c6-devkitc-1",
-    # "esp32-c2-devkitm-1",
+    "attiny85",
+    "ATtiny1616",
+    "esp32-c6-devkitc-1",
     "esp32-s3-devkitc-1",
     "yun",
     "digix",
     "teensy30",
     "teensy41",
-]
-
-OTHER_BOARDS_NAMES = [
     "adafruit_feather_nrf52840_sense",
     "xiaoblesense_adafruit",
     "rpipico",
     "rpipico2",
     "uno_r4_wifi",
-    "nano_every",
     "esp32dev_i2s",
-    "esp32-s3-rmt51",
+    "esp32rmt_51",
+    "esp32dev_idf44",
+    "bluepill",
+    "esp32rmt_51",
+]
+
+OTHER_BOARDS_NAMES = [
+    "nano_every",
+    "esp32-c2-devkitm-1",
 ]
 
 # Examples to compile.
 DEFAULT_EXAMPLES = [
+    "Apa102",
     "Apa102HD",
     "Apa102HDOverride",
     "Blink",
@@ -70,6 +79,8 @@ DEFAULT_EXAMPLES = [
     "RGBWEmulated",
     "TwinkleFox",
     "XYMatrix",
+    "Video/Stream",
+    "SdCard",
 ]
 
 
@@ -121,7 +132,14 @@ def parse_args():
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose output"
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "--supported-boards",
+        action="store_true",
+        help="Print the list of supported boards and exit",
+    )
+    args, unknown = parser.parse_known_args()
+    if unknown:
+        warnings.warn(f"Unknown arguments: {unknown}")
     # if --interactive and --no-interative are both passed, --no-interactive takes precedence.
     if args.interactive and args.no_interactive:
         warnings.warn(
@@ -208,10 +226,12 @@ def create_concurrent_run_args(args: argparse.Namespace) -> ConcurrentRunArgs:
         skip_init=skip_init,
         defines=defines,
         extra_packages=extra_packages,
+        libs=LIBS,
         build_dir=build_dir,
         extra_scripts=extra_scripts,
         cwd=str(HERE.parent),
         board_dir=(HERE / "boards").absolute().as_posix(),
+        build_flags=BUILD_FLAGS,
         verbose=verbose,
     )
     return out
@@ -220,6 +240,9 @@ def create_concurrent_run_args(args: argparse.Namespace) -> ConcurrentRunArgs:
 def main() -> int:
     """Main function."""
     args = parse_args()
+    if args.supported_boards:
+        print(",".join(DEFAULT_BOARDS_NAMES))
+        return 0
     # Set the working directory to the script's parent directory.
     run_args = create_concurrent_run_args(args)
     start_time = time.time()

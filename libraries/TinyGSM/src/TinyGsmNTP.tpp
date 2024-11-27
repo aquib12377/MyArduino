@@ -15,28 +15,13 @@
 
 template <class modemType>
 class TinyGsmNTP {
-  /* =========================================== */
-  /* =========================================== */
-  /*
-   * Define the interface
-   */
  public:
   /*
    * NTP server functions
    */
 
  public:
-  byte NTPServerSync(String server = "pool.ntp.org", int TimeZone = 0) {
-    return thisModem().NTPServerSyncImpl(server, TimeZone);
-  }
-  String ShowNTPError(byte error) {
-    return thisModem().ShowNTPErrorImpl(error);
-  }
-
-  /*
-   * Utilities
-   */
-  bool TinyGsmIsValidNumber(String str) {
+  bool TinyGsmIsValidNumber(const String& str) {
     if (!(str.charAt(0) == '+' || str.charAt(0) == '-' ||
           isDigit(str.charAt(0))))
       return false;
@@ -45,6 +30,13 @@ class TinyGsmNTP {
       if (!(isDigit(str.charAt(i)) || str.charAt(i) == '.')) { return false; }
     }
     return true;
+  }
+
+  byte NTPServerSync(const String& server = "pool.ntp.org", byte TimeZone = 3) {
+    return thisModem().NTPServerSyncImpl(server, TimeZone);
+  }
+  String ShowNTPError(byte error) {
+    return thisModem().ShowNTPErrorImpl(error);
   }
 
   /*
@@ -57,19 +49,12 @@ class TinyGsmNTP {
   inline modemType& thisModem() {
     return static_cast<modemType&>(*this);
   }
-  ~TinyGsmNTP() {}
-
-  /* =========================================== */
-  /* =========================================== */
-  /*
-   * Define the default function implementations
-   */
 
   /*
    * NTP server functions
    */
  protected:
-  byte NTPServerSyncImpl(String server = "pool.ntp.org", int TimeZone = 0) {
+  byte NTPServerSyncImpl(const String& server = "pool.ntp.org", byte TimeZone = 3) {
     // Set GPRS bearer profile to associate with NTP sync
     // this may fail, it's not supported by all modules
     thisModem().sendAT(GF("+CNTPCID=1"));
@@ -83,10 +68,6 @@ class TinyGsmNTP {
     thisModem().sendAT(GF("+CNTP"));
     if (thisModem().waitResponse(10000L, GF("+CNTP:"))) {
       String result = thisModem().stream.readStringUntil('\n');
-      // Check for ',' in case the module appends the time next to the return
-      // code. Eg: +CNTP: <code>[,<time>]
-      int index = result.indexOf(',');
-      if (index > 0) { result.remove(index); }
       result.trim();
       if (TinyGsmIsValidNumber(result)) { return result.toInt(); }
     } else {

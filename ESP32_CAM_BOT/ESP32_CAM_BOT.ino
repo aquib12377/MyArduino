@@ -127,27 +127,31 @@ const char* password = "12345678";
   #error "Camera model not selected"
 #endif
 
+// Define motor control pins
 #define MOTOR_1_PIN_1    14
 #define MOTOR_1_PIN_2    15
 #define MOTOR_2_PIN_1    13
 #define MOTOR_2_PIN_2    12
 
+// Stream settings
 static const char* _STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=" PART_BOUNDARY;
 static const char* _STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
 static const char* _STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n";
 
+// HTTP server handles
 httpd_handle_t camera_httpd = NULL;
 httpd_handle_t stream_httpd = NULL;
 
+// Updated HTML without the Backward button
 static const char PROGMEM INDEX_HTML[] = R"rawliteral(
 <html>
   <head>
-    <title>ESP32-CAM Robot</title>
+    <title>ESP32-CAM Boat Controller</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
       body { font-family: Arial; text-align: center; margin:0px auto; padding-top: 30px;}
       table { margin-left: auto; margin-right: auto; }
-      td { padding: 8 px; }
+      td { padding: 8px; }
       .button {
         background-color: #2f4468;
         border: none;
@@ -174,36 +178,76 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
     </style>
   </head>
   <body>
-    <h1>ESP32-CAM Robot</h1>
+    <h1>ESP32-CAM Boat Controller</h1>
     <img src="" id="photo" >
     <table>
-      <tr><td colspan="3" align="center"><button class="button" onmousedown="toggleCheckbox('forward');" ontouchstart="toggleCheckbox('forward');" onmouseup="toggleCheckbox('stop');" ontouchend="toggleCheckbox('stop');">Forward</button></td></tr>
-      <tr><td align="center"><button class="button" onmousedown="toggleCheckbox('left');" ontouchstart="toggleCheckbox('left');" onmouseup="toggleCheckbox('stop');" ontouchend="toggleCheckbox('stop');">Left</button></td><td align="center"><button class="button" onmousedown="toggleCheckbox('stop');" ontouchstart="toggleCheckbox('stop');">Stop</button></td><td align="center"><button class="button" onmousedown="toggleCheckbox('right');" ontouchstart="toggleCheckbox('right');" onmouseup="toggleCheckbox('stop');" ontouchend="toggleCheckbox('stop');">Right</button></td></tr>
-      <tr><td colspan="3" align="center"><button class="button" onmousedown="toggleCheckbox('backward');" ontouchstart="toggleCheckbox('backward');" onmouseup="toggleCheckbox('stop');" ontouchend="toggleCheckbox('stop');">Backward</button></td></tr>                   
+      <tr>
+        <td colspan="3" align="center">
+          <button class="button" 
+                  onmousedown="toggleCheckbox('forward');" 
+                  ontouchstart="toggleCheckbox('forward');" 
+                  onmouseup="toggleCheckbox('stop');" 
+                  ontouchend="toggleCheckbox('stop');">
+            Forward
+          </button>
+        </td>
+      </tr>
+      <tr>
+        <td align="center">
+          <button class="button" 
+                  onmousedown="toggleCheckbox('left');" 
+                  ontouchstart="toggleCheckbox('left');" 
+                  onmouseup="toggleCheckbox('stop');" 
+                  ontouchend="toggleCheckbox('stop');">
+            Left
+          </button>
+        </td>
+        <td align="center">
+          <button class="button" 
+                  onmousedown="toggleCheckbox('stop');" 
+                  ontouchstart="toggleCheckbox('stop');">
+            Stop
+          </button>
+        </td>
+        <td align="center">
+          <button class="button" 
+                  onmousedown="toggleCheckbox('right');" 
+                  ontouchstart="toggleCheckbox('right');" 
+                  onmouseup="toggleCheckbox('stop');" 
+                  ontouchend="toggleCheckbox('stop');">
+            Right
+          </button>
+        </td>
+      </tr>
+      <!-- Backward button removed -->
     </table>
-   <script>
-   function toggleCheckbox(x) {
-     var xhr = new XMLHttpRequest();
-     xhr.open("GET", "/action?go=" + x, true);
-     xhr.send();
-   }
-   window.onload = document.getElementById("photo").src = window.location.href.slice(0, -1) + ":81/stream";
-  </script>
+    <script>
+      function toggleCheckbox(x) {
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", "/action?go=" + x, true);
+        xhr.send();
+      }
+      window.onload = function() {
+        document.getElementById("photo").src = window.location.href.slice(0, -1) + ":81/stream";
+      };
+    </script>
   </body>
 </html>
 )rawliteral";
 
+// Handler for serving the index page
 static esp_err_t index_handler(httpd_req_t *req){
   httpd_resp_set_type(req, "text/html");
   return httpd_resp_send(req, (const char *)INDEX_HTML, strlen(INDEX_HTML));
 }
 
+// Handler for streaming the camera feed
 static esp_err_t stream_handler(httpd_req_t *req){
   camera_fb_t * fb = NULL;
   esp_err_t res = ESP_OK;
   size_t _jpg_buf_len = 0;
   uint8_t * _jpg_buf = NULL;
-  char * part_buf[64];
+  char part_buf[64]; // Changed from char * to char array to avoid issues
 
   res = httpd_resp_set_type(req, _STREAM_CONTENT_TYPE);
   if(res != ESP_OK){
@@ -232,8 +276,8 @@ static esp_err_t stream_handler(httpd_req_t *req){
       }
     }
     if(res == ESP_OK){
-      size_t hlen = snprintf((char *)part_buf, 64, _STREAM_PART, _jpg_buf_len);
-      res = httpd_resp_send_chunk(req, (const char *)part_buf, hlen);
+      size_t hlen = snprintf(part_buf, 64, _STREAM_PART, _jpg_buf_len);
+      res = httpd_resp_send_chunk(req, part_buf, hlen);
     }
     if(res == ESP_OK){
       res = httpd_resp_send_chunk(req, (const char *)_jpg_buf, _jpg_buf_len);
@@ -257,6 +301,7 @@ static esp_err_t stream_handler(httpd_req_t *req){
   return res;
 }
 
+// Handler for controlling the motors based on HTTP requests
 static esp_err_t cmd_handler(httpd_req_t *req){
   char*  buf;
   size_t buf_len;
@@ -287,59 +332,59 @@ static esp_err_t cmd_handler(httpd_req_t *req){
     return ESP_FAIL;
   }
 
+  // Get the camera sensor
   sensor_t * s = esp_camera_sensor_get();
   int res = 0;
   
+  // Handle the received command
   if(!strcmp(variable, "forward")) {
     Serial.println("Forward");
-    digitalWrite(MOTOR_1_PIN_1, 1);
-    digitalWrite(MOTOR_1_PIN_2, 0);
-    digitalWrite(MOTOR_2_PIN_1, 1);
-    digitalWrite(MOTOR_2_PIN_2, 0);
+    digitalWrite(MOTOR_1_PIN_1, HIGH);
+    digitalWrite(MOTOR_1_PIN_2, LOW);
+    digitalWrite(MOTOR_2_PIN_1, HIGH);
+    digitalWrite(MOTOR_2_PIN_2, LOW);
   }
   else if(!strcmp(variable, "left")) {
     Serial.println("Left");
-    digitalWrite(MOTOR_1_PIN_1, 0);
-    digitalWrite(MOTOR_1_PIN_2, 1);
-    digitalWrite(MOTOR_2_PIN_1, 1);
-    digitalWrite(MOTOR_2_PIN_2, 0);
+    digitalWrite(MOTOR_1_PIN_1, LOW);
+    digitalWrite(MOTOR_1_PIN_2, LOW);
+    digitalWrite(MOTOR_2_PIN_1, HIGH);
+    digitalWrite(MOTOR_2_PIN_2, LOW);
   }
   else if(!strcmp(variable, "right")) {
     Serial.println("Right");
-    digitalWrite(MOTOR_1_PIN_1, 1);
-    digitalWrite(MOTOR_1_PIN_2, 0);
-    digitalWrite(MOTOR_2_PIN_1, 0);
-    digitalWrite(MOTOR_2_PIN_2, 1);
-  }
-  else if(!strcmp(variable, "backward")) {
-    Serial.println("Backward");
-    digitalWrite(MOTOR_1_PIN_1, 0);
-    digitalWrite(MOTOR_1_PIN_2, 1);
-    digitalWrite(MOTOR_2_PIN_1, 0);
-    digitalWrite(MOTOR_2_PIN_2, 1);
+    digitalWrite(MOTOR_1_PIN_1, HIGH);
+    digitalWrite(MOTOR_1_PIN_2, LOW);
+    digitalWrite(MOTOR_2_PIN_1, LOW);
+    digitalWrite(MOTOR_2_PIN_2, LOW);
   }
   else if(!strcmp(variable, "stop")) {
     Serial.println("Stop");
-    digitalWrite(MOTOR_1_PIN_1, 0);
-    digitalWrite(MOTOR_1_PIN_2, 0);
-    digitalWrite(MOTOR_2_PIN_1, 0);
-    digitalWrite(MOTOR_2_PIN_2, 0);
+    digitalWrite(MOTOR_1_PIN_1, LOW);
+    digitalWrite(MOTOR_1_PIN_2, LOW);
+    digitalWrite(MOTOR_2_PIN_1, LOW);
+    digitalWrite(MOTOR_2_PIN_2, LOW);
   }
   else {
-    res = -1;
+    Serial.println("Invalid Command. Stopping.");
+    // Default to stop for any invalid command
+    digitalWrite(MOTOR_1_PIN_1, LOW);
+    digitalWrite(MOTOR_1_PIN_2, LOW);
+    digitalWrite(MOTOR_2_PIN_1, LOW);
+    digitalWrite(MOTOR_2_PIN_2, LOW);
   }
 
-  if(res){
-    return httpd_resp_send_500(req);
-  }
-
+  // Always send a success response
   httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
   return httpd_resp_send(req, NULL, 0);
 }
 
+// Function to start the camera and web servers
 void startCameraServer(){
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
   config.server_port = 80;
+  
+  // Define URI handlers
   httpd_uri_t index_uri = {
     .uri       = "/",
     .method    = HTTP_GET,
@@ -359,10 +404,14 @@ void startCameraServer(){
     .handler   = stream_handler,
     .user_ctx  = NULL
   };
+  
+  // Start the main web server
   if (httpd_start(&camera_httpd, &config) == ESP_OK) {
     httpd_register_uri_handler(camera_httpd, &index_uri);
     httpd_register_uri_handler(camera_httpd, &cmd_uri);
   }
+  
+  // Start the stream web server on port 81
   config.server_port += 1;
   config.ctrl_port += 1;
   if (httpd_start(&stream_httpd, &config) == ESP_OK) {
@@ -371,8 +420,9 @@ void startCameraServer(){
 }
 
 void setup() {
-  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); // Disable brownout detector
   
+  // Initialize motor control pins as outputs
   pinMode(MOTOR_1_PIN_1, OUTPUT);
   pinMode(MOTOR_1_PIN_2, OUTPUT);
   pinMode(MOTOR_2_PIN_1, OUTPUT);
@@ -381,6 +431,7 @@ void setup() {
   Serial.begin(115200);
   Serial.setDebugOutput(false);
   
+  // Configure camera settings
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
   config.ledc_timer = LEDC_TIMER_0;
@@ -413,13 +464,14 @@ void setup() {
     config.fb_count = 1;
   }
   
-  // Camera init
+  // Initialize the camera
   esp_err_t err = esp_camera_init(&config);
   if (err != ESP_OK) {
     Serial.printf("Camera init failed with error 0x%x", err);
     return;
   }
-  // Wi-Fi connection
+  
+  // Connect to Wi-Fi
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -431,10 +483,10 @@ void setup() {
   Serial.print("Camera Stream Ready! Go to: http://");
   Serial.println(WiFi.localIP());
   
-  // Start streaming web server
+  // Start the camera web server
   startCameraServer();
 }
 
 void loop() {
-  
+  // Nothing needed here
 }

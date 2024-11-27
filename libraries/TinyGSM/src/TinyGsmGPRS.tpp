@@ -22,11 +22,6 @@ enum SimStatus {
 
 template <class modemType>
 class TinyGsmGPRS {
-  /* =========================================== */
-  /* =========================================== */
-  /*
-   * Define the interface
-   */
  public:
   /*
    * SIM card functions
@@ -54,8 +49,8 @@ class TinyGsmGPRS {
   /*
    * GPRS functions
    */
-  bool gprsConnect(const char* apn, const char* user = nullptr,
-                   const char* pwd = nullptr) {
+  bool gprsConnect(const char* apn, const char* user = NULL,
+                   const char* pwd = NULL) {
     return thisModem().gprsConnectImpl(apn, user, pwd);
   }
   bool gprsDisconnect() {
@@ -70,9 +65,9 @@ class TinyGsmGPRS {
     return thisModem().getOperatorImpl();
   }
 
-  // Gets the current network provider
-  String getProvider() {
-    return thisModem().getProviderImpl();
+  // Inquiring UE system information
+  bool getSystemInformation(String &info){
+    return thisModem().getSystemInformationImpl(info);
   }
 
   /*
@@ -85,18 +80,23 @@ class TinyGsmGPRS {
   inline modemType& thisModem() {
     return static_cast<modemType&>(*this);
   }
-  ~TinyGsmGPRS() {}
-
-  /* =========================================== */
-  /* =========================================== */
-  /*
-   * Define the default function implementations
-   */
 
   /*
    * SIM card functions
    */
  protected:
+
+  bool getSystemInformationImpl(String &info){
+      thisModem().sendAT(GF("+CPSI?"));
+      if (thisModem().waitResponse("+CPSI:") == 1){
+        info = thisModem().stream.readStringUntil('\n');
+        thisModem().waitResponse();
+        info.trim();
+        return true;
+      }
+      return false;
+  }
+
   // Unlocks a sim via the 3GPP TS command AT+CPIN
   bool simUnlockImpl(const char* pin) {
     if (pin && strlen(pin) > 0) {
@@ -183,8 +183,6 @@ class TinyGsmGPRS {
     thisModem().waitResponse();
     return res;
   }
-
-  String getProviderImpl() TINY_GSM_ATTR_NOT_IMPLEMENTED;
 };
 
 #endif  // SRC_TINYGSMGPRS_H_

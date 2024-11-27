@@ -4,17 +4,17 @@
 // RFID Module EM-18 Connections (RX -> Pin 3, TX -> Pin 2)
 SoftwareSerial rfidSerial(3, 2);  // RX, TX for RFID
 // GSM Module Connections (RX -> Pin 10, TX -> Pin 11)
-SoftwareSerial gsmSerial(10, 11);  // RX, TX for GSM
+SoftwareSerial gsmSerial(5, 4);  // RX, TX for GSM
 
 Servo servo;  // Servo for lid
 const int RedLED = A2;
 const int GreenLED = A3;
 // Pin Definitions
-const int irPin = 4;      // IR sensor pin
+const int irPin = 7;      // IR sensor pin
 const int trigPin = 7;    // Ultrasonic trigger pin
 const int echoPin = 8;    // Ultrasonic echo pin
 const int servoPin = 9;   // Servo pin
-const int buzzerPin = 5;  // Buzzer pin (optional)
+const int buzzerPin = 9;  // Buzzer pin (optional)
 
 // Variables
 const int fullThreshold = 10;  // Set the threshold distance (in cm) for the bin being full
@@ -25,7 +25,7 @@ boolean correctRFID = false;   // Flag to track correct RFID scan
 String validRFID = "0B00285DE09E";
 
 // GSM Phone number for SMS (replace with actual number)
-const String phoneNumber = "+917208307996";  // Replace ZZ with country code and xxxxxxxxxxx with phone number
+const String phoneNumber = "+917977845638";  // Replace ZZ with country code and xxxxxxxxxxx with phone number
 bool isSMSSent = false;
 // Function Prototypes
 int measureDistance();
@@ -55,6 +55,7 @@ void setup() {
   updateSerial();
   gsmSerial.println("AT+CMGF=1");  // Set SMS text mode
   updateSerial();
+  sendSMS();
 }
 
 void loop() {
@@ -178,7 +179,6 @@ void sendSMS() {
   delay(1000);
   updateSerial();
 }
-
 void updateSerial() {
   delay(500);
   while (Serial.available()) {
