@@ -4,40 +4,48 @@
 #include <DHT.h>
 
 // Pin Definitions
-#define FENCE_SENSOR_PIN A0 // Analog pin for fence security sensor
-#define BUZZER_PIN 2        // Buzzer pin
-#define LDR_PIN 3           // Digital pin for LDR module
-#define SOIL_MOISTURE_PIN A1
-#define RAIN_MOISTURE_PIN A2 // Analog pin for soil moisture sensor
-#define RELAY_PIN 4         // Relay control pin for pump
+#define FENCE_SENSOR_PIN A1
+#define BUZZER_PIN 2
+#define LDR_PIN 13
+#define SOIL_MOISTURE_PIN A0
+#define RAIN_MOISTURE_PIN A3
+#define PUMP_PIN1 4
+#define PUMP_PIN2 5
+#define FAN_PIN1 6
+#define FAN_PIN2 7
 #define SERVO_PIN 9
-#define SERVO_PIN1 10         // Servo motor pin
-#define DHT_PIN 5           // DHT11 sensor pin
-#define DHT_TYPE DHT11      // Define the type of DHT sensor
+#define SERVO_PIN1 10
+#define DHT_PIN 3
+#define DHT_TYPE DHT11
 
 // Constants
-const int fenceThreshold = 50;   // Threshold for fence security sensor
-const int soilDryThreshold = 600; // Threshold for soil moisture sensor (adjust based on calibration)
-const int servoDelay = 100;      // Delay between servo movements (for scarecrow)
+const int fenceThreshold = 50;
+const int soilDryThreshold = 600;
+const int tempHighThreshold = 35; // Temperature threshold for Fan ON
+const int servoStepDelay = 50;    // Delay between servo steps (milliseconds)
+const int servoMin = 0;           // Minimum servo angle
+const int servoMax = 180;         // Maximum servo angle
+
+// Variables for millis-based timing
+unsigned long previousMillisDHT = 0;
+unsigned long previousMillisPump = 0;
+unsigned long previousMillisFan = 0;
+unsigned long previousMillisServo = 0; // Timing for servo
+const long intervalDHT = 2000;
+const long intervalPump = 1000;
+const long intervalFan = 1000;
+
+// Servo rotation variables
+int servoPosition = 0; // Current position of the servo
+int servoDirection = 1; // 1 for increasing angle, -1 for decreasing
 
 // Objects
 Servo scarecrowServo;
 Servo seedServo;
-LiquidCrystal_I2C lcd(0x27, 16, 2); // I2C LCD object (address 0x27, 16x2 display)
-DHT dht(DHT_PIN, DHT_TYPE);         // Initialize DHT sensor
-
-// Functions
-void buzz(int delayTime, int repeatCount) {
-  for (int i = 0; i < repeatCount; i++) {
-    digitalWrite(BUZZER_PIN, HIGH);
-    delay(delayTime);
-    digitalWrite(BUZZER_PIN, LOW);
-    delay(delayTime);
-  }
-}
+LiquidCrystal_I2C lcd(0x27, 16, 2); // I2C LCD object
+DHT dht(DHT_PIN, DHT_TYPE);
 
 void setup() {
-  // Initialize Serial Monitor
   Serial.begin(9600);
 
   // Initialize pins
@@ -45,12 +53,14 @@ void setup() {
   pinMode(BUZZER_PIN, OUTPUT);
   pinMode(LDR_PIN, INPUT);
   pinMode(SOIL_MOISTURE_PIN, INPUT);
-  pinMode(RELAY_PIN, OUTPUT);
+  pinMode(FAN_PIN1, OUTPUT);
+  pinMode(FAN_PIN2, OUTPUT);
+  pinMode(PUMP_PIN1, OUTPUT);
+  pinMode(PUMP_PIN2, OUTPUT);
   
   scarecrowServo.attach(SERVO_PIN);
   seedServo.attach(SERVO_PIN1);
 
-  // Initialize LCD
   lcd.begin();
   lcd.backlight();
   lcd.setCursor(0, 0);
@@ -58,124 +68,116 @@ void setup() {
   delay(2000);
   lcd.clear();
 
-  // Initialize DHT sensor
   dht.begin();
-
-  // Initialize states
-  digitalWrite(BUZZER_PIN, LOW);
-  digitalWrite(RELAY_PIN, HIGH);
-
-  Serial.println("Smart Agriculture System Initialized.");
 }
 
 void loop() {
+  unsigned long currentMillis = millis();
+
   // 1. Read DHT11 Temperature and Humidity
-  float temperature = dht.readTemperature();
-  float humidity = dht.readHumidity();
+  if (currentMillis - previousMillisDHT >= intervalDHT) {
+    previousMillisDHT = currentMillis;
 
-  if (isnan(temperature) || isnan(humidity)) {
-    Serial.println("Failed to read from DHT sensor!");
+    float temperature = dht.readTemperature();
+    float humidity = dht.readHumidity();
+
+    if (!isnan(temperature) && !isnan(humidity)) {
+      Serial.print("Temp: ");
+      Serial.print(temperature);
+      Serial.print(" C, Humidity: ");
+      Serial.print(humidity);
+      Serial.println(" %");
+
+      lcd.setCursor(0, 0);
+      lcd.print("Temp: ");
+      lcd.print(temperature);
+      lcd.print("C   "); // Ensure clearing of leftover characters
+      lcd.setCursor(0, 1);
+      lcd.print("Humid: ");
+      lcd.print(humidity);
+      lcd.print("%   "); // Ensure clearing of leftover characters
+      delay(1000);
+      // Fan control based on temperature
+      if (currentMillis - previousMillisFan >= intervalFan) {
+        if (temperature > tempHighThreshold) {
+          Serial.println("Temperature high. Turning on fan...");
+          digitalWrite(FAN_PIN1, HIGH);
+          digitalWrite(FAN_PIN2, LOW);
+        } else {
+          Serial.println("Temperature normal. Turning off fan...");
+          digitalWrite(FAN_PIN1, LOW);
+          digitalWrite(FAN_PIN2, LOW);
+        }
+        previousMillisFan = currentMillis;
+      }
+    } else {
+      Serial.println("Failed to read from DHT sensor!");
+      lcd.setCursor(0, 0);
+      lcd.print("DHT11 Error!     ");
+    }
+  }
+
+  // 2. Soil Moisture and Pump Control
+  if (currentMillis - previousMillisPump >= intervalPump) {
+    previousMillisPump = currentMillis;
+
+    int soilMoistureValue = analogRead(SOIL_MOISTURE_PIN);
+    Serial.print("Soil Moisture Value: ");
+    Serial.println(soilMoistureValue);
+
     lcd.setCursor(0, 0);
-    lcd.print("DHT11 Error!");
-  } else {
-    Serial.print("Temp: ");
-    Serial.print(temperature);
-    Serial.print(" C, Humidity: ");
-    Serial.print(humidity);
-    Serial.println(" %");
+    lcd.print("Soil: ");
+    lcd.print(soilMoistureValue);
+    lcd.print("     "); // Clear leftover characters
 
-    lcd.setCursor(0, 0);
-    lcd.print("Temp: ");
-    lcd.print(temperature);
-    lcd.print("C");
-    lcd.setCursor(0, 1);
-    lcd.print("Humid: ");
-    lcd.print(humidity);
-    lcd.print("%");
-    delay(2000); // Display temp and humidity for 2 seconds
-    lcd.clear();
+    if (soilMoistureValue > soilDryThreshold) {
+      Serial.println("Soil is dry. Turning on pump...");
+      lcd.setCursor(0, 1);
+      lcd.print("Pump: ON   ");
+      digitalWrite(PUMP_PIN1, HIGH);
+      digitalWrite(PUMP_PIN2, LOW);
+    } else {
+      Serial.println("Soil is moist. Turning off pump...");
+      lcd.setCursor(0, 1);
+      lcd.print("Pump: OFF  ");
+      digitalWrite(PUMP_PIN1, LOW);
+      digitalWrite(PUMP_PIN2, LOW);
+    }
   }
 
-  int rain = analogRead(RAIN_MOISTURE_PIN);
-  Serial.println("Rain Sensor: "+String(rain));
-  if(rain < 300)
-  {
-    seedServo.write(90);
-  }
-  else{
-    seedServo.write(0);
+  // 3. Continuous Slow Servo Rotation for Scarecrow
+  if (currentMillis - previousMillisServo >= servoStepDelay) {
+    previousMillisServo = currentMillis;
+
+    scarecrowServo.write(servoPosition);
+    servoPosition += servoDirection;
+
+    // Reverse direction at limits
+    if (servoPosition >= servoMax || servoPosition <= servoMin) {
+      servoDirection = -servoDirection;
+    }
   }
 
-  // 2. Fence Security
+  // 4. Fence Security
   int fenceValue = analogRead(FENCE_SENSOR_PIN);
-  Serial.print("Fence Sensor Value: ");
-  Serial.println(fenceValue);
-  lcd.setCursor(0, 0);
-  lcd.print("Fence: ");
-  lcd.print(fenceValue);
-
+  Serial.println("Fence Value: "+String(fenceValue));
   if (fenceValue > fenceThreshold) {
     Serial.println("Fence touched! Activating buzzer...");
     lcd.setCursor(0, 1);
-    lcd.print("Fence: ALERT!   ");
-    buzz(300, 5);
+    lcd.print("Fence Alert!  ");
+    digitalWrite(BUZZER_PIN, HIGH);
+    delay(300);
+    digitalWrite(BUZZER_PIN, LOW);
   } else {
     lcd.setCursor(0, 1);
-    lcd.print("Fence: Secure   ");
+    lcd.print("Fence Secure  ");
   }
 
-  delay(500);
-
-  // 3. Scarecrow Operation
-  int ldrState = !digitalRead(LDR_PIN);
-  Serial.print("LDR State: ");
-  Serial.println(ldrState ? "Day" : "Night");
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("LDR: ");
-  lcd.print(ldrState ? "Daytime" : "Night");
-
-  if (ldrState == HIGH) { // Daytime detected
-    Serial.println("Daytime detected. Moving scarecrow...");
-    lcd.setCursor(0, 1);
-    lcd.print("Scarecrow: ON ");
-    for (int pos = 0; pos <= 180; pos += 10) {
-      scarecrowServo.write(pos);
-      delay(servoDelay);
-    }
-    for (int pos = 180; pos >= 0; pos -= 10) {
-      scarecrowServo.write(pos);
-      delay(servoDelay);
-    }
+  // 5. Rain Sensor and Seed Dispensing
+  int rain = analogRead(RAIN_MOISTURE_PIN);
+  if (rain < 300) {
+    seedServo.write(90);
   } else {
-    lcd.setCursor(0, 1);
-    lcd.print("Scarecrow: OFF");
+    seedServo.write(0);
   }
-
-  delay(500);
-
-  // 4. Soil Moisture and Pump Control
-  int soilMoistureValue = analogRead(SOIL_MOISTURE_PIN);
-  Serial.print("Soil Moisture Value: ");
-  Serial.println(soilMoistureValue);
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Soil: ");
-  lcd.print(soilMoistureValue);
-
-  if (soilMoistureValue < soilDryThreshold) { // Soil is dry
-    Serial.println("Soil is dry. Turning on pump...");
-    lcd.setCursor(0, 1);
-    lcd.print("Pump: ON  ");
-    digitalWrite(RELAY_PIN, LOW); // Turn on pump
-    buzz(500, 1);
-  } else {
-    Serial.println("Soil is moist. Turning off pump...");
-    lcd.setCursor(0, 1);
-    lcd.print("Pump: OFF ");
-    digitalWrite(RELAY_PIN, HIGH); // Turn off pump
-  }
-
-  // Delay for stability
-  delay(1000);
 }
