@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ration System - Home</title>
+  <!-- Bootstrap 5 CSS -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+  />
+  <link rel="manifest" href="manifest.json">
+
+  <style>
+    body {
+      background-color: #f4f6f9;
+    }
+    .navbar {
+      background-color: #007bff;
+    }
+    .navbar-brand {
+      color: #fff;
+    }
+    .navbar-brand:hover {
+      color: #e2e6ea;
+    }
+    .home-card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      padding: 30px;
+      margin-top: 50px;
+      text-align: center;
+    }
+    .home-card h1 {
+      font-size: 2rem;
+      font-weight: bold;
+    }
+    .home-card p {
+      font-size: 1rem;
+      color: #6c757d;
+    }
+    .btn-custom {
+      width: 200px;
+      margin: 10px 10px 0 10px;
+      font-size: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg">
+    <div class="container">
+      <a href="#" class="navbar-brand">Ration System</a>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="container d-flex justify-content-center align-items-center">
+    <div class="home-card">
+      <h1>Welcome to the Ration System</h1>
+      <p class="mb-4">Efficient and easy management of ration distribution.</p>
+      <a href="inventory.html" class="btn btn-primary btn-custom">Go to Inventory</a>
+      <a href="user.html" class="btn btn-success btn-custom">Go to Users</a>
+    </div>
+  </div>
+
+  <!-- Bootstrap 5 JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/sw.js")
+        .then((registration) => {
+          console.log("Service Worker registered with scope:", registration.scope);
+        })
+        .catch((error) => {
+          console.error("Service Worker registration failed:", error);
+        });
+    }
+  </script>
+  
+</body>
+</html>

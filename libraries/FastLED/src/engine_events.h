@@ -4,10 +4,9 @@
 #include "singleton.h"
 #include "xymap.h"
 #include "screenmap.h"
-
 #include "namespace.h"
 
-FASTLED_NAMESPACE_BEGIN
+
 
 #ifndef FASTLED_ENGINE_EVENTS_MAX_LISTENERS
 #define FASTLED_ENGINE_EVENTS_MAX_LISTENERS 8
@@ -20,6 +19,8 @@ FASTLED_NAMESPACE_BEGIN
 #define FASTLED_HAS_ENGINE_EVENTS 1
 #endif
 #endif  // FASTLED_HAS_ENGINE_EVENTS
+
+FASTLED_NAMESPACE_BEGIN
 
 class CLEDController;
 
@@ -35,9 +36,15 @@ class EngineEvents {
         virtual void onBeginFrame() {}
         virtual void onEndShowLeds() {}
         virtual void onEndFrame() {}
-        virtual void onStripAdded(CLEDController *strip, uint32_t num_leds) {}
+        virtual void onStripAdded(CLEDController *strip, uint32_t num_leds) {
+            (void)strip;
+            (void)num_leds;
+        }
         // Called to set the canvas for UI elements for a particular strip.
-        virtual void onCanvasUiSet(CLEDController *strip, const ScreenMap& screenmap) {}
+        virtual void onCanvasUiSet(CLEDController *strip, const ScreenMap& screenmap) {
+            (void)strip;
+            (void)screenmap;
+        }
         virtual void onPlatformPreLoop() {}  
         virtual void onPlatformPreLoop2() {}
     };
@@ -46,12 +53,17 @@ class EngineEvents {
     static void addListener(Listener *listener, int priority = 0) {
         #if FASTLED_HAS_ENGINE_EVENTS
         EngineEvents::getInstance()->_addListener(listener, priority);
+        #else
+        (void)listener;
+        (void)priority;
         #endif
     }
     
     static void removeListener(Listener *listener) {
         #if FASTLED_HAS_ENGINE_EVENTS
         EngineEvents::getInstance()->_removeListener(listener);
+        #else
+        (void)listener;
         #endif
     }
     
@@ -59,6 +71,7 @@ class EngineEvents {
         #if FASTLED_HAS_ENGINE_EVENTS
         return EngineEvents::getInstance()->_hasListener(listener);
         #else
+        (void)listener;
         return false;
         #endif
     }
@@ -84,6 +97,9 @@ class EngineEvents {
     static void onStripAdded(CLEDController *strip, uint32_t num_leds) {
         #if FASTLED_HAS_ENGINE_EVENTS
         EngineEvents::getInstance()->_onStripAdded(strip, num_leds);
+        #else
+        (void)strip;
+        (void)num_leds;
         #endif
     }
 
@@ -91,6 +107,9 @@ class EngineEvents {
     static void onCanvasUiSet(CLEDController *strip, const ScreenMap& xymap) {
         #if FASTLED_HAS_ENGINE_EVENTS
         EngineEvents::getInstance()->_onCanvasUiSet(strip, xymap);
+        #else
+        (void)strip;
+        (void)xymap;
         #endif
     }
 

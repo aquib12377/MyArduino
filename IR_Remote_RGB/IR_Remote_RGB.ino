@@ -9,10 +9,10 @@ volatile bool sIRDataJustReceived = false;
 #endif
 
 const int redPin = 9;
-const int greenPin = 10;
+const int greenPin = 3;
 const int bluePin = 11;
 uint16_t receivedCommand;
-
+bool runSmoothTransition = true;
 void setup() {
     Serial.begin(115200);
     Serial.println(F("START"));
@@ -25,8 +25,8 @@ void setup() {
 
     Serial.print(F("Ready to receive IR signals of protocols: "));
     printActiveIRProtocols(&Serial);
-
-    //startSmoothTransition();
+    delay(5000);
+    startSmoothTransition();
 }
 
 void loop() {
@@ -36,6 +36,7 @@ void loop() {
         Serial.println(receivedCommand, HEX);
         handleCommand(receivedCommand);
         IrReceiver.resume();
+        
     } else {
         // Continue smooth transition if no command is received
         startSmoothTransition();
@@ -47,50 +48,74 @@ void handleCommand(uint8_t command) {
     Serial.println(command, HEX);
     switch (command) {
         case 0x7:
+        runSmoothTransition = false;
+
             Serial.println(F("Setting color to White"));
             setColor(230, 225, 80); // White
             break;
         case 0x4:
+        runSmoothTransition = false;
+
             Serial.println(F("Setting color to Red"));
             setColor(185, 0, 0); // Red
             break;
         case 0x5:
+        runSmoothTransition = false;
+
             Serial.println(F("Setting color to Green"));
             setColor(21, 200, 0); // Green
             break;
         case 0x6:
+        runSmoothTransition = false;
+
             Serial.println(F("Setting color to Blue"));
             setColor(0, 0, 255); // Blue
             break;
         case 0x10:
+        runSmoothTransition = false;
+
             Serial.println(F("Setting color to Below Blue"));
             setColor(0, 87, 100); // Below Blue
             break;
         case 0x13:
+        runSmoothTransition = false;
+
             Serial.println(F("Setting color to CYAN"));
             setColor(0, 87, 100); // CYAN
+
             break;
         case 0x16:
+        runSmoothTransition = false;
+
             Serial.println(F("Setting color to Light Orange"));
             setColor(185, 125, 0); // Light Orange
             break;
         case 0x17:
+        runSmoothTransition = false;
+
             Serial.println(F("Setting color to Dark CYAN"));
             setColor(162, 185, 255); // Dark CYAN
             break;
         case 0x18:
+        runSmoothTransition = false;
+
             Serial.println(F("Setting color to Light Purple"));
             setColor(103, 0, 255); // Light Purple
             break;
         case 0x22:
+        runSmoothTransition = false;
+
             Serial.println(F("Setting color to Pink"));
             setColor(255, 0, 228); // Pink
             break;
         case 0x20:
+                runSmoothTransition = true;
+
             Serial.println(F("Setting color to Yellow"));
             setColor(185, 225, 0); // Yellow
             break;
         case 0x23:
+                    runSmoothTransition = false;
             Serial.println(F("Starting smooth transition"));
             startSmoothTransition(); // Smooth transition
             break;

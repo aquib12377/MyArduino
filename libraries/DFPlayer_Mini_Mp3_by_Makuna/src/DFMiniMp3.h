@@ -14,153 +14,175 @@ it under the terms of the GNU Lesser General Public License as
 published by the Free Software Foundation, either version 3 of
 the License, or (at your option) any later version.
 
-NeoPixelBus is distributed in the hope that it will be useful,
+DFMiniMp3 is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU Lesser General Public License for more details.
 
 You should have received a copy of the GNU Lesser General Public
-License along with NeoPixel.  If not, see
+License along with DFMiniMp3.  If not, see
 <http://www.gnu.org/licenses/>.
 -------------------------------------------------------------------------*/
 #pragma once
 
-enum DfMp3_Error
-{
-    DfMp3_Error_Busy = 1,
-    DfMp3_Error_Sleeping,
-    DfMp3_Error_SerialWrongStack,
-    DfMp3_Error_CheckSumNotMatch,
-    DfMp3_Error_FileIndexOut,
-    DfMp3_Error_FileMismatch,
-    DfMp3_Error_Advertise,
-    DfMp3_Error_General = 0xff
-};
+#include "internal/queueSimple.h"
+#include "DfMp3Types.h"
+#include "internal/Mp3Packet.h"
+#include "Mp3ChipBase.h"
+#include "Mp3ChipOriginal.h"
+#include "Mp3ChipMH2024K16SS.h"
+#include "Mp3ChipIncongruousNoAck.h"
 
 
-enum DfMp3_PlaybackMode
-{
-    DfMp3_PlaybackMode_Repeat,
-    DfMp3_PlaybackMode_FolderRepeat,
-    DfMp3_PlaybackMode_SingleRepeat,
-    DfMp3_PlaybackMode_Random
-};
-
-
-enum DfMp3_Eq
-{
-    DfMp3_Eq_Normal,
-    DfMp3_Eq_Pop,
-    DfMp3_Eq_Rock,
-    DfMp3_Eq_Jazz,
-    DfMp3_Eq_Classic,
-    DfMp3_Eq_Bass
-};
-
-
-enum DfMp3_PlaySource
-{
-    DfMp3_PlaySource_U,
-    DfMp3_PlaySource_Sd,
-    DfMp3_PlaySource_Aux,
-    DfMp3_PlaySource_Sleep,
-    DfMp3_PlaySource_Flash
-};
-
-
-template<class T_SERIAL_METHOD, class T_NOTIFICATION_METHOD> class DFMiniMp3
+template <class T_SERIAL_METHOD, class T_NOTIFICATION_METHOD, class T_CHIP_VARIANT = Mp3ChipOriginal, uint32_t C_ACK_TIMEOUT = 900>
+class DFMiniMp3
 {
 public:
-    DFMiniMp3(T_SERIAL_METHOD& serial) :
+    explicit DFMiniMp3(T_SERIAL_METHOD& serial) :
         _serial(serial),
-        _lastSendSpace(c_msSendSpace),
-        _isOnline(true)
+        _comRetries(3), // default to three retries
+        _isOnline(false),
+#ifdef DfMiniMp3Debug
+        _inTransaction(0),
+#endif
+        _queueNotifications(4) // default to 4 notifications in queue
     {
     }
 
-    void begin()
+    void begin(unsigned long baud = 9600)
     {
-        _serial.begin(9600);
-        _serial.setTimeout(600);
-        _lastSend = millis();
+        _serial.begin(baud);
+    }
+
+    void begin(int8_t rxPin, int8_t txPin, unsigned long baud = 9600)
+    {
+        _serial.begin(baud, SERIAL_8N1, rxPin, txPin);
+    }
+
+    void setComRetries(uint8_t retries)
+    {
+        _comRetries = retries;
     }
 
     void loop()
     {
-        while (_serial.available() >= DfMp3_Packet_SIZE)
+        // call all outstanding notifications
+        while (abateNotification());
+
+        // check for any new notifications in comms
+        uint8_t maxDrains = 6;
+
+        while (maxDrains &&
+            _serial.available() >= static_cast<int>(sizeof(typename T_CHIP_VARIANT::ReceptionPacket)))
         {
-            listenForReply(0x00);
+            listenForReply(Mp3_Commands_None);
+            maxDrains--;
         }
+    }
+
+    // Does not work with all models.
+    // 0x3f reply overlaps the play source online notification
+    // so this is why I suspect this has been deprecated and should
+    // be avoided as there is not a way to tell a notification from a value return
+    // YX5200-24SS - sends reply
+    // MH2024K-24SS - sends NO reply --> results in error notification
+    [[deprecated("Command in conflict with notification with no valid solution.")]]
+    DfMp3_PlaySources getPlaySources()
+    {
+        return getCommand(Mp3_Commands_GetPlaySources).arg;
+    }
+
+    uint16_t getSoftwareVersion()
+    {
+        return getCommand(Mp3_Commands_GetSoftwareVersion).arg;
     }
 
     // the track as enumerated across all folders
     void playGlobalTrack(uint16_t track = 0)
     {
-        sendPacket(0x03, track);
+        setCommand(Mp3_Commands_PlayGlobalTrack, track);
     }
 
     // sd:/mp3/####track name
     void playMp3FolderTrack(uint16_t track)
     {
-        sendPacket(0x12, track);
+        setCommand(Mp3_Commands_PlayMp3FolderTrack, track);
     }
 
-    // sd:/###/###track name
+    // older devices: sd:/###/###track name
+    // newer devices: sd:/##/###track name
+    // folder and track numbers are zero padded
     void playFolderTrack(uint8_t folder, uint8_t track)
     {
         uint16_t arg = (folder << 8) | track;
-        sendPacket(0x0f, arg);
+        setCommand(Mp3_Commands_PlayFolderTrack, arg);
     }
 
     // sd:/##/####track name
     // track number must be four digits, zero padded
     void playFolderTrack16(uint8_t folder, uint16_t track)
     {
-        uint16_t arg = (((uint16_t)folder) << 12) | track;
-        sendPacket(0x14, arg);
+        uint16_t arg = (static_cast<uint16_t>(folder) << 12) | track;
+        setCommand(Mp3_Commands_PlayFolderTrack16, arg);
     }
 
     void playRandomTrackFromAll()
     {
-        sendPacket(0x18);
+        setCommand(Mp3_Commands_PlayRandmomGlobalTrack);
     }
 
     void nextTrack()
     {
-        sendPacket(0x01);
+        setCommand(Mp3_Commands_PlayNextTrack);
     }
 
     void prevTrack()
     {
-        sendPacket(0x02);
+        setCommand(Mp3_Commands_PlayPrevTrack);
     }
 
-    uint16_t getCurrentTrack()
+    uint16_t getCurrentTrack(DfMp3_PlaySource source = DfMp3_PlaySource_Sd)
     {
-        sendPacket(0x4c);
-        return listenForReply(0x4c);
+        uint8_t command;
+
+        switch (source)
+        {
+        case DfMp3_PlaySource_Usb:
+            command = Mp3_Commands_GetUsbCurrentTrack;
+            break;
+        case DfMp3_PlaySource_Sd:
+            command = Mp3_Commands_GetSdCurrentTrack;
+            break;
+        case DfMp3_PlaySource_Flash:
+            command = Mp3_Commands_GetFlashCurrentTrack;
+            break;
+        default:
+            command = Mp3_Commands_GetSdCurrentTrack;
+            break;
+        }
+
+        return getCommand(command).arg;
     }
 
     // 0- 30
     void setVolume(uint8_t volume)
     {
-        sendPacket(0x06, volume);
+        setCommand(Mp3_Commands_SetVolume, volume);
     }
 
     uint8_t getVolume()
     {
-        sendPacket(0x43);
-        return listenForReply(0x43);
+        return getCommand(Mp3_Commands_GetVolume).arg;
     }
 
     void increaseVolume()
     {
-        sendPacket(0x04);
+        setCommand(Mp3_Commands_IncVolume);
     }
 
     void decreaseVolume()
     {
-        sendPacket(0x05);
+        setCommand(Mp3_Commands_DecVolume);
     }
 
     // useless, removed
@@ -169,291 +191,480 @@ public:
     void setVolume(bool mute, uint8_t volume)
     {
         uint16_t arg = (!mute << 8) | volume;
-        sendPacket(0x10, arg);
+        setCommand(0x10, arg);
     }
     */
 
     void loopGlobalTrack(uint16_t globalTrack)
     {
-        sendPacket(0x08, globalTrack);
+        setCommand(Mp3_Commands_LoopGlobalTrack, globalTrack);
+    }
+
+    // sd:/##/*
+    // 0-99
+    void loopFolder(uint8_t folder)
+    {
+        setCommand(Mp3_Commands_LoopInFolder, folder);
+    }
+
+    // not well supported, use at your own risk
+    void setPlaybackMode(DfMp3_PlaybackMode mode)
+    {
+        setCommand(Mp3_Commands_SetPlaybackMode, mode);
     }
 
     DfMp3_PlaybackMode getPlaybackMode()
     {
-        sendPacket(0x45);
-        return listenForReply(0x45);
+        return static_cast<DfMp3_PlaybackMode>(getCommand(Mp3_Commands_GetPlaybackMode).arg);
     }
 
-    void setRepeatPlay(bool repeat)
+    void setRepeatPlayAllInRoot(bool repeat)
     {
-        sendPacket(0x11, !!repeat);
+        setCommand(Mp3_Commands_RepeatPlayInRoot, !!repeat);
     }
 
+    void setRepeatPlayCurrentTrack(bool repeat)
+    {
+        setCommand(Mp3_Commands_RepeatPlayCurrentTrack, !repeat);
+    }
 
     void setEq(DfMp3_Eq eq)
     {
-        sendPacket(0x07, eq);
+        setCommand(Mp3_Commands_SetEq, eq);
     }
 
     DfMp3_Eq getEq()
     {
-        sendPacket(0x44);
-        return listenForReply(0x44);
+        return static_cast<DfMp3_Eq>(getCommand(Mp3_Commands_GetEq).arg);
     }
-
 
     void setPlaybackSource(DfMp3_PlaySource source)
     {
-        sendPacket(0x09, source, 200);
+        setCommand(Mp3_Commands_SetPlaybackSource, source);
     }
 
     void sleep()
     {
-        sendPacket(0x0a);
+        setCommand(Mp3_Commands_Sleep);
     }
 
-    void reset()
+    void awake()
     {
-        sendPacket(0x0c, 0, 600);
+        setCommand(Mp3_Commands_Awake);
+    }
+
+    void reset(bool waitForOnline = true)
+    {
+        setCommand(Mp3_Commands_Reset);
+
         _isOnline = false;
+        while (waitForOnline && !_isOnline)
+        {
+            delay(1);
+            loop();
+        }
     }
 
     void start()
     {
-        sendPacket(0x0d);
+        setCommand(Mp3_Commands_Start);
     }
 
     void pause()
     {
-        sendPacket(0x0e);
+        setCommand(Mp3_Commands_Pause);
     }
 
     void stop()
     {
-        sendPacket(0x16);
+        setCommand(Mp3_Commands_Stop);
     }
 
-    uint16_t getStatus()
+    DfMp3_Status getStatus()
     {
-        sendPacket(0x42);
-        return listenForReply(0x42);
+        uint16_t reply = getCommand(Mp3_Commands_GetStatus).arg;
+
+        DfMp3_Status status;
+        status.source = static_cast<DfMp3_StatusSource>(reply >> 8);
+        status.state = static_cast<DfMp3_StatusState>(reply & 0xff);
+
+        return status;
     }
 
     uint16_t getFolderTrackCount(uint16_t folder)
     {
-        sendPacket(0x4e, folder);
-        return listenForReply(0x4e);
+        return getCommand(Mp3_Commands_GetFolderTrackCount, folder).arg;
     }
 
-    uint16_t getTotalTrackCount()
+    uint16_t getTotalTrackCount(DfMp3_PlaySource source = DfMp3_PlaySource_Sd)
     {
-        sendPacket(0x48);
-        return listenForReply(0x48);
+        uint8_t command;
+
+        switch (source)
+        {
+        case DfMp3_PlaySource_Usb:
+            command = Mp3_Commands_GetUsbTrackCount;
+            break;
+        case DfMp3_PlaySource_Sd:
+            command = Mp3_Commands_GetSdTrackCount;
+            break;
+        case DfMp3_PlaySource_Flash:
+            command = Mp3_Commands_GetFlashTrackCount;
+            break;
+        default:
+            command = Mp3_Commands_GetSdTrackCount;
+            break;
+        }
+
+        return getCommand(command).arg;
+    }
+
+    uint16_t getTotalFolderCount()
+    {
+        return getCommand(Mp3_Commands_GetTotalFolderCount).arg;
     }
 
     // sd:/advert/####track name
     void playAdvertisement(uint16_t track)
     {
-        sendPacket(0x13, track);
+        setCommand(Mp3_Commands_PlayAdvertTrack, track);
     }
 
     void stopAdvertisement()
     {
-        sendPacket(0x15);
+        setCommand(Mp3_Commands_StopAdvert);
+    }
+
+    void enableDac()
+    {
+        setCommand(Mp3_Commands_SetDacInactive, 0x00);
+    }
+
+    void disableDac()
+    {
+        setCommand(Mp3_Commands_SetDacInactive, 0x01);
+    }
+
+    bool isOnline() const
+    {
+        return _isOnline;
     }
 
 private:
-    static const uint16_t c_msSendSpace = 50;
-
-    // 7E FF 06 0F 00 01 01 xx xx EF
-    // 0	->	7E is start code
-    // 1	->	FF is version
-    // 2	->	06 is length
-    // 3	->	0F is command
-    // 4	->	00 is no receive
-    // 5~6	->	01 01 is argument
-    // 7~8	->	checksum = 0 - ( FF+06+0F+00+01+01 )
-    // 9	->	EF is end code
-    enum DfMp3_Packet
+    struct reply_t
     {
-        DfMp3_Packet_StartCode,
-        DfMp3_Packet_Version,
-        DfMp3_Packet_Length,
-        DfMp3_Packet_Command,
-        DfMp3_Packet_RequestAck,
-        DfMp3_Packet_HiByteArgument,
-        DfMp3_Packet_LowByteArgument,
-        DfMp3_Packet_HiByteCheckSum,
-        DfMp3_Packet_LowByteCheckSum,
-        DfMp3_Packet_EndCode,
-        DfMp3_Packet_SIZE
-    };
+        uint8_t command = 0;
+        uint16_t arg = 0;
 
-
-    T_SERIAL_METHOD& _serial;
-    uint32_t _lastSend;
-    uint16_t _lastSendSpace;
-    bool _isOnline;
-
-    void sendPacket(uint8_t command, uint16_t arg = 0, uint16_t sendSpaceNeeded = c_msSendSpace)
-    {
-        uint8_t out[DfMp3_Packet_SIZE] = { 0x7E, 0xFF, 06, command, 00, (arg >> 8), (arg & 0x00ff), 00, 00, 0xEF };
-
-        setChecksum(out);
-
-        // wait for spacing since last send
-        while (((millis() - _lastSend) < _lastSendSpace) || !_isOnline)
+        bool isUndefined()
         {
-            // check for event messages from the device while
-            // we wait
-            loop();
-            delay(1);
+            return (command == Mp3_Commands_None);
         }
 
-        _lastSendSpace = sendSpaceNeeded;
-        _serial.write(out, DfMp3_Packet_SIZE);
+#ifdef DfMiniMp3Debug
+        void printReply() const
+        {
+            char formated[8];
 
-        _lastSend = millis();
+            sprintf(formated, " %02x", command);
+            DfMiniMp3Debug.print(formated);
+            sprintf(formated, " %04x", arg);
+            DfMiniMp3Debug.print(formated);
+        }
+#endif
+    };
+
+    const uint32_t c_AckTimeout = C_ACK_TIMEOUT;
+    const uint32_t c_NoAckTimeout = 50; // 30ms observerd, added a little overhead
+
+    T_SERIAL_METHOD& _serial;
+    uint8_t _comRetries;
+    volatile bool _isOnline;
+#ifdef DfMiniMp3Debug
+    int8_t _inTransaction;
+#endif
+    queueSimple_t<reply_t> _queueNotifications;
+
+    void appendNotification(reply_t reply)
+    {
+        // store the notification for later calling so
+        // current comms transactions can be finished
+        // without interruption
+        _queueNotifications.Enqueue(reply);
     }
 
-    bool readPacket(uint8_t* command, uint16_t* argument)
+    bool abateNotification()
     {
-        uint8_t in[DfMp3_Packet_SIZE] = { 0 };
+        // remove the first notification and call it
+        reply_t reply;
+        bool wasAbated = false;
+        if (_queueNotifications.Dequeue(&reply))
+        {
+            callNotification(reply);
+            wasAbated = true;
+        }
+        return wasAbated;
+    }
+
+    void callNotification(reply_t reply)
+    {
+        switch (reply.command)
+        {
+        case Mp3_Replies_TrackFinished_Usb: // usb
+            T_NOTIFICATION_METHOD::OnPlayFinished(*this, DfMp3_PlaySources_Usb, reply.arg);
+            break;
+
+        case Mp3_Replies_TrackFinished_Sd: // micro sd
+            T_NOTIFICATION_METHOD::OnPlayFinished(*this, DfMp3_PlaySources_Sd, reply.arg);
+            break;
+
+        case Mp3_Replies_TrackFinished_Flash: // flash
+            T_NOTIFICATION_METHOD::OnPlayFinished(*this, DfMp3_PlaySources_Flash, reply.arg);
+            break;
+
+        case Mp3_Replies_PlaySource_Online:
+            T_NOTIFICATION_METHOD::OnPlaySourceOnline(*this, static_cast<DfMp3_PlaySources>(reply.arg));
+            break;
+
+        case Mp3_Replies_PlaySource_Inserted:
+            T_NOTIFICATION_METHOD::OnPlaySourceInserted(*this, static_cast<DfMp3_PlaySources>(reply.arg));
+            break;
+
+        case Mp3_Replies_PlaySource_Removed:
+            T_NOTIFICATION_METHOD::OnPlaySourceRemoved(*this, static_cast<DfMp3_PlaySources>(reply.arg));
+            break;
+
+        case Mp3_Replies_Error: // error
+            T_NOTIFICATION_METHOD::OnError(*this, reply.arg);
+            break;
+
+        default:
+#ifdef DfMiniMp3Debug
+            DfMiniMp3Debug.print("INVALID NOTIFICATION: ");
+            reply.printReply();
+            DfMiniMp3Debug.println();
+#endif
+            break;
+        }
+    }
+
+    void drainResponses()
+    {
+        loop();
+    }
+
+    void sendPacket(uint8_t command, uint16_t arg = 0, bool requestAck = false)
+    {
+        typename T_CHIP_VARIANT::SendPacket packet = T_CHIP_VARIANT::generatePacket(command, arg, requestAck);
+
+#ifdef DfMiniMp3Debug
+        DfMiniMp3Debug.print("OUT ");
+        printRawPacket(reinterpret_cast<const uint8_t*>(&packet), sizeof(packet));
+        DfMiniMp3Debug.println();
+#endif
+
+        _serial.write(reinterpret_cast<uint8_t*>(&packet), sizeof(packet));
+    }
+
+    bool readPacket(reply_t* reply)
+    {
+        typename T_CHIP_VARIANT::ReceptionPacket in;
         uint8_t read;
 
         // init our out args always
-        *command = 0;
-        *argument = 0;
-        
+        *reply = {};
+
         // try to sync our reads to the packet start
         do
         {
             // we use readBytes as it gives us the standard timeout
-            read = _serial.readBytes(&(in[DfMp3_Packet_StartCode]), 1);
+            read = _serial.readBytes(&in.startCode, 1);
+
             if (read != 1)
             {
                 // nothing read
+                reply->arg = DfMp3_Error_RxTimeout;
+
                 return false;
             }
-        } while (in[DfMp3_Packet_StartCode] != 0x7e);
+        } while (in.startCode != 0x7e);
 
-        read += _serial.readBytes(in + 1, DfMp3_Packet_SIZE - 1);
-        if (read < DfMp3_Packet_SIZE)
+        read += _serial.readBytes(&in.version, sizeof(in) - 1);
+
+#ifdef DfMiniMp3Debug
+        DfMiniMp3Debug.print("IN ");
+        printRawPacket(reinterpret_cast<const uint8_t*>(&in), read);
+        DfMiniMp3Debug.println();
+#endif
+
+        if (read < sizeof(in))
         {
             // not enough bytes, corrupted packet
+            reply->arg = DfMp3_Error_PacketSize;
             return false;
         }
 
-        if (in[DfMp3_Packet_Version] != 0xFF ||
-            in[DfMp3_Packet_Length] != 0x06 ||
-            in[DfMp3_Packet_EndCode] != 0xef )
+        if (in.version != 0xFF ||
+            in.length != 0x06 ||
+            in.endCode != 0xef)
         {
             // invalid version or corrupted packet
+            reply->arg = DfMp3_Error_PacketHeader;
             return false;
         }
 
-        if (!validateChecksum(in))
+        if (!T_CHIP_VARIANT::validateChecksum(in))
         {
-            // checksum failed, corrupted paket
+            // checksum failed, corrupted packet
+            reply->arg = DfMp3_Error_PacketChecksum;
             return false;
         }
 
-        *command = in[DfMp3_Packet_Command];
-        *argument = ((in[DfMp3_Packet_HiByteArgument] << 8) | in[DfMp3_Packet_LowByteArgument]);
+        reply->command = in.command;
+        reply->arg = ((static_cast<uint16_t>(in.hiByteArgument) << 8) | in.lowByteArgument);
 
         return true;
     }
 
-    uint16_t listenForReply(uint8_t command)
+    reply_t retryCommand(uint8_t command, 
+            uint8_t expectedCommand, 
+            uint16_t arg = 0, 
+            bool requestAck = false)
     {
-        uint8_t replyCommand = 0;
-        uint16_t replyArg = 0;
+        reply_t reply;
+        uint8_t retries = _comRetries;
 
-        do
+
+#ifdef DfMiniMp3Debug
+        if (_inTransaction != 0)
         {
-            if (readPacket(&replyCommand, &replyArg))
+            DfMiniMp3Debug.print("Rentrant? _inTransaction ");
+            DfMiniMp3Debug.print(_inTransaction);
+        }
+        else
+#endif
+        {
+            drainResponses();
+        }
+
+#ifdef DfMiniMp3Debug
+        _inTransaction++;
+#endif
+        if (T_CHIP_VARIANT::commandSupportsAck(command))
+        {
+            // with ack support, 
+            // we may retry if we don't get what we expected
+            //
+            _serial.setTimeout(c_AckTimeout);             
+            do
             {
-                if (command != 0 && command == replyCommand)
+                sendPacket(command, arg, requestAck);
+                reply = listenForReply(expectedCommand);
+                retries--;
+            } while (reply.command != expectedCommand && retries);
+        }
+        else
+        {
+            // without ack support, 
+            // we may retry only if we get an error
+            //
+            _serial.setTimeout(c_NoAckTimeout);
+            do
+            {
+                sendPacket(command, arg, requestAck);
+                reply = listenForReply(expectedCommand);
+                retries--;
+            } while (reply.command == Mp3_Replies_Error && retries);
+        }
+#ifdef DfMiniMp3Debug
+        _inTransaction--;
+#endif
+
+        if (reply.command == Mp3_Replies_Error)
+        {
+            T_NOTIFICATION_METHOD::OnError(*this, reply.arg);
+            reply = {};
+        }
+        
+        return reply;
+    }
+
+    reply_t getCommand(uint8_t command, uint16_t arg = 0)
+    {
+        return retryCommand(command, command, arg);
+    }
+
+    void setCommand(uint8_t command, uint16_t arg = 0)
+    {
+        retryCommand(command, Mp3_Replies_Ack, arg, true);
+    }
+
+    reply_t listenForReply(uint8_t command)
+    {
+        reply_t reply;
+
+        while (readPacket(&reply))
+        {
+            switch (reply.command)
+            {
+            case Mp3_Replies_PlaySource_Online: // play source online
+            case Mp3_Replies_PlaySource_Inserted: // play source inserted
+            case Mp3_Replies_PlaySource_Removed: // play source removed
+                _isOnline = true;
+                appendNotification(reply);
+                break;
+
+            case Mp3_Replies_TrackFinished_Usb: // usb
+            case Mp3_Replies_TrackFinished_Sd: // micro sd
+            case Mp3_Replies_TrackFinished_Flash: // flash
+                appendNotification(reply);
+                break;
+
+            case Mp3_Replies_Error: // error
+                if (command == Mp3_Commands_None)
                 {
-                    return replyArg;
+                    appendNotification(reply);
                 }
                 else
                 {
-                    switch (replyCommand)
-                    {
-                    case 0x3d:
-                        T_NOTIFICATION_METHOD::OnPlayFinished(replyArg);
-                        break;
-
-                    case 0x3F:
-                        if (replyArg & 0x02)
-                        {
-                            _isOnline = true;
-                            T_NOTIFICATION_METHOD::OnCardOnline(replyArg);
-                        }
-                        break;
-
-                    case 0x3A:
-                        if (replyArg & 0x02)
-                        {
-                            T_NOTIFICATION_METHOD::OnCardInserted(replyArg);
-                        }
-                        break;
-
-                    case 0x3B:
-                        if (replyArg & 0x02)
-                        {
-                            T_NOTIFICATION_METHOD::OnCardRemoved(replyArg);
-                        }
-                        break;
-
-                    case 0x40:
-                        T_NOTIFICATION_METHOD::OnError(replyArg);
-                        break;
-
-                    default:
-                        // unknown/unsupported command reply
-                        break;
-                    }
+                    return reply;
                 }
-            }
-            else
-            {
-                if (command != 0)
+                break;
+
+            case Mp3_Replies_Ack: // ack
+            default:
+                if (command != Mp3_Commands_None)
                 {
-                    T_NOTIFICATION_METHOD::OnError(DfMp3_Error_General);
-                    if (_serial.available() == 0)
-                    {
-                        return 0;
-                    }
+                    return reply;
                 }
+                break;
             }
-        } while (command != 0);
 
-        return 0;
-    }
-
-    uint16_t calcChecksum(uint8_t* packet)
-    {
-        uint16_t sum = 0;
-        for (int i = DfMp3_Packet_Version; i < DfMp3_Packet_HiByteCheckSum; i++)
-        {
-            sum += packet[i];
+            // for not specific listen, only drain
+            // one message at a time
+            if (command == Mp3_Commands_None)
+            {
+                break;
+            }
         }
-        return -sum;
+
+
+        return {};
     }
 
-    void setChecksum(uint8_t* out)
+#ifdef DfMiniMp3Debug
+    void printRawPacket(const uint8_t* data, size_t dataSize)
     {
-        uint16_t sum = calcChecksum(out);
+        char formated[8];
+        const uint8_t* end = data + dataSize;
 
-        out[DfMp3_Packet_HiByteCheckSum] = (sum >> 8);
-        out[DfMp3_Packet_LowByteCheckSum] = (sum & 0xff);
+        while (data < end)
+        {
+            sprintf(formated, " %02x", *data);
+            DfMiniMp3Debug.print(formated);
+            data++;
+        }
     }
 
-    bool validateChecksum(uint8_t* in)
-    {
-        uint16_t sum = calcChecksum(in);
-        return (sum == ((in[DfMp3_Packet_HiByteCheckSum] << 8) | in[DfMp3_Packet_LowByteCheckSum]));
-    }
+#endif
 };

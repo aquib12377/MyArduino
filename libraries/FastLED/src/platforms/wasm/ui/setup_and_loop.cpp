@@ -9,6 +9,10 @@
 
 #include "events.h"
 #include "engine_events.h"
+#include "platforms/wasm/fs_wasm.h"
+#include "namespace.h"
+
+FASTLED_USING_NAMESPACE
 
 
 extern void setup();
@@ -26,6 +30,9 @@ inline void setup_once() {
     g_setup_called = true;
     setup();
 }
+
+
+
 
 //////////////////////////////////////////////////////////////////////////
 // BEGIN EMSCRIPTEN EXPORTS

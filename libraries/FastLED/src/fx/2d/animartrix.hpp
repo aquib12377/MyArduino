@@ -7,12 +7,11 @@
 // For details on the animartrix library and licensing information, see
 // fx/aninamtrix_detail.hpp
 
-#include <iostream> // ok include
 
 #include "crgb.h"
 #include "fx/fx2d.h"
 #include "namespace.h"
-#include "ptr.h"
+#include "ref.h"
 #include "xymap.h"
 
 #define ANIMARTRIX_INTERNAL
@@ -20,7 +19,7 @@
 
 FASTLED_NAMESPACE_BEGIN
 
-DECLARE_SMART_PTR(Animartrix);
+FASTLED_SMART_REF(Animartrix);
 
 enum AnimartrixAnim {
     RGB_BLOBS5 = 0,

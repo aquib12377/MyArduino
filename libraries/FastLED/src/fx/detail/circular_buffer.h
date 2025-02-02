@@ -3,7 +3,7 @@
 #include <stddef.h>   // For size_t
 #include <stdint.h>   // For standard integer types
 #include "namespace.h"
-#include "ptr.h"      // Assuming this provides `scoped_array` or similar
+#include "ref.h"      // Assuming this provides `scoped_array` or similar
 #include "math_macros.h"
 
 FASTLED_NAMESPACE_BEGIN
@@ -144,6 +144,30 @@ public:
         mSize = 0;
         mHead = 0;
         mTail = 0;
+    }
+
+    // Insert value at specified index
+    bool insert(size_t index, const T& value) {
+        if (index > mSize || mCapacity == 0 || mSize >= mCapacity) {
+            return false;
+        }
+
+        if (index == 0) {
+            return push_front(value);
+        }
+        
+        if (index == mSize) {
+            return push_back(value);
+        }
+
+        // Shift elements from index to end one position right
+        for (size_t i = mSize; i > index; --i) {
+            (*this)[i] = (*this)[i - 1];
+        }
+        (*this)[index] = value;
+        ++mSize;
+        mHead = increment(mHead);
+        return true;
     }
 
 private:

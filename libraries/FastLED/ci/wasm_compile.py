@@ -1,14 +1,35 @@
 import argparse
 import os
+import platform
 import subprocess
 import sys
 import time
+from enum import Enum
 from pathlib import Path
 from typing import List
 
 from ci.paths import PROJECT_ROOT
 
-IMAGE_NAME = "fastled-wasm-compiler"
+
+class BuildMode(Enum):
+    DEBUG = "DEBUG"
+    QUICK = "QUICK"
+    RELEASE = "RELEASE"
+
+    @classmethod
+    def from_string(cls, mode_str: str) -> "BuildMode":
+        try:
+            return cls[mode_str.upper()]
+        except KeyError:
+            valid_modes = [mode.name for mode in cls]
+            raise ValueError(f"BUILD_MODE must be one of {valid_modes}, got {mode_str}")
+
+
+machine = platform.machine().lower()
+IS_ARM: bool = "arm" in machine or "aarch64" in machine
+PLATFORM_TAG: str = "-arm64" if IS_ARM else ""
+
+IMAGE_NAME = "fastled-wasm"
 
 HERE: Path = Path(__file__).parent
 DOCKER_FILE: Path = (
@@ -128,7 +149,7 @@ def clean() -> None:
     remove_dangling_images()
 
 
-def build_image(debug: bool = True) -> None:
+def build_image() -> None:
     print()
     print("#######################################")
     print("# Building Docker image...")
@@ -138,13 +159,12 @@ def build_image(debug: bool = True) -> None:
         cmd_list: List[str] = [
             "docker",
             "build",
-            "--platform",
-            "linux/amd64",
             "-t",
             IMAGE_NAME,
         ]
-        if debug:
-            cmd_list.extend(["--build-arg", "DEBUG=1"])
+        cmd_list.extend(["--build-arg", "NO_PREWARM=1"])
+        if IS_ARM:
+            cmd_list.extend(["--build-arg", f"PLATFORM_TAG={PLATFORM_TAG}"])
         cmd_list.extend(
             [
                 "-f",
@@ -169,7 +189,19 @@ def is_tty() -> bool:
     return sys.stdout.isatty()
 
 
-def run_container(directory: str, interactive: bool, debug: bool = False) -> None:
+def get_build_mode(args: argparse.Namespace) -> BuildMode:
+    if args.debug:
+        return BuildMode.DEBUG
+    elif args.release:
+        return BuildMode.RELEASE
+    elif args.quick:
+        return BuildMode.QUICK
+    return BuildMode.QUICK  # Default to QUICK if no mode specified
+
+
+def run_container(
+    directory: str, interactive: bool, build_mode: BuildMode, server: bool = False
+) -> None:
 
     absolute_directory: str = os.path.abspath(directory)
     base_name = os.path.basename(absolute_directory)
@@ -187,14 +219,27 @@ def run_container(directory: str, interactive: bool, debug: bool = False) -> Non
             "run",
             "--name",
             IMAGE_NAME,
-            "--platform",
-            "linux/amd64",
             "-v",
             f"{absolute_directory}:/mapped/{base_name}",
+            "-v",
+            f"{PROJECT_ROOT/'src'}:/host/fastled/src",
         ]
+        if server:
+            # add the port mapping before the image name is added.
+            auth_token = _get_auth_token()
+            print(f"Using auth token: {auth_token}")
+            docker_command.extend(["-p", "80:80"])
         docker_command.append(IMAGE_NAME)
-        if debug and not interactive:
-            docker_command.extend(["python", "/js/compile.py", "--debug"])
+        if server and not interactive:
+            docker_command.extend(["python", "/js/run.py", "server"])
+        elif not interactive:
+            docker_command.extend(["python", "/js/run.py", "compile"])
+            if build_mode == BuildMode.DEBUG:
+                docker_command.extend(["--debug"])
+            elif build_mode == BuildMode.RELEASE:
+                docker_command.extend(["--release"])
+            elif build_mode == BuildMode.QUICK:
+                docker_command.extend(["--quick"])
         if is_tty():
             docker_command.insert(4, "-it")
         if interactive:
@@ -211,6 +256,45 @@ def run_container(directory: str, interactive: bool, debug: bool = False) -> Non
         subprocess.run(docker_command, check=True)
     except subprocess.CalledProcessError as e:
         raise WASMCompileError(f"ERROR: Failed to run Docker container.\n{e}")
+
+
+def run_web_server(directory: str) -> None:
+    print("Launching web server at", directory)
+    print("Launching live-server at http://localhost")
+
+    # Check if live-server is installed
+    try:
+        print("running live-server --version")
+        subprocess.run(
+            "live-server --version", capture_output=True, shell=True, check=True
+        )
+    except subprocess.CalledProcessError:
+        print("live-server not found. Please install it with:")
+        print("npm install -g live-server")
+        return
+
+    # Create a detached command window running live-server
+    cmd_list = ["live-server"]
+    cmd_str = subprocess.list2cmdline(cmd_list)
+    print(f"Running command: {cmd_str} at {directory}")
+    subprocess.Popen(
+        cmd_str,
+        shell=True,
+        cwd=directory,
+        # creationflags=CREATE_NEW_CONSOLE | DETACHED_PROCESS
+    )
+    while True:
+        time.sleep(1)
+
+
+def _get_auth_token() -> str:
+    """Grep the _AUTH_TOKEN from server.py"""
+    server_py = PROJECT_ROOT / "src" / "platforms" / "wasm" / "compiler" / "server.py"
+    with open(server_py, "r") as f:
+        for line in f:
+            if "_AUTH_TOKEN" in line:
+                return line.split('"')[1].strip()
+    raise WASMCompileError("Could not find _AUTH_TOKEN in server.py")
 
 
 def main() -> None:
@@ -253,19 +337,37 @@ def main() -> None:
         help="Launch a web server and open a browser after compilation",
     )
     parser.add_argument(
-        "--no-open",
+        "--just-compile",
         action="store_true",
         help="Skip launching a web server and opening a browser",
     )
-    parser.add_argument(
+    # Build mode group (mutually exclusive)
+    build_mode_group = parser.add_mutually_exclusive_group()
+    build_mode_group.add_argument(
         "--debug",
         action="store_true",
-        help="Enables debug flags and disables optimization. Results in larger binary with debug info.",
+        help="Build in debug mode - larger binary with debug info",
+    )
+    build_mode_group.add_argument(
+        "--quick",
+        action="store_true",
+        help="Build in quick mode - faster compilation (default)",
+    )
+    build_mode_group.add_argument(
+        "--release",
+        action="store_true",
+        help="Build in release mode - optimized for size and speed",
+    )
+    parser.add_argument(
+        "--server",
+        action="store_true",
+        help="Run the server instead of compiling",
     )
     args: argparse.Namespace = parser.parse_args()
+
     if args.no_build:
         args.build = False
-    if args.no_open:
+    if args.just_compile:
         args.open = False
 
     try:
@@ -274,14 +376,18 @@ def main() -> None:
             return
         if args.directory is None:
             parser.error("ERROR: directory is required unless --clean is specified")
-        debug_mode = args.debug
+        selected_build_mode = get_build_mode(args)
         if args.build or not image_exists():
             # Check for and remove existing container before building
             remove_existing_container(IMAGE_NAME)
-            build_image(debug_mode)
+            build_image()
             remove_dangling_images()
 
-        run_container(args.directory, args.interactive, debug_mode)
+        run_container(
+            args.directory, args.interactive, selected_build_mode, args.server
+        )
+        if args.server:
+            return
 
         output_dir = str(Path(args.directory) / "fastled_js")
 
@@ -298,35 +404,6 @@ def main() -> None:
     except Exception as e:
         print(f"\033[91mUnexpected error: {str(e)}\033[0m")  # Print error in red
         sys.exit(1)
-
-
-def run_web_server(directory: str) -> None:
-    print("Launching web server at", directory)
-    print("Launching live-server at http://localhost")
-
-    # Check if live-server is installed
-    try:
-        print("running live-server --version")
-        subprocess.run(
-            "live-server --version", capture_output=True, shell=True, check=True
-        )
-    except subprocess.CalledProcessError:
-        print("live-server not found. Please install it with:")
-        print("npm install -g live-server")
-        return
-
-    # Create a detached command window running live-server
-    cmd_list = ["live-server"]
-    cmd_str = subprocess.list2cmdline(cmd_list)
-    print(f"Running command: {cmd_str} at {directory}")
-    subprocess.Popen(
-        cmd_str,
-        shell=True,
-        cwd=directory,
-        # creationflags=CREATE_NEW_CONSOLE | DETACHED_PROCESS
-    )
-    while True:
-        time.sleep(1)
 
 
 if __name__ == "__main__":

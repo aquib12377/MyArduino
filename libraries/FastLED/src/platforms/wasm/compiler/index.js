@@ -52,7 +52,7 @@ console.error = error;
 
 function isDenseGrid(frameData) {
     const screenMap = frameData.screenMap;
-    
+
     // Check if all pixel densities are undefined
     let allPixelDensitiesUndefined = true;
     for (const stripId in screenMap.strips) {
@@ -98,6 +98,7 @@ async function initThreeJS(threeJsModules, containerId) {
     }
 
     let camera, stats;
+    console.log("Initializing ThreeJS...");
     let composer, renderer, mixer, clock;
 
     const params = {
@@ -114,14 +115,24 @@ async function initThreeJS(threeJsModules, containerId) {
         clock = new THREE.Clock();
         const scene = new THREE.Scene();
 
+        console.log("Creating PerspectiveCamera with parameters:");
+        console.log("Field of View (FOV):", 40);
+        console.log("Aspect Ratio:", window.innerWidth / window.innerHeight);
+        console.log("Near Clipping Plane:", 1);
+        console.log("Far Clipping Plane:", 100);
         camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 1, 100);
         camera.position.set(-5, 2.5, -3.5);
+        console.log("Camera Position - X:", camera.position.x, "Y:", camera.position.y, "Z:", camera.position.z);
         scene.add(camera);
+        console.log("Camera added to scene.");
 
         scene.add(new THREE.AmbientLight(0xcccccc));
+        console.log("Ambient light added to scene.");
 
         const pointLight = new THREE.PointLight(0xffffff, 100);
+        console.log("Point light created with intensity 100.");
         camera.add(pointLight);
+        console.log("Point light added to camera.");
 
         const loader = new GLTFLoader();
         const gltf = await loader.loadAsync('https://threejs.org/examples/models/gltf/PrimaryIonDrive.glb');
@@ -165,14 +176,15 @@ async function initThreeJS(threeJsModules, containerId) {
     }
 
     function onWindowResize() {
-        const width = window.innerWidth;
-        const height = window.innerHeight;
+        const canvas = document.getElementById(this.canvasId);
+        const width = canvas.clientWidth;
+        const height = canvas.clientHeight;
 
-        camera.aspect = width / height;
-        camera.updateProjectionMatrix();
+        this.camera.aspect = width / height;
+        this.camera.updateProjectionMatrix();
 
-        renderer.setSize(width, height);
-        composer.setSize(width, height);
+        this.renderer.setSize(width, height);
+        this.composer.setSize(width, height);
     }
 
     function animate() {
@@ -519,38 +531,43 @@ class GraphicsManagerThreeJS {
     }
 
     initThreeJS(frameData) {
+        const FOV = 45;
+        const margin = 1.05;  // Add a small margin around the screen
+        const RESOLUTION_BOOST = 2;  // 2x resolution for higher quality
+        const MAX_WIDTH = 640;  // Max pixels width on browser.
 
         const { THREE, EffectComposer, RenderPass, UnrealBloomPass } = this.threeJsModules;
         const canvas = document.getElementById(this.canvasId);
+        const screenMap = frameData.screenMap;
+        const screenMapWidth = screenMap.absMax[0] - screenMap.absMin[0];
+        const screenMapHeight = screenMap.absMax[1] - screenMap.absMin[1];
 
         // Always set width to 640px and scale height proportionally
-        const targetWidth = 640;
-        const aspectRatio = canvas.height / canvas.width;
-        const targetHeight = Math.round(targetWidth * aspectRatio);
+        const targetWidth = MAX_WIDTH;
+        const aspectRatio = screenMapWidth / screenMapHeight;
+        const targetHeight = Math.round(targetWidth / aspectRatio);
 
         // Set the rendering resolution (2x the display size)
-        this.SCREEN_WIDTH = targetWidth * 2;
-        this.SCREEN_HEIGHT = targetHeight * 2;
+        this.SCREEN_WIDTH = targetWidth * RESOLUTION_BOOST;
+        this.SCREEN_HEIGHT = targetHeight * RESOLUTION_BOOST;
 
         // Set internal canvas size to 2x for higher resolution
-        canvas.width = targetWidth * 2;
-        canvas.height = targetHeight * 2;
+        canvas.width = targetWidth * RESOLUTION_BOOST;
+        canvas.height = targetHeight * RESOLUTION_BOOST;
         // But keep display size the same
         canvas.style.width = targetWidth + 'px';
         canvas.style.height = targetHeight + 'px';
         canvas.style.maxWidth = targetWidth + 'px';
         canvas.style.maxHeight = targetHeight + 'px';
+        const circleRadius = Math.max(this.SCREEN_WIDTH, this.SCREEN_HEIGHT) * 0.5;
+        const cameraZ = circleRadius / Math.tan(THREE.MathUtils.degToRad(FOV / 2)) * margin;
 
         this.scene = new THREE.Scene();
-        const margin = 1.05;  // Add a small margin around the screen
+
         // Use perspective camera with narrower FOV for less distortion
-        // BIG TODO: This camera setup does not respond to z-position changes. Eventually
-        // we we want to have a camera that shows leds closer to the screen as larger.
-        const fov = 45;
-        const aspect = this.SCREEN_WIDTH / this.SCREEN_HEIGHT;
-        this.camera = new THREE.PerspectiveCamera(fov, aspect, 0.1, 2000);
-        // Position camera closer to fill more of the screen
-        this.camera.position.z = Math.max(this.SCREEN_WIDTH, this.SCREEN_HEIGHT) * margin;
+        this.camera = new THREE.PerspectiveCamera(FOV, aspectRatio, 0.1, 5000);
+        // Adjust camera position to ensure the circle fits within the view
+        this.camera.position.z = cameraZ;
         this.camera.position.y = 0;
 
         this.renderer = new THREE.WebGLRenderer({
@@ -558,7 +575,6 @@ class GraphicsManagerThreeJS {
             antialias: true
         });
         this.renderer.setSize(this.SCREEN_WIDTH, this.SCREEN_HEIGHT);
-
         const renderScene = new RenderPass(this.scene, this.camera);
         this.composer = new EffectComposer(this.renderer);
         this.composer.addPass(renderScene);
@@ -668,7 +684,7 @@ class GraphicsManagerThreeJS {
                 });
             }
         });
-        return {isDenseScreenMap}
+        return { isDenseScreenMap }
     }
 
     updateCanvas(frameData) {
@@ -752,12 +768,12 @@ class GraphicsManagerThreeJS {
             // Convert to normalized coordinates
             const normalizedX = (x / width) * this.SCREEN_WIDTH - this.SCREEN_WIDTH / 2;
             const normalizedY = (y / height) * this.SCREEN_HEIGHT - this.SCREEN_HEIGHT / 2;
-            
+
             // Calculate z position based on distance from center for subtle depth
             const distFromCenter = Math.sqrt(Math.pow(normalizedX, 2) + Math.pow(normalizedY, 2));
-            const maxDist = Math.sqrt(Math.pow(this.SCREEN_WIDTH/2, 2) + Math.pow(this.SCREEN_HEIGHT/2, 2));
+            const maxDist = Math.sqrt(Math.pow(this.SCREEN_WIDTH / 2, 2) + Math.pow(this.SCREEN_HEIGHT / 2, 2));
             const z = (distFromCenter / maxDist) * 100;  // Max depth of 100 units
-            
+
             led.position.set(normalizedX, normalizedY, z);
             led.material.color.setRGB(ledData.r, ledData.g, ledData.b);
             ledIndex++;
@@ -825,6 +841,16 @@ class UiManager {
                 console.log(`Group ${group} found, for item ${data.name}`);
             }
 
+            if (data.type === 'title') {
+                this.setTitle(data);
+                return; // Skip creating UI control for title
+            }
+
+            if (data.type === 'description') {
+                this.setDescription(data);
+                return; // Skip creating UI control for description
+            }
+
             let control;
             if (data.type === 'slider') {
                 control = this.createSlider(data);
@@ -859,6 +885,42 @@ class UiManager {
             error('UI controls container not found in the HTML');
         }
         return container;
+    }
+
+    setTitle(titleData) {
+        if (titleData && titleData.text) {
+            document.title = titleData.text;
+            const h1Element = document.querySelector('h1');
+            if (h1Element) {
+                h1Element.textContent = titleData.text;
+            } else {
+                console.warn("H1 element not found in document");
+            }
+        } else {
+            console.warn("Invalid title data received:", titleData);
+        }
+    }
+
+    setDescription(descData) {
+        if (descData && descData.text) {
+            // Create or find description element
+            let descElement = document.querySelector('#fastled-description');
+            if (!descElement) {
+                descElement = document.createElement('div');
+                descElement.id = 'fastled-description';
+                // Insert after h1
+                const h1Element = document.querySelector('h1');
+                if (h1Element && h1Element.nextSibling) {
+                    h1Element.parentNode.insertBefore(descElement, h1Element.nextSibling);
+                } else {
+                    console.warn("Could not find h1 element to insert description after");
+                    document.body.insertBefore(descElement, document.body.firstChild);
+                }
+            }
+            descElement.textContent = descData.text;
+        } else {
+            console.warn("Invalid description data received:", descData);
+        }
     }
 
     createNumberField(element) {
@@ -991,6 +1053,8 @@ class UiManager {
     // to a screen pixel with xy.
     let screenMap = {
         strips: {},
+        absMin: [0, 0],
+        absMax: [0, 0]
     };
     let canvasId;
     let uiControlsId;
@@ -1160,9 +1224,78 @@ class UiManager {
     };
 
     // Function to call the setup and loop functions
-    function runFastLED(extern_setup, extern_loop, frame_rate, moduleInstance) {
+    function runFastLED(extern_setup, extern_loop, frame_rate, moduleInstance, filesJson) {
         console.log("Calling setup function...");
+
+        const trimmedFilesJson = filesJson.map(file => {
+            return {
+                path: file.path,
+                size: file.size,
+            };
+        });
+        const options = {
+            files: trimmedFilesJson,
+            frameRate: frame_rate,
+        };
+        const jsonStr = JSON.stringify(options);
+        moduleInstance._fastled_declare_files(jsonStr);
         extern_setup();
+
+        const fetchAllFiles = (filesJson, onComplete) => {
+            let filesRemaining = filesJson.length;
+
+            const processFile = (file) => {
+                fetch(file.path)
+                    .then(response => response.body.getReader())
+                    .then(async (reader) => {
+                        console.log(`File fetched: ${file.path}, size: ${file.size}`);
+                        
+                        // Allocate name buffer once
+                        const n = moduleInstance.lengthBytesUTF8(file.path) + 1;
+                        const ptrName = moduleInstance._malloc(n);
+             
+                        moduleInstance.stringToUTF8(file.path, ptrName, n);
+
+                        while (true) {
+                            const { value, done } = await reader.read();
+                            if (done) break;
+
+                            // Allocate and copy chunk data
+                            const ptr = moduleInstance._malloc(value.length);
+                            moduleInstance.HEAPU8.set(value, ptr);
+                            
+                            // Stream this chunk
+                            moduleInstance.ccall('jsAppendFile', 'number', 
+                                ['number', 'number', 'number'], 
+                                [ptrName, ptr, value.length]
+                            );
+
+                            moduleInstance._free(ptr);
+                        }
+
+                        moduleInstance._free(ptrName);
+
+                        filesRemaining--;
+                        if (filesRemaining === 0) {
+                            console.log("All files processed");
+                            onComplete && onComplete();
+                        }
+                    })
+                    .catch(error => {
+                        console.error(`Error processing file ${file.path}:`, error);
+                        filesRemaining--;
+                        if (filesRemaining === 0) {
+                            console.log("All files processed");
+                            onComplete && onComplete();
+                        }
+                    });
+            };
+
+            filesJson.forEach(processFile);
+        };
+
+        fetchAllFiles(filesJson);
+
 
         console.log("Starting loop...");
         const frameInterval = 1000 / frame_rate;
@@ -1183,8 +1316,8 @@ class UiManager {
 
 
     function updateCanvas(frameData) {
-       // we are going to add the screenMap to the graphicsManager
-       frameData.screenMap = screenMap;
+        // we are going to add the screenMap to the graphicsManager
+        frameData.screenMap = screenMap;
         if (!graphicsManager) {
             const isDenseMap = isDenseGrid(frameData);
             if (FORCE_THREEJS_RENDERER) {
@@ -1208,7 +1341,7 @@ class UiManager {
             graphicsManager.reset();
         }
 
- 
+
         graphicsManager.updateCanvas(frameData);
     }
 
@@ -1216,21 +1349,39 @@ class UiManager {
     // Ensure we wait for the module to load
     const onModuleLoaded = async (fastLedLoader) => {
         // Unpack the module functions and send them to the runFastLED function
-        function __runFastLED(moduleInstance, frameRate) {
+
+
+        function __runFastLED(moduleInstance, frameRate, filesJson) {
             const exports_exist = moduleInstance && moduleInstance._extern_setup && moduleInstance._extern_loop;
             if (!exports_exist) {
                 console.error("FastLED setup or loop functions are not available.");
                 return;
             }
-            return runFastLED(moduleInstance._extern_setup, moduleInstance._extern_loop, frameRate, moduleInstance);
-        }
 
+            return runFastLED(moduleInstance._extern_setup, moduleInstance._extern_loop, frameRate, moduleInstance, filesJson);
+        }
+        // Start fetch now in parallel
+        const fetchFilePromise = async (fetchFilePath) => {
+            const response = await fetch(fetchFilePath);
+            const data = await response.json();
+            return data;
+        };
+        const filesJsonPromise = fetchFilePromise("files.json");
         try {
             if (typeof fastLedLoader === 'function') {
                 // Load the module
-                fastLedLoader().then(instance => {
+                fastLedLoader().then(async (instance) => {
                     console.log("Module loaded, running FastLED...");
-                    __runFastLED(instance, frameRate);
+                    // Wait for the files.json to load.
+                    let filesJson = null;
+                    try {
+                        filesJson = await filesJsonPromise;
+                        console.log("Files JSON:", filesJson);
+                    } catch (error) {
+                        console.error("Error fetching files.json:", error);
+                        filesJson = {};
+                    }
+                    __runFastLED(instance, frameRate, filesJson);
                 }).catch(err => {
                     console.error("Error loading fastled as a module:", err);
                 });

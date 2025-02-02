@@ -1,5 +1,7 @@
-#include "bytestreammemory.h"
 #include <string.h>
+
+#include "bytestreammemory.h"
+
 #include "math_macros.h"
 
 FASTLED_NAMESPACE_BEGIN
@@ -43,6 +45,10 @@ size_t ByteStreamMemory::write(const uint8_t* src, size_t n) {
         ++written;
     }
     return written;
+}
+
+size_t ByteStreamMemory::write(const CRGB* src, size_t n) {
+    return write(reinterpret_cast<const uint8_t*>(src), n * 3);
 }
 
 FASTLED_NAMESPACE_END

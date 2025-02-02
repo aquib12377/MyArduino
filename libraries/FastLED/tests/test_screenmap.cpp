@@ -6,6 +6,9 @@
 #include "doctest.h"
 #include "screenmap.h"
 
+#include "namespace.h"
+FASTLED_USING_NAMESPACE
+
 TEST_CASE("ScreenMap basic functionality") {
     // Create a screen map for 3 LEDs
     ScreenMap map(3);
@@ -48,6 +51,7 @@ TEST_CASE("ScreenMap JSON parsing") {
                 "y": [25.0, 45.0],
                 "diameter": 1.5
             }
+            
         }
     })";
 

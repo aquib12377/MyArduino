@@ -1,9 +1,11 @@
 
 #pragma once
 
-#include "namespace.h"
 #include <stddef.h>
 #include <string.h>
+
+#include "namespace.h"
+
 
 FASTLED_NAMESPACE_BEGIN
 
@@ -20,6 +22,7 @@ public:
     }
 
     static void Free(T* p, size_t n) {
+        (void)n;
         if (p == nullptr) {
             return;
         }

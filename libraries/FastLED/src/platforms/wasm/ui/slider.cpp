@@ -1,24 +1,28 @@
 #ifdef __EMSCRIPTEN__
 
-#include "platforms/wasm/js.h"
-#include "ui_manager.h"
 #include <sstream>
 #include <string.h>
+
+#include "platforms/wasm/js.h"
+#include "ui_manager.h"
 #include "json.h"
+#include "namespace.h"
+
+using namespace fl;
 
 FASTLED_NAMESPACE_BEGIN
 
 
 
-jsSlider::jsSlider(const char* name, float value, float min, float max, float step)
+jsSlider::jsSlider(const Str& name, float value, float min, float max, float step)
     : mMin(min), mMax(max), mValue(value), mStep(step) {
-    auto updateFunc = jsUiInternal::UpdateFunction(this, [](void* self, const ArduinoJson::JsonVariantConst& json) {
+    auto updateFunc = jsUiInternal::UpdateFunction(this, [](void* self, const FLArduinoJson::JsonVariantConst& json) {
         static_cast<jsSlider*>(self)->updateInternal(json);
     });
-    auto toJsonFunc = jsUiInternal::ToJsonFunction(this, [](void* self, ArduinoJson::JsonObject& json) {
+    auto toJsonFunc = jsUiInternal::ToJsonFunction(this, [](void* self, FLArduinoJson::JsonObject& json) {
         static_cast<jsSlider*>(self)->toJson(json);
     });
-    mInternal = jsUiInternalPtr::New(name, std::move(updateFunc), std::move(toJsonFunc));
+    mInternal = jsUiInternalRef::New(name, std::move(updateFunc), std::move(toJsonFunc));
     jsUiManager::addComponent(mInternal);
 }
 
@@ -26,11 +30,11 @@ jsSlider::~jsSlider() {
     jsUiManager::removeComponent(mInternal);
 }
 
-const char* jsSlider::name() const {
+const Str& jsSlider::name() const {
     return mInternal->name();
 }
 
-void jsSlider::toJson(ArduinoJson::JsonObject& json) const {
+void jsSlider::toJson(FLArduinoJson::JsonObject& json) const {
     json["name"] = name();
     json["type"] = "slider";
     json["group"] = mGroup.c_str();
@@ -45,7 +49,7 @@ float jsSlider::value() const {
     return mValue; 
 }
 
-void jsSlider::updateInternal(const ArduinoJson::JsonVariantConst& value) {
+void jsSlider::updateInternal(const FLArduinoJson::JsonVariantConst& value) {
     // We expect jsonStr to actually be a value string, so simply parse it.
     float v = value.as<float>();
     setValue(v);
@@ -56,11 +60,11 @@ void jsSlider::setValue(float value) {
     if (mValue != value) {
         // The value was outside the range so print out a warning that we
         // clamped.
-        const char* name = mInternal->name();
+        const Str& name = mInternal->name();
         int id = mInternal->id();
         printf(
             "Warning: Slider %s with id %d value %f was clamped to range [%f, %f] -> %f\n",
-            name, id,
+            name.c_str(), id,
             value, mMin, mMax, mValue);
     }
 }

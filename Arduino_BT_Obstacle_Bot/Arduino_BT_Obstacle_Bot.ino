@@ -20,6 +20,7 @@ LiquidCrystal_I2C lcd(0x27, 16, 2); // I2C address 0x27, 16 columns, 2 rows
 // Current movement state
 bool isMovingForward = false;
 String lastCommand = "Stop"; // Default command
+	const int relayPin = 12;
 
 void setup() {
   // Motor Pins Setup
@@ -32,7 +33,8 @@ void setup() {
   // Ultrasonic Sensor Pins Setup
   pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
-
+pinMode(relayPin, OUTPUT);
+	  digitalWrite(relayPin, HIGH);
   // Serial Setup for HC-05 and Debugging
   Serial.begin(9600);
   Serial.println("Bot Initialized. Awaiting commands...");
@@ -124,13 +126,19 @@ void processCommand(char command) {
       turnRight();
       break;
     case 'S': // Stop
-      Serial.println("Command: Stop");
+      //Serial.println("Command: Stop");
       isMovingForward = false; // Not moving forward
       updateLCD("Stop");
       stopMotors();
       break;
+    case 'U':  // Stop all motors
+		  digitalWrite(relayPin, LOW);
+		  break;
+		  case 'u':  // Stop all motors
+		  digitalWrite(relayPin, HIGH);
+		  break;
     default:
-      Serial.println("Unknown Command");
+      //Serial.println("Unknown Command");
       updateLCD("Unknown");
       break;
   }

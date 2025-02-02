@@ -2,25 +2,33 @@
 
 #include "filebuffer.h"
 
+#include "namespace.h"
 
-FileBuffer::FileBuffer(FileHandlePtr fh) {
+FASTLED_NAMESPACE_BEGIN
+
+FileBuffer::FileBuffer(FileHandleRef fh) {
   mFile = fh;
   ResetBuffer();
 }
 
 FileBuffer::~FileBuffer() {
-  if (mIsOpen) {
-    mFile->close();
-  }
 }
 
-void FileBuffer::RewindToStart() {
+void FileBuffer::rewindToStart() {
   mFile->seek(0);
   RefillBuffer();
 }
 
 bool FileBuffer::available() const {
-  return (mIsOpen) && ((mCurrIdx != mLength) || mFile->available());
+  if (mCurrIdx != mLength) {
+    // we still have buffer to read.
+    return true;
+  }
+  if (!mFile) {
+    // no file to read from.
+    return false;
+  }
+  return mFile->available();
 }
 
 int32_t FileBuffer::BytesLeft() const {
@@ -40,15 +48,10 @@ int32_t FileBuffer::FileSize() const {
 }
 
 int16_t FileBuffer::read() {
-  if (!mIsOpen) {
-    return -1;
-  }
-
   RefillBufferIfNecessary();
   if (mCurrIdx == mLength) {
     return -1;
   }
-
   // main case.
   uint8_t output = mBuffer[mCurrIdx++];
   return output;
@@ -67,7 +70,6 @@ size_t FileBuffer::read(uint8_t* dst, size_t n) {
 }
 
 void FileBuffer::ResetBuffer() {
-  mIsOpen = false;
   mLength = -1;
   mCurrIdx = -1;
 }
@@ -87,3 +89,5 @@ void FileBuffer::RefillBuffer() {
     mCurrIdx = 0;
   }
 }
+
+FASTLED_NAMESPACE_END

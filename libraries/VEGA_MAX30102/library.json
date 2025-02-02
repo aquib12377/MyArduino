@@ -1,0 +1,20 @@
+{
+    "name": "MAX30102lib",
+    "keywords": "pulse,oximetry,spo2,max30102,sensor,i2c",
+    "description": "Maxim-IC MAX30102 heart-rate sensor driver and pulse-oximetry components",
+    "authors":
+    {
+        "name": "vega",
+        "email": "vega@cdac.in",
+        "url": "https://vegaprocessors.in/",
+	"maintainer": true
+    },
+    "repository":
+    {
+        "type": "git",
+        "url": "https://gitlab.com/riscv-vega/vega-sensor-libraries/sensors/vega_max30102"
+    },
+    "version": "1.0.0",
+    "frameworks": "aries",
+    "platforms": "riscv"
+}

@@ -17,6 +17,15 @@ from ci.locked_print import locked_print
 HERE = Path(__file__).parent.resolve()
 
 LIBS = ["src", "ci"]
+EXTRA_LIBS = [
+    "https://github.com/me-no-dev/ESPAsyncWebServer.git",
+    "ArduinoOTA",
+    "SD",
+    "FS",
+    "ESPmDNS",
+    "WiFi",
+    "WebSockets",
+]
 BUILD_FLAGS = ["-Wl,-Map,firmware.map", "-fopt-info-all=optimization_report.txt"]
 
 # Default boards to compile for. You can use boards not defined here but
@@ -79,7 +88,7 @@ DEFAULT_EXAMPLES = [
     "RGBWEmulated",
     "TwinkleFox",
     "XYMatrix",
-    "Video/Stream",
+    "Video/Gfx2Video",
     "SdCard",
 ]
 
@@ -111,6 +120,11 @@ def parse_args():
         "--extra-packages",
         type=str,
         help="Comma-separated list of extra packages to install",
+    )
+    parser.add_argument(
+        "--add-extra-esp32-libs",
+        action="store_true",
+        help="Add extra libraries to the libraries list to check against compiler errors.",
     )
     parser.add_argument(
         "--build-dir", type=str, help="Override the default build directory"
@@ -243,6 +257,9 @@ def main() -> int:
     if args.supported_boards:
         print(",".join(DEFAULT_BOARDS_NAMES))
         return 0
+    if args.add_extra_esp32_libs:
+        LIBS.extend(EXTRA_LIBS)
+
     # Set the working directory to the script's parent directory.
     run_args = create_concurrent_run_args(args)
     start_time = time.time()

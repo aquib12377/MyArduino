@@ -1,9 +1,9 @@
 #include <FastLED.h>
 
-#define NUM_LEDS 24       // Number of LEDs in your strip
+#define NUM_LEDS 300       // Number of LEDs in your strip
 
 //ESP32 38 Pin
-#define DATA_PIN 13       // D  ata pin for the WS2812 connected to GPIO 15 on ESP32
+#define DATA_PIN 8       // D  ata pin for the WS2812 connected to GPIO 15 on ESP32
 //ESP32 30 Pin
 //#define DATA_PIN 13       // D  ata pin for the WS2812 connected to GPIO 15 on ESP32
 
@@ -18,16 +18,19 @@ void setup() {
 }
 
 void loop() {
-  // Smooth RGB transition between red, green, and blue
-  smoothTransition(CRGB::Red, CRGB::Cyan, 100, 20);   // Transition from red to green
-  delay(1000);    // Hold green for 1 second
-  smoothTransition(CRGB::Green, CRGB::Blue, 100, 20);  // Transition from green to blue
-  delay(1000);    // Hold blue for 1 second
-  smoothTransition(CRGB::Blue, CRGB::Red, 100, 20);    // Transition from blue to red
-  delay(1000);    // Hold red for 1 second
-
-  // Turn off all LEDs for 1 second
   FastLED.clear();
+  FastLED.show();
+  fill_solid(leds, NUM_LEDS, CRGB(255, 0, 0));
+  FastLED.show();
+  delay(1000);
+  FastLED.clear();
+  FastLED.show();
+  fill_solid(leds, NUM_LEDS, CRGB(0, 255, 0));
+  FastLED.show();
+  delay(1000);
+  FastLED.clear();
+  FastLED.show();
+  fill_solid(leds, NUM_LEDS, CRGB(0, 0, 255));
   FastLED.show();
   delay(1000);
 }

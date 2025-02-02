@@ -25,41 +25,44 @@ WebServer server(80);
 #define RELAY_PIN 33               // Relay pin (ACTIVE LOW)
 #define ONE_WIRE_BUS 4             // DS18B20 data pin
 
-// Ultrasonic sensor objects using NewPing
+// Ultrasonic sensor objects
 NewPing sonarObstacle(ULTRASONIC1_TRIG_PIN, ULTRASONIC1_ECHO_PIN, MAX_DISTANCE);
 NewPing sonarDepth(ULTRASONIC2_TRIG_PIN, ULTRASONIC2_ECHO_PIN, MAX_DISTANCE);
-
+int a,b,c,d;
 // DS18B20 setup
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 
-// TDS Sensor Variables and Constants
-#define VREF 3.3              // Analog reference voltage (Volt) of the ADC
-#define SCOUNT  30            // Sum of sample points for TDS
+// TDS Sensor variables and constants
+#define VREF 3.3
+#define SCOUNT 30
 
-int analogBuffer[SCOUNT];     // Store analog values from the ADC
+int analogBuffer[SCOUNT];
 int analogBufferTemp[SCOUNT];
 int analogBufferIndex = 0;
 int copyIndex = 0;
 
 float averageVoltage = 0;
 float tdsValue = 0;
-float temperature = 25;       // Default temperature value
+float temperature = 25; // Default temperature
 
 // Relay control variables with hysteresis
 bool relayState = HIGH;
 const int obstacleThreshold = 20;  // Distance to trigger relay in cm
 const int hysteresisMargin = 5;    // Hysteresis margin in cm
 
+// ------------------------------------------------------
+// Setup
+// ------------------------------------------------------
 void setup() {
   Serial.begin(115200);
-
+  
   // Initialize DS18B20
   sensors.begin();
 
   // Initialize relay pin
   pinMode(RELAY_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, HIGH);  // Set relay to inactive (HIGH for ACTIVE LOW relay)
+  digitalWrite(RELAY_PIN, HIGH);  // Set relay to inactive (ACTIVE LOW relay)
 
   // Initialize WiFi
   WiFi.begin(ssid, password);
@@ -79,17 +82,23 @@ void setup() {
   Serial.println("Web server started.");
 }
 
+// ------------------------------------------------------
+// Main Loop
+// ------------------------------------------------------
 void loop() {
   server.handleClient();
-  readTDS();  // Continuously update TDS values in the background
-  handleRelay();  // Control relay based on obstacle distance with hysteresis
+  readTDS();        // Continuously update TDS values
+  handleRelay();    // Control relay based on obstacle distance
 }
 
-// TDS sensor median filtering algorithm
+// ------------------------------------------------------
+// TDS Sensor
+// ------------------------------------------------------
 int getMedianNum(int bArray[], int iFilterLen) {
   int bTab[iFilterLen];
-  for (byte i = 0; i < iFilterLen; i++)
+  for (byte i = 0; i < iFilterLen; i++) {
     bTab[i] = bArray[i];
+  }
   
   int i, j, bTemp;
   for (j = 0; j < iFilterLen - 1; j++) {
@@ -101,34 +110,35 @@ int getMedianNum(int bArray[], int iFilterLen) {
       }
     }
   }
-  return (iFilterLen & 1) > 0 ? bTab[(iFilterLen - 1) / 2] : (bTab[iFilterLen / 2] + bTab[iFilterLen / 2 - 1]) / 2;
+  if ((iFilterLen & 1) > 0)
+    return bTab[(iFilterLen - 1) / 2];
+  else
+    return (bTab[iFilterLen / 2] + bTab[iFilterLen / 2 - 1]) / 2;
 }
 
-// Function to continuously read TDS sensor data
 void readTDS() {
   static unsigned long analogSampleTimepoint = millis();
-  if (millis() - analogSampleTimepoint > 40U) {   // every 40 ms
+  if (millis() - analogSampleTimepoint > 40U) {
     analogSampleTimepoint = millis();
-    analogBuffer[analogBufferIndex] = analogRead(TDS_SENSOR_PIN); // read and store ADC value
-    analogBufferIndex = (analogBufferIndex + 1) % SCOUNT;  // Increment and wrap index
+    analogBuffer[analogBufferIndex] = analogRead(TDS_SENSOR_PIN);
+    analogBufferIndex = (analogBufferIndex + 1) % SCOUNT;
   }
   
   static unsigned long printTimepoint = millis();
-  if (millis() - printTimepoint > 800U) {         // every 800 ms
+  if (millis() - printTimepoint > 800U) {
     printTimepoint = millis();
     for (copyIndex = 0; copyIndex < SCOUNT; copyIndex++) {
       analogBufferTemp[copyIndex] = analogBuffer[copyIndex];
     }
 
     averageVoltage = getMedianNum(analogBufferTemp, SCOUNT) * VREF / 4096.0;
-
     // Temperature compensation
     float compensationCoefficient = 1.0 + 0.02 * (temperature - 25.0);
     float compensationVoltage = averageVoltage / compensationCoefficient;
-
-    // Convert voltage to TDS value
+    // Convert voltage to TDS
     tdsValue = (133.42 * compensationVoltage * compensationVoltage * compensationVoltage -
-               255.86 * compensationVoltage * compensationVoltage + 857.39 * compensationVoltage) * 0.5;
+                255.86 * compensationVoltage * compensationVoltage +
+                857.39 * compensationVoltage) * 0.5;
 
     Serial.print("TDS Value: ");
     Serial.print(tdsValue, 0);
@@ -136,7 +146,9 @@ void readTDS() {
   }
 }
 
-// Function to read temperature from DS18B20
+// ------------------------------------------------------
+// Other Sensor Reads
+// ------------------------------------------------------
 float readTemperature() {
   sensors.requestTemperatures();
   float temp = sensors.getTempCByIndex(0);
@@ -149,7 +161,7 @@ float readTemperature() {
 float readPH() {
   int value = analogRead(PH_SENSOR_PIN);
   float voltage = value * (3.3 / 4095.0);
-  float ph = 3.3 * voltage;
+  float ph = 3.3 * voltage;  // Adjust or calibrate as needed
   Serial.print("pH Value: ");
   Serial.println(ph);
   return ph;
@@ -157,7 +169,8 @@ float readPH() {
 
 int readTurbidity() {
   int val = analogRead(TURBIDITY_SENSOR_PIN);
-  int turbidity = map(val, 0, 2800, 5, 1);
+  // Simple mapping example:
+  int turbidity = map(val, 0, 2800, 5, 1); 
   Serial.print("Turbidity Value: ");
   Serial.println(turbidity);
   return turbidity;
@@ -165,7 +178,7 @@ int readTurbidity() {
 
 int readOxygen() {
   int ADC_Raw = analogRead(OXYGEN_SENSOR_PIN);
-  int oxygenLevel = (ADC_Raw * VREF) / 4096.0;
+  int oxygenLevel = (ADC_Raw * VREF) / 4096.0; // Adjust conversion if needed
   Serial.print("Oxygen Level: ");
   Serial.println(oxygenLevel);
   return oxygenLevel;
@@ -185,7 +198,9 @@ int readDepthDistance() {
   return distance;
 }
 
-// Control relay based on obstacle distance with hysteresis
+// ------------------------------------------------------
+// Relay Control with Hysteresis
+// ------------------------------------------------------
 void handleRelay() {
   int obstacleDistance = readObstacleDistance();
   
@@ -201,34 +216,242 @@ void handleRelay() {
   }
 }
 
+// ------------------------------------------------------
+// Web Pages
+// ------------------------------------------------------
 void handleRoot() {
   String html = "<!DOCTYPE html><html><head><title>ESP32 Sensor Data</title>";
-  html += "<style>body { font-family: Arial; background: #f4f4f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }";
-  html += ".container { text-align: center; padding: 20px; width: 90%; max-width: 500px; background: #fff; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1); border-radius: 8px; }";
+  // ------------------ Basic Styling ------------------
+  html += "<style>";
+  html += "body { font-family: Arial; background: #f4f4f9; margin: 0; padding: 0;} ";
+  html += ".content { display: flex; flex-direction: column; align-items: center; } ";
+  html += ".container { text-align: center; padding: 20px; width: 90%; max-width: 800px; background: #fff; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1); border-radius: 8px; margin-top: 20px; }";
   html += ".sensor-data { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }";
   html += ".sensor-card { background: #007bff; color: #fff; padding: 15px; border-radius: 6px; }";
-  html += ".sensor-card h2 { font-size: 1.2em; margin: 0; } .sensor-card p { font-size: 1.5em; margin: 5px 0 0; font-weight: bold; }</style>";
-  html += "<script>function fetchData() { fetch('/data').then(response => response.json()).then(data => { document.getElementById('temperature').innerText = data.temperature + '°C'; document.getElementById('ph').innerText = data.ph; document.getElementById('oxygen').innerText = data.oxygen + ' ppm';";
-  html += "document.getElementById('tds').innerText = data.tds + ' ppm'; document.getElementById('turbidity').innerText = data.turbidity; document.getElementById('obstacle').innerText = data.obstacle + ' cm';";
-  html += "document.getElementById('depth').innerText = data.depth + ' cm'; }); } setInterval(fetchData, 2000);</script></head><body onload='fetchData()'><div class='container'>";
-  html += "<h1>ESP32 Sensor Data</h1><div class='sensor-data'><div class='sensor-card'><h2>Temperature</h2><p id='temperature'>0 °C</p></div>";
-  html += "<div class='sensor-card'><h2>pH Level</h2><p id='ph'>0</p></div><div class='sensor-card'><h2>Oxygen Level</h2><p id='oxygen'>0 ppm</p></div>";
-  html += "<div class='sensor-card'><h2>TDS Level</h2><p id='tds'>0 ppm</p></div><div class='sensor-card'><h2>Turbidity</h2><p id='turbidity'>0</p></div>";
-  html += "<div class='sensor-card'><h2>Obstacle Distance</h2><p id='obstacle'>0 cm</p></div><div class='sensor-card'><h2>Depth Distance</h2><p id='depth'>0 cm</p></div>";
-  html += "</div></div></body></html>";
+  html += ".sensor-card h2 { font-size: 1.2em; margin: 0; }";
+  html += ".sensor-card p { font-size: 1.5em; margin: 5px 0 0; font-weight: bold; }";
+  html += ".charts { width: 100%; max-width: 800px; margin-top: 20px; }";
+  html += ".chart-container { margin-bottom: 20px; }";
+  html += "</style>";
 
+  // ------------------ Include Chart.js ------------------
+  html += "<script src='https://cdn.jsdelivr.net/npm/chart.js'></script>";
+
+  // ------------------ JavaScript for Fetch & Charts ------------------
+  html += "<script>";
+  // We keep arrays of points for each graph: x=temperature, y=sensorValue
+  html += "var dataPointsTDS = []; "
+          "var dataPointsPH = []; "
+          "var dataPointsOxygen = []; "
+          "var dataPointsTurbidity = []; "
+          // We'll store references to each chart object
+          "var chartTDS, chartPH, chartOxygen, chartTurbidity;";
+
+  // Create the charts on page load
+  html += "function onPageLoad() {"
+          "  createCharts();"
+          "  fetchData();"
+          "  setInterval(fetchData, 2000);"
+          "}";
+
+  // Chart creation
+  html += "function createCharts() {"
+          "  var ctxTDS = document.getElementById('chartTDS').getContext('2d');"
+          "  chartTDS = new Chart(ctxTDS, {"
+          "    type: 'line',"
+          "    data: {"
+          "      datasets: [{"
+          "        label: 'TDS vs Temperature',"
+          "        data: dataPointsTDS," // array of {x, y}
+          "        borderColor: 'red',"
+          "        fill: false"
+          "      }]"
+          "    },"
+          "    options: {"
+          "      scales: {"
+          "        x: {"
+          "          type: 'linear',"
+          "          title: { display: true, text: 'Temperature (°C)' }"
+          "        },"
+          "        y: {"
+          "          title: { display: true, text: 'TDS (ppm)' }"
+          "        }"
+          "      }"
+          "    }"
+          "  });"
+
+          "  var ctxPH = document.getElementById('chartPH').getContext('2d');"
+          "  chartPH = new Chart(ctxPH, {"
+          "    type: 'line',"
+          "    data: {"
+          "      datasets: [{"
+          "        label: 'pH vs Temperature',"
+          "        data: dataPointsPH,"
+          "        borderColor: 'blue',"
+          "        fill: false"
+          "      }]"
+          "    },"
+          "    options: {"
+          "      scales: {"
+          "        x: {"
+          "          type: 'linear',"
+          "          title: { display: true, text: 'Temperature (°C)' }"
+          "        },"
+          "        y: {"
+          "          title: { display: true, text: 'pH' }"
+          "        }"
+          "      }"
+          "    }"
+          "  });"
+
+          "  var ctxOxygen = document.getElementById('chartOxygen').getContext('2d');"
+          "  chartOxygen = new Chart(ctxOxygen, {"
+          "    type: 'line',"
+          "    data: {"
+          "      datasets: [{"
+          "        label: 'Oxygen vs Temperature',"
+          "        data: dataPointsOxygen,"
+          "        borderColor: 'green',"
+          "        fill: false"
+          "      }]"
+          "    },"
+          "    options: {"
+          "      scales: {"
+          "        x: {"
+          "          type: 'linear',"
+          "          title: { display: true, text: 'Temperature (°C)' }"
+          "        },"
+          "        y: {"
+          "          title: { display: true, text: 'Oxygen (ppm)' }"
+          "        }"
+          "      }"
+          "    }"
+          "  });"
+
+          "  var ctxTurbidity = document.getElementById('chartTurbidity').getContext('2d');"
+          "  chartTurbidity = new Chart(ctxTurbidity, {"
+          "    type: 'line',"
+          "    data: {"
+          "      datasets: [{"
+          "        label: 'Turbidity vs Temperature',"
+          "        data: dataPointsTurbidity,"
+          "        borderColor: 'orange',"
+          "        fill: false"
+          "      }]"
+          "    },"
+          "    options: {"
+          "      scales: {"
+          "        x: {"
+          "          type: 'linear',"
+          "          title: { display: true, text: 'Temperature (°C)' }"
+          "        },"
+          "        y: {"
+          "          title: { display: true, text: 'Turbidity' }"
+          "        }"
+          "      }"
+          "    }"
+          "  });"
+          "}";
+
+  // Fetch and update data
+  html += "function fetchData() {"
+          "  fetch('/data')"
+          "    .then(response => response.json())"
+          "    .then(data => {"
+          "      document.getElementById('temperature').innerText = data.temperature.toFixed(2) + ' °C';"
+          "      document.getElementById('ph').innerText = data.ph.toFixed(2);"
+          "      document.getElementById('oxygen').innerText = data.oxygen + ' ppm';"
+          "      document.getElementById('tds').innerText = data.tds.toFixed(0) + ' ppm';"
+          "      document.getElementById('turbidity').innerText = data.turbidity;"
+          "      document.getElementById('obstacle').innerText = data.obstacle + ' cm';"
+          "      document.getElementById('depth').innerText = data.depth + ' cm';"
+
+          "      dataPointsTDS.push({ x: data.temperature, y: data.tds });"
+          "      dataPointsPH.push({ x: data.temperature, y: data.ph });"
+          "      dataPointsOxygen.push({ x: data.temperature, y: data.oxygen });"
+          "      dataPointsTurbidity.push({ x: data.temperature, y: data.turbidity });"
+
+          "      if (dataPointsTDS.length > 50) dataPointsTDS.shift();"
+          "      if (dataPointsPH.length > 50) dataPointsPH.shift();"
+          "      if (dataPointsOxygen.length > 50) dataPointsOxygen.shift();"
+          "      if (dataPointsTurbidity.length > 50) dataPointsTurbidity.shift();"
+
+          "      chartTDS.update();"
+          "      chartPH.update();"
+          "      chartOxygen.update();"
+          "      chartTurbidity.update();"
+          "    });"
+          "}";
+  html += "</script>";
+  
+  // ------------------ HTML Body ------------------
+  html += "</head><body onload='onPageLoad()'>";
+  html += "<div class='content'>";
+
+  // Existing container with sensor cards
+  html += "<div class='container'>";
+  html += "<h1>ESP32 Sensor Data</h1>";
+  html += "<div class='sensor-data'>";
+  
+  html += "<div class='sensor-card'><h2>Temperature</h2><p id='temperature'>0 °C</p></div>";
+  html += "<div class='sensor-card'><h2>pH Level</h2><p id='ph'>0</p></div>";
+  html += "<div class='sensor-card'><h2>Oxygen Level</h2><p id='oxygen'>0 ppm</p></div>";
+  html += "<div class='sensor-card'><h2>TDS Level</h2><p id='tds'>0 ppm</p></div>";
+  html += "<div class='sensor-card'><h2>Turbidity</h2><p id='turbidity'>0</p></div>";
+  html += "<div class='sensor-card'><h2>Obstacle Distance</h2><p id='obstacle'>0 cm</p></div>";
+  html += "<div class='sensor-card'><h2>Depth Distance</h2><p id='depth'>0 cm</p></div>";
+  
+  html += "</div>"; // close sensor-data
+  html += "</div>"; // close container
+
+  // New container for charts
+  html += "<div class='container charts'>";
+  html += "<h2>Real-Time Charts (Temperature on X-axis)</h2>";
+  // Each chart in its own canvas
+  html += "<div class='chart-container'><canvas id='chartTDS' width='400' height='200'></canvas></div>";
+  html += "<div class='chart-container'><canvas id='chartPH' width='400' height='200'></canvas></div>";
+  html += "<div class='chart-container'><canvas id='chartOxygen' width='400' height='200'></canvas></div>";
+  html += "<div class='chart-container'><canvas id='chartTurbidity' width='400' height='200'></canvas></div>";
+  html += "</div>"; // close charts container
+
+  html += "</div>"; // close .content
+  html += "</body></html>";
+  Serial.println(html);
+  //delay(10000);
   server.send(200, "text/html", html);
 }
 
+// JSON Data endpoint
 void handleData() {
-  temperature = readTemperature();
+  // Read all sensors once here, then return as JSON
+  temperature = readTemperature();       // important to keep `temperature` updated for TDS compensation
   float phValue = readPH();
   int oxygenLevel = readOxygen();
   int turbidityLevel = readTurbidity();
   int obstacleDistance = readObstacleDistance();
   int depthDistance = readDepthDistance();
 
-  String json = "{\"temperature\":" + String(temperature) + ",\"ph\":" + String(phValue) + ",\"oxygen\":" + String(oxygenLevel) + ",\"tds\":" + String(tdsValue);
-  json += ",\"turbidity\":" + String(turbidityLevel) + ",\"obstacle\":" + String(obstacleDistance) + ",\"depth\":" + String(depthDistance) + "}";
+  // Construct JSON
+  String json = "{";
+  json += "\"temperature\":" + String(temperature) + ",";
+  json += "\"ph\":" + String(phValue) + ",";
+  json += "\"oxygen\":" + String(oxygenLevel) + ",";
+  json += "\"tds\":" + String(tdsValue) + ",";
+  json += "\"turbidity\":" + String(turbidityLevel) + ",";
+  json += "\"obstacle\":" + String(obstacleDistance) + ",";
+  json += "\"depth\":" + String(depthDistance);
+  json += "}";
+
+  
+  // String json = "{";
+  // json += "\"temperature\":" + String(++a) + ",";
+  // json += "\"ph\":" + String(++b) + ",";
+  // json += "\"oxygen\":" + String(++c) + ",";
+  // json += "\"tds\":" + String(++d) + ",";
+  // json += "\"turbidity\":" + String((a+b)) + ",";
+  // json += "\"obstacle\":" + String(obstacleDistance+random(0,5)) + ",";
+  // json += "\"depth\":" + String(depthDistance+random(0,5));
+  // json += "}";
+  Serial.println(json);
   server.send(200, "application/json", json);
 }

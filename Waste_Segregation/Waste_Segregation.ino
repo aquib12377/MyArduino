@@ -19,7 +19,7 @@ const int echoPin = 10;  // Ultrasonic echo pin
 const int defaultPosition = 90;   // Default position of the servo (center)
 const int metalPosition = 0;      // Position for metal waste
 const int organicPosition = 180;  // Position for organic waste
-const int dryWastePosition = 45;  // Position for dry waste
+const int dryWastePosition = 0;  // Position for dry waste
 
 void setup() {
   // Initialize Serial Monitor

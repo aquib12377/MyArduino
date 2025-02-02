@@ -1,95 +1,110 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
 #include <Servo.h>
 
-// Create servo objects
-Servo servo1;
-Servo servo2;
+// Initialize LCD
+LiquidCrystal_I2C lcd(0x27, 16, 2);
 
-// Define the pins for the servos
-const int servo1Pin = 5;
-const int servo2Pin = 6;
+// Initialize Servos
+Servo horizontalServo;
+Servo verticalServo;
 
-// Define the pins for the LDR sensors
-const int LDR1Pin = A0;
-const int LDR2Pin = A1;
-const int LDR3Pin = A2;
-const int LDR4Pin = A3;
+// LDR Module Pins
+const int ldrRight = 4;
+const int ldrTop = 5;
+const int ldrLeft = 6;
+const int ldrBottom = 7;
 
-// Define the delay between each step in milliseconds
-const int stepDelay = 5;
+// Servo Pins
+const int horizontalPin = 9;
+const int verticalPin = 10;
 
-// Initialize servo positions
-int servo1Pos = 0;
-int servo2Pos = 0;
+// Servo angles
+int horizontalAngle = 90; // Start at the center
+int verticalAngle = 30;   // Start at the center
+
+// Movement thresholds
+const int stepSize = 2;   // Angle step size
+const int delayTime = 500; // Delay for stability
 
 void setup() {
   Serial.begin(9600);
-  // Attach the servos to their respective pins
-  servo1.attach(servo1Pin);
-  servo2.attach(servo2Pin);
+  Serial.println("2 Axis Solar Tracker");
+  // LCD Initialization
+  lcd.begin();
+  lcd.backlight();
+  lcd.setCursor(0, 0);
+  lcd.print("2-Axis Solar");
+  lcd.setCursor(0, 1);
+  lcd.print("Tracker System");
+  delay(2000);
+  lcd.clear();
 
-  // Initialize LDR sensor pins as input
-  pinMode(LDR1Pin, INPUT_PULLUP);
-  pinMode(LDR2Pin, INPUT_PULLUP);
-  pinMode(LDR3Pin, INPUT_PULLUP);
-  pinMode(LDR4Pin, INPUT_PULLUP);
+  // Servo Initialization
+  horizontalServo.attach(horizontalPin);
+  verticalServo.attach(verticalPin);
 
-  // Set servos to initial positions
-  servo1.write(servo1Pos);
-  servo2.write(servo2Pos);
+  // Set initial positions
+  horizontalServo.write(horizontalAngle);
+  verticalServo.write(verticalAngle);
+
+  // Set LDR pins as inputs
+  pinMode(ldrRight, INPUT_PULLUP);
+  pinMode(ldrTop, INPUT_PULLUP);
+  pinMode(ldrLeft, INPUT_PULLUP);
+  pinMode(ldrBottom, INPUT_PULLUP);
+
+  lcd.setCursor(0, 0);
+  lcd.print("Tracking...");
 }
 
 void loop() {
-  // Read the state of each LDR sensor
-  int LDR1State = digitalRead(LDR1Pin);
-  int LDR2State = digitalRead(LDR2Pin);
-  int LDR3State = digitalRead(LDR3Pin);
-  int LDR4State = digitalRead(LDR4Pin);
-  Serial.println(LDR1State);
-  Serial.println(LDR2State);
-  Serial.println(LDR3State);
-  Serial.println(LDR4State);
-  // Determine the direction based on the LDR sensor values
-  if (LDR1State == LOW) {
-    
-    // Move servo1 to the left
-    if (servo1Pos > 0) {
-      servo1Pos--;
-      servo1.write(servo1Pos);
-      delay(stepDelay);
-    }
-  } else if (LDR2State == LOW) {
-    // Move servo1 to the right
-    if (servo1Pos < 180) {
-      servo1Pos++;
-      servo1.write(servo1Pos);
-      delay(stepDelay);
-    }
+  // Read LDR sensors
+  bool rightLight = digitalRead(ldrRight) == LOW;
+  bool topLight = digitalRead(ldrTop) == LOW;
+  bool leftLight = digitalRead(ldrLeft) == LOW;
+  bool bottomLight = digitalRead(ldrBottom) == LOW;
+
+  Serial.print("TOP: ");
+  Serial.print(topLight);
+  Serial.print(" | Bottom: ");
+  Serial.print(bottomLight);
+  Serial.print(" | Left: ");
+  Serial.print(leftLight);
+  Serial.print(" | Right: ");
+  Serial.println(rightLight);
+
+  // Determine horizontal movement
+  if (rightLight && !leftLight) {
+    horizontalAngle = constrain(horizontalAngle + stepSize, 0, 180);
+    horizontalServo.write(horizontalAngle);
+    updateLCD("East Right: "+String(horizontalAngle));
+  } else if (leftLight && !rightLight) {
+    horizontalAngle = constrain(horizontalAngle - stepSize, 0, 180);
+    horizontalServo.write(horizontalAngle);
+    updateLCD("West Left: "+String(horizontalAngle));
   }
 
-  else if (LDR3State == LOW) {
-    // Move servo2 up
-    if (servo2Pos > 0) {
-      servo2Pos--;
-      if(servo2Pos > 0)
-        servo2.write(servo2Pos);
-      delay(stepDelay);
-    }
-  } else if (LDR4State == LOW) {
-    // Move servo2 down
-    if (servo2Pos < 90) {
-      servo2Pos++;
-      if(servo2Pos < 90)
-        servo2.write(servo2Pos);
-      delay(stepDelay);
-    }
+  // Determine vertical movement
+  if (topLight && !bottomLight) {
+    verticalAngle = constrain(verticalAngle + stepSize, 0, 180);
+    verticalServo.write(verticalAngle);
+    updateLCD("North Up: "+String(verticalAngle));
+  } else if (bottomLight && !topLight) {
+    verticalAngle = constrain(verticalAngle - stepSize, 0, 180);
+    verticalServo.write(verticalAngle);
+    updateLCD("South Down: "+String(verticalAngle));
   }
 
-  // Print the positions to the serial monitor for debugging
-  Serial.print("Servo1 Position: ");
-  Serial.print(servo1.read());
-  Serial.print(" | Servo2 Position: ");
-  Serial.println(servo2.read());
+  // Wait before next adjustment
+  delay(30);
+}
 
-  // Small delay to avoid rapid looping
-  delay(5);
+// Function to update LCD with direction
+void updateLCD(String direction) {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Tracking...");
+  lcd.setCursor(0, 1);
+  lcd.print(direction);
 }

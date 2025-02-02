@@ -1,15 +1,17 @@
 #pragma once
 
-#include "namespace.h"
-#include "ptr.h"
 #include <stddef.h>
 #include <stdint.h>
+
+#include "namespace.h"
+#include "ref.h"
+
 #include "bytestream.h"
 #include "fx/detail/circular_buffer.h"
 
 FASTLED_NAMESPACE_BEGIN
 
-DECLARE_SMART_PTR(ByteStreamMemory);
+FASTLED_SMART_REF(ByteStreamMemory);
 
 class ByteStreamMemory : public ByteStream {
   public:
@@ -22,6 +24,7 @@ class ByteStreamMemory : public ByteStream {
     }
     const char *path() const override { return "ByteStreamMemory"; }
     size_t write(const uint8_t* src, size_t n);
+    size_t write(const CRGB* src, size_t n);
 
   private:
     CircularBuffer<uint8_t> mBuffer;

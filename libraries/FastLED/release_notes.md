@@ -1,4 +1,67 @@
 
+FastLED 3.9.4
+=============
+* Fixes some name collisions from users including a lot of libraries.
+* Other misc fixes.
+
+
+FastLED 3.9.3
+=============
+* Beta Release 3 for FastLED 4.0.0
+* ESP32C6 now supported with RMT5 driver without workaround. This chip does not use DMA and so must go through the non DMA path for RMT.
+* RMT5 tweaks for ESP32
+  * For non DMA memory boards like the ESP32, ESP32C3, ESP32C6 RMT will now double it's memory but only allow 4 RMT workers.
+  * This was the behavior for the RMT4.X drivers.
+  * This is done to reduce LED corruption when WIFI is enabled.
+* WS2812 now allows user overrides of it's timing values T1, T2, T3. This is to help debug timing issues on the new V5B of
+  this chipset. You can define FASTLED_WS2812_T1, FASTLED_WS2812_T2, FASTLED_WS2812_T3 before you include FastLED.
+
+FastLED 3.9.2
+=============
+* Beta release 2 for FastLED 4.0.0
+  * In this version we introduce the pre-release of our WS2812 overclocking
+  * We have compile fixes for 3.9.X
+* WS28XX family of led chipsets can now be overclocked
+  * See also define `FASTLED_LED_OVERCLOCK`
+    * Example: `#define FASTLED_OVERCLOCK 1.2` (gives 20% overclock).
+    * You can set this define before you include `"FastLED.h"`
+    * Slower chips like AVR which do software bitbanging will ignore this.
+    * This discovery came from this reddit thread:
+      * https://www.reddit.com/r/FastLED/comments/1gdqtw5/comment/luegowu
+      * A special thanks to https://www.reddit.com/user/Tiny_Structure_7/ for discovering this!
+    * See examples/Overclock.ino for a working demo.
+  * You can either overclock globally or per led chipset on supported chipsets.
+  * Real world tests
+    * I (Zach Vorhies) have seen 25% overclock on my own test setup using cheap amazon WS2812.
+    * u/Tiny_Structure_7 was able to overclock quality WS2812 LEDs 800khz -> 1.2mhz!!
+    * Assuming 550 WS2812's can be driven at 60fps at normal clock.
+      * 25% overclock: 687 @ 60fps
+      * 50% overclock: 825 @ 60fps
+      * Animartrix benchmark (ESP32S3)
+        * 3.7.X: 34fps
+        * 3.9.0: 59fps
+        * 3.9.2: 70fps @ 20% overclock (after this the CPU becomes the bottleneck).
+      * FastLED is now likely at the theoretical maximum speed and efficiency for frame draw (async) & dispatch (overclock).
+  * Fixes `ESPAsyncWebServer.h` namespace collision with `fs.h` in FastLED, which has been renamed to `file_system.h`
+
+
+Example of how to enable overclocking.
+
+```
+#define FASTLED_OVERCLOCK 1.2 // 20% overclock ~ 960 khz.
+#include "FastLED.h"
+```
+
+
+FastLED 3.9.1
+=============
+* Bug fix for namespace conflicts
+* One of our third_party libraries was causing a namespace conflict with ArduinoJson included by the user.
+  * If you are affected then please upgrade.
+* FastLED now supports it's own namespace, default is `fl`
+  * Off by default, as old code wants FastLED stuff to be global.
+  * Enable it by defining: `FASTLED_FORCE_NAMESPACE`
+
 
 FastLED 3.9.0
 =============
@@ -34,6 +97,30 @@ FastLED 3.9.0
 * Some unannounced features.
 * Happy coding!
 
+
+For sketches that do a lot of heavy processing for each frame, FastLED is going to be **significantly** faster with this new release.
+
+How much faster?
+
+I benchmarked the animartrix sketch, which has heavy floating point requirements (you'll need a Teensy41 or an ESP32S3 to handle the processing requirements).
+
+FastLED 3.7.X - 34fps
+FastLED 3.9.0 - 59fps (+70% speedup!)
+
+Why?
+
+In FastLED 3.7.X, FastLED.show() was always a blocking operation. Now it's only blocking when the previous frame is waiting to complete it's render.
+
+In the benchmark I measured:
+12 ms - preparing the frame for draw.
+17 ms - actually drawing the frame.
+
+@ 22x22 WS2812 grid.
+
+So for FastLED 3.7.X this meant that these two values would sum together. So 12ms + 17ms = 29ms = 34fps.
+But in FastLED 3.9.0 the calculation works like this MAX(12, 17) = 17ms = 59fps. If you fall into this category, FastLED will now free up 17ms to do available work @ 60fps, which is a game changer.
+
+As of today's release, nobody else is doing async drawing. FastLED is the only one to offer this feature.
 
 FastLED 3.8.0
 =============

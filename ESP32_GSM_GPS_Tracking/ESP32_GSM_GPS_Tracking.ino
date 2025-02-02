@@ -2,11 +2,11 @@
 
 //sender phone number with country code.
 //not gsm module phone number
-const String PHONE = "+919004873494";
+const String PHONE = "+919324419285";
 
 //GSM Module RX pin to ESP32 2
 //GSM Module TX pin to ESP32 4
-#define rxPin 4
+#define rxPin 15
 #define txPin 2
 HardwareSerial sim800(1);
 
@@ -25,8 +25,8 @@ void setup() {
   Serial.begin(115200);
   Serial.println("esp32 serial initialize");
   
-  sim800.begin(9600, SERIAL_8N1, rxPin, txPin);
-  Serial.println("SIM800L serial initialize");
+    sim800.begin(9600, SERIAL_8N1, rxPin, txPin);
+    Serial.println("SIM800L serial initialize");
 
   neogps.begin(9600, SERIAL_8N1, RXD2, TXD2);
   Serial.println("neogps serial initialize");

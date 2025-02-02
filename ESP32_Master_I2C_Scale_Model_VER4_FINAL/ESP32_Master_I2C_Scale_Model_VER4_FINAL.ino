@@ -1,143 +1,181 @@
+/********************************************
+ * Revised ESP32 Master Code
+ * Updated to Handle Latest Controls
+ * 
+ * Author: Your Name
+ * Date:   2025-01-06
+ ********************************************/
+
+#include <Arduino.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <Wire.h>
-const char* ssid = "MyProject";     // Replace with your Wi-Fi SSID/NAME
-const char* password = "12345678";  // Replace with your Wi-Fi Password
-const char* baseUrl = "https://admin.modelsofbrainwing.com/";
-const char* apiEndpoint = "get_led_control.php";  // Endpoint to fetch control commands
-const int projectId = 8;  // Replace with your actual Project ID
-#define SLAVE_ADDRESS_WING_14 0x08  // I²C address for Wing 14
-#define SLAVE_ADDRESS_WING_15 0x09  // I²C address for Wing 15
-#define SLAVE_ADDRESS_WING_16 0x0A  // I²C address for Wing 16
-#define CMD_TURN_OFF_ALL 0xA0  // Command to turn off all LEDs
-#define CMD_TURN_ON_1BHK 0xB1  // Command to turn on 1BHK lights
-#define CMD_TURN_ON_2BHK 0xB2  // Command to turn on 2BHK lights
-#define CMD_TURN_ON_3BHK 0xB3  // Command to turn on 3BHK lights
-#define CMD_SHOW_AVAIL 0xC4    // Command to show room availability
-#define CMD_RUN_PATTERN 0xD5   // Command to start running LED patterns
-#define CMD_TURN_ON_2BHK1 0xE0
-#define CMD_TURN_ON_2BHK2 0xE1
-#define CMD_TURN_ON_3BHKA1 0xE2
-#define CMD_TURN_ON_3BHKA2 0xE3
-#define CMD_TURN_ON_3BHKB1 0xE4
-#define CMD_TURN_ON_3BHKB2 0xE5
-#define CMD_TURN_ON_REFUGEE 0xE6
-#define CMD_TURN_ON_3BHKREFUGEE1 0xE7
-#define CMD_TURN_ON_3BHKREFUGEE2 0xE8
-#define PATTERN_ONE_BY_ONE 0x01
-#define NUM_FLOORS 35
-#define NUM_ROOMS_PER_FLOOR 8
-#define TOTAL_ROOMS (NUM_FLOORS * NUM_ROOMS_PER_FLOOR)
-struct WingInfo {
-  int wingId;
-  uint8_t slaveAddress;
-  String activeControl;
-  bool IsRunningPattern1BHK;
-  bool IsRunningPattern2BHK;
-  bool IsRunningPattern3BHK;
-  bool IsRunningPatternAvailableRooms;
-  bool IsRunningPatternPatterns;
 
-  bool IsRunningPattern2BHK1;
-  bool IsRunningPattern2BHK2;
-  bool IsRunningPattern3BHKA1;
-  bool IsRunningPattern3BHKA2;
-  bool IsRunningPattern3BHKB1;
-  bool IsRunningPattern3BHKB2;
-  bool IsRunningPatternRefugee;
-  bool IsRunningPattern3BHKRefugee1;
-  bool IsRunningPattern3BHKRefugee2;
-  
+// ===== BEGIN: Logging Utility (Optional) =====
+// If you don't have or don't use LogUtility.h, you can remove or replace these macros.
+#define LOG_LEVEL_INFO
+#ifdef LOG_LEVEL_INFO
+  #define LOG_INFO(x)   Serial.println("[INFO] " + String(x))
+  #define LOG_DEBUG(x)  Serial.println("[DEBUG] " + String(x))
+  #define LOG_ERROR(x)  Serial.println("[ERROR] " + String(x))
+#else
+  #define LOG_INFO(x)
+  #define LOG_DEBUG(x)
+  #define LOG_ERROR(x)
+#endif
+// ===== END: Logging Utility (Optional) =====
+
+// ===== Wi-Fi and API Config =====
+const char* ssid        = "MyProject";     // Replace with your Wi-Fi SSID
+const char* password    = "12345678";      // Replace with your Wi-Fi Password
+const char* baseUrl     = "https://admin.modelsofbrainwing.com/";
+const char* apiEndpoint = "get_led_control.php"; // The endpoint returning { "control": "..." }
+const int   projectId   = 8;               // Your Project ID
+
+// ===== I²C Addresses =====
+#define SLAVE_ADDRESS_WING_14  0x08
+#define SLAVE_ADDRESS_WING_15  0x09
+#define SLAVE_ADDRESS_WING_16  0x0A
+
+// ===== Example Command IDs (Update as needed) =====
+// Global/Generic commands
+#define CMD_TURN_OFF_ALL         0xA0
+#define CMD_TURN_ON_ALL          0xA1
+#define CMD_ACTIVATE_PATTERNS    0xA2
+#define CMD_CONTROL_ALL_TOWERS   0xA3
+#define CMD_VIEW_AVAILABLE_FLATS 0xA4
+#define CMD_FILTER_1BHK          0xA5
+#define CMD_FILTER_2BHK          0xA6
+#define CMD_FILTER_3BHK          0xA7
+
+// Wing A (ID 14) commands
+#define CMD_WINGA_2BHK_689_SQFT  0xB0
+#define CMD_WINGA_1BHK_458_SQFT  0xB1
+#define CMD_WINGA_1BHK_461_SQFT  0xB2
+
+// Wing B (ID 15) commands
+#define CMD_WINGB_2BHK_689_SQFT  0xB3
+#define CMD_WINGB_1BHK_458_SQFT  0xB4
+#define CMD_WINGB_1BHK_461_SQFT  0xB5
+
+// Wing C (ID 16) commands
+#define CMD_WINGC_2BHK_696_SQFT      0xC0
+#define CMD_WINGC_2BHK_731_SQFT      0xC1
+#define CMD_WINGC_3BHK_924_SQFT      0xC2
+#define CMD_WINGC_3BHK_959_SQFT      0xC3
+#define CMD_WINGC_3BHK_1931_SQFT     0xC4
+#define CMD_WINGC_3BHK_1972_SQFT     0xC5
+#define CMD_WINGC_3BHK_2931_SQFT     0xC6
+#define CMD_WINGC_3BHK_2972_SQFT     0xC7
+
+// For "ViewAvailableFlats" usage
+#define CMD_SHOW_AVAIL           0xC8
+
+// ===== Building / Room Constants =====
+#define NUM_FLOORS         35
+#define NUM_ROOMS_PER_FLOOR 8
+#define TOTAL_ROOMS        (NUM_FLOORS * NUM_ROOMS_PER_FLOOR) // 35*8 = 280 (as example)
+String commonControl = "";
+
+// ===== Data Structure for Each Wing =====
+struct WingInfo {
+  int wingId;                 // e.g., 14, 15, 16
+  uint8_t slaveAddress;       // I²C address
+  String activeControl;       // e.g., "WingA2BHK689sqft"
   uint8_t roomAvailability[TOTAL_ROOMS];
 };
 
+// We have 3 wings in total
 #define NUM_WINGS 3
 WingInfo wings[NUM_WINGS];
 
+// ===== FreeRTOS-Related Objects =====
 SemaphoreHandle_t wifiMutex;
 SemaphoreHandle_t serialMutex;
 TaskHandle_t TaskPollAPI;
 TaskHandle_t TaskLEDControl;
 
+// ===== Function Declarations =====
 void setupWiFi();
 void pollAPITask(void* parameter);
 void ledControlTask(void* parameter);
+void runPatternAvailableRooms(WingInfo& wing);
+
+// I2C Communication Helpers
 void sendCommand(uint8_t slaveAddress, uint8_t commandID);
 void sendAvailabilityData(uint8_t slaveAddress, uint8_t* roomAvailability, size_t dataSize);
-void runPatternAvailableRooms(WingInfo& wing);
-void setup() {
-  Serial.begin(115200);
-  delay(1000);  // Wait for Serial to initialize
 
+// ===== SETUP =====
+void setup() {
+  LOG_INFO("Entering setup...");
+
+  // Serial init
+  Serial.begin(115200);
+  delay(1000);
+  LOG_INFO("Serial initialized");
+
+  // Create mutexes
   wifiMutex = xSemaphoreCreateMutex();
   serialMutex = xSemaphoreCreateMutex();
 
   if (wifiMutex == NULL || serialMutex == NULL) {
-    Serial.println(F("Failed to create mutexes!"));
-    while (1);
+    LOG_ERROR("Failed to create mutexes!");
+    while (1) { /* halt */ }
   }
+  LOG_INFO("Mutexes created successfully");
 
+  // Connect to Wi-Fi
   setupWiFi();
-  Wire.begin(11, 12);       // SDA and SCL pins for ESP32 (adjust if necessary)
-  Wire.setClock(400000UL);  // Set I²C clock speed to 400kHz
+  LOG_INFO("Wi-Fi setup process started");
 
-  // Initialize wings
-  wings[0] = {14, SLAVE_ADDRESS_WING_14, "OFF", false, false, false, false, false, false, false, false, false, false, false, false, false, false, {0}};
-  wings[1] = {15, SLAVE_ADDRESS_WING_15, "OFF", false, false, false, false, false, false, false, false, false, false, false, false, false, false, {0}};
-  wings[2] = {16, SLAVE_ADDRESS_WING_16, "OFF", false, false, false, false, false, false, false, false, false, false, false, false, false, false, {0}};
+  // Initialize I2
+  Wire.begin(11,12);       // SDA=11, SCL=12 (adjust for your hardware)
+  Wire.setClock(400000UL);  // 400kHz I2C speed
+  LOG_INFO("I2C initialized (SDA=11, SCL=12, 400kHz)");
 
-  // // Print all values of each wing
-  // for (int i = 0; i < NUM_WINGS; i++) {
-  //   WingInfo& wing = wings[i];
-  //   Serial.println("Wing Information:");
-  //   Serial.print("Wing ID: "); Serial.println(wing.wingId);
-  //   Serial.print("Slave Address: 0x"); Serial.println(wing.slaveAddress, HEX);
-  //   Serial.print("Active Control: "); Serial.println(wing.activeControl);
-  //   Serial.print("IsRunningPattern1BHK: "); Serial.println(wing.IsRunningPattern1BHK);
-  //   Serial.print("IsRunningPattern2BHK: "); Serial.println(wing.IsRunningPattern2BHK);
-  //   Serial.print("IsRunningPattern3BHK: "); Serial.println(wing.IsRunningPattern3BHK);
-  //   Serial.print("IsRunningPatternAvailableRooms: "); Serial.println(wing.IsRunningPatternAvailableRooms);
-  //   Serial.print("IsRunningPatternPatterns: "); Serial.println(wing.IsRunningPatternPatterns);
-  //   Serial.print("IsRunningPattern2BHK1: "); Serial.println(wing.IsRunningPattern2BHK1);
-  //   Serial.print("IsRunningPattern2BHK2: "); Serial.println(wing.IsRunningPattern2BHK2);
-  //   Serial.print("IsRunningPattern3BHKA1: "); Serial.println(wing.IsRunningPattern3BHKA1);
-  //   Serial.print("IsRunningPattern3BHKA2: "); Serial.println(wing.IsRunningPattern3BHKA2);
-  //   Serial.print("IsRunningPattern3BHKB1: "); Serial.println(wing.IsRunningPattern3BHKB1);
-  //   Serial.print("IsRunningPattern3BHKB2: "); Serial.println(wing.IsRunningPattern3BHKB2);
-  //   Serial.print("IsRunningPatternRefugee: "); Serial.println(wing.IsRunningPatternRefugee);
-  //   Serial.print("IsRunningPattern3BHKRefugee1: "); Serial.println(wing.IsRunningPattern3BHKRefugee1);
-  //   Serial.print("IsRunningPattern3BHKRefugee2: "); Serial.println(wing.IsRunningPattern3BHKRefugee2);
-  //   Serial.println("------------------------");
-  // }
+  // Initialize WingInfo objects
+  wings[0] = {14, SLAVE_ADDRESS_WING_14, "", {0}};
+  wings[1] = {15, SLAVE_ADDRESS_WING_15, "", {0}};
+  wings[2] = {16, SLAVE_ADDRESS_WING_16, "", {0}};
+  LOG_INFO("Wings initialized");
+
+  // Create tasks
+  xTaskCreatePinnedToCore(
+    pollAPITask,
+    "Poll API Task",
+    8192,   // Stack size
+    NULL,
+    1,      // Priority
+    &TaskPollAPI,
+    0);     // Run on core 0
+  LOG_INFO("Poll API Task created");
 
   xTaskCreatePinnedToCore(
-    pollAPITask,      // Task function
-    "Poll API Task",  // Task name
-    8192,             // Stack size (words)
-    NULL,             // Task input parameter
-    1,                // Priority
-    &TaskPollAPI,     // Task handle
-    0);               // Core (0 or 1)
+    ledControlTask,
+    "LED Control Task",
+    8192,
+    NULL,
+    1,
+    &TaskLEDControl,
+    1);     // Run on core 1
+  LOG_INFO("LED Control Task created");
 
-  xTaskCreatePinnedToCore(
-    ledControlTask,      // Task function
-    "LED Control Task",  // Task name
-    8192,                // Stack size (words)
-    NULL,                // Task input parameter
-    1,                   // Priority
-    &TaskLEDControl,     // Task handle
-    1);                  // Core (0 or 1)
+  LOG_INFO("Setup complete");
 }
 
-
+// ===== LOOP =====
 void loop() {
+  // Nothing here since we're using FreeRTOS tasks
   vTaskDelay(portMAX_DELAY);
 }
 
+// ----------------------------------------------------
+//                     Wi-Fi Setup
+// ----------------------------------------------------
 void setupWiFi() {
   if (xSemaphoreTake(serialMutex, (TickType_t)10) == pdTRUE) {
-    Serial.print(F("Connecting to Wi-Fi"));
+    LOG_DEBUG("Connecting to Wi-Fi...");
     xSemaphoreGive(serialMutex);
   }
 
@@ -147,43 +185,40 @@ void setupWiFi() {
   int retries = 0;
 
   while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    if (xSemaphoreTake(serialMutex, (TickType_t)10) == pdTRUE) {
-      Serial.print(".");
-      xSemaphoreGive(serialMutex);
-    }
+    vTaskDelay(500 / portTICK_PERIOD_MS);
+    LOG_DEBUG("Wi-Fi connection attempt " + String(retries + 1) + " of " + String(maxRetries));
     retries++;
+
     if (retries >= maxRetries) {
-      if (xSemaphoreTake(serialMutex, (TickType_t)10) == pdTRUE) {
-        Serial.println(F("\nFailed to connect to Wi-Fi"));
-        xSemaphoreGive(serialMutex);
-      }
-      return;
+      LOG_ERROR("Failed to connect to Wi-Fi after " + String(maxRetries) + " attempts.");
+      return; // or reset, or do something else
     }
   }
 
   if (WiFi.status() == WL_CONNECTED) {
-    if (xSemaphoreTake(serialMutex, (TickType_t)10) == pdTRUE) {
-      Serial.println(F("\nConnected to Wi-Fi"));
-      Serial.print(F("IP Address: "));
-      Serial.println(WiFi.localIP());
-      xSemaphoreGive(serialMutex);
-    }
+    LOG_INFO("Wi-Fi Connected, IP: " + WiFi.localIP().toString());
   }
 }
 
+// ----------------------------------------------------
+//                   Poll API Task
+// ----------------------------------------------------
 void pollAPITask(void* parameter) {
   int retryCount = 0;
   const int maxRetries = 5;
 
   while (true) {
+    // Poll each wing for its command
     for (int i = 0; i < NUM_WINGS; i++) {
+      pollCommonCommands();
       WingInfo& wing = wings[i];
 
+      // If Wi-Fi is connected, fetch from the API
       if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
-        Serial.println("Wing ID: "+String(wing.wingId)+" ProjectId: "+String(projectId));
-        String url = String(baseUrl) + String(apiEndpoint) + "?project_id=" + String(projectId) + "&wing_id=" + String(wing.wingId);
+        String url = String(baseUrl) + String(apiEndpoint) 
+                   + "?project_id=" + String(projectId)
+                   + "&wing_id=" + String(wing.wingId);
         http.begin(url);
 
         if (xSemaphoreTake(serialMutex, (TickType_t)10) == pdTRUE) {
@@ -193,7 +228,8 @@ void pollAPITask(void* parameter) {
 
         int httpCode = http.GET();
 
-        if (httpCode > 0) {  // Check for successful request
+        if (httpCode > 0) {
+          // Successful GET
           String payload = http.getString();
 
           if (xSemaphoreTake(serialMutex, (TickType_t)10) == pdTRUE) {
@@ -201,27 +237,28 @@ void pollAPITask(void* parameter) {
             xSemaphoreGive(serialMutex);
           }
 
-          StaticJsonDocument<200> doc;
+          StaticJsonDocument<512> doc; // Adjust size if needed
           DeserializationError error = deserializeJson(doc, payload);
 
           if (!error) {
             if (doc.containsKey("control")) {
               String control = doc["control"].as<String>();
-
-              wing.activeControl = control;
+              wing.activeControl = control; // Store the new control
 
               if (xSemaphoreTake(serialMutex, (TickType_t)10) == pdTRUE) {
-                Serial.println("Wing " + String(wing.wingId) + " active control updated: " + wing.activeControl);
+                Serial.println("Wing " + String(wing.wingId) + " active control updated: " + control);
                 xSemaphoreGive(serialMutex);
               }
 
               retryCount = 0;
-            } else if (doc.containsKey("error")) {
+            }
+            else if (doc.containsKey("error")) {
               if (xSemaphoreTake(serialMutex, (TickType_t)10) == pdTRUE) {
-                Serial.println("API Error for Wing " + String(wing.wingId) + ": " + String(doc["error"].as<const char*>()));
+                Serial.println("API Error for Wing " + String(wing.wingId) + ": " + doc["error"].as<String>());
                 xSemaphoreGive(serialMutex);
               }
-            } else {
+            }
+            else {
               if (xSemaphoreTake(serialMutex, (TickType_t)10) == pdTRUE) {
                 Serial.println("Unexpected API response for Wing " + String(wing.wingId));
                 xSemaphoreGive(serialMutex);
@@ -233,323 +270,193 @@ void pollAPITask(void* parameter) {
               xSemaphoreGive(serialMutex);
             }
           }
-        } else {
+        } 
+        else {
+          // HTTP error
           if (xSemaphoreTake(serialMutex, (TickType_t)10) == pdTRUE) {
-            Serial.println("HTTP GET Error for Wing " + String(wing.wingId) + ": " + String(http.errorToString(httpCode).c_str()));
+            Serial.println("HTTP GET Error for Wing " + String(wing.wingId) + ": " + http.errorToString(httpCode));
             xSemaphoreGive(serialMutex);
           }
           retryCount++;
 
           if (retryCount > maxRetries) {
             if (xSemaphoreTake(serialMutex, (TickType_t)10) == pdTRUE) {
-              Serial.println(F("Max retries reached. Skipping this poll."));
+              Serial.println("Max retries reached. Skipping this poll.");
               xSemaphoreGive(serialMutex);
             }
             retryCount = 0;
           } else {
-            int delayTime = pow(2, retryCount) * 1000;  // in milliseconds
+            int delayTime = pow(2, retryCount) * 1000;  // Exponential backoff
             if (xSemaphoreTake(serialMutex, (TickType_t)10) == pdTRUE) {
               Serial.println("Retrying in " + String(delayTime / 1000) + " seconds...");
               xSemaphoreGive(serialMutex);
             }
             vTaskDelay(delayTime / portTICK_PERIOD_MS);
-            continue;  // Retry immediately after delay
+            continue;
           }
         }
 
         http.end();
-      } else {
+      } 
+      else {
+        // Wi-Fi not connected
         if (xSemaphoreTake(serialMutex, (TickType_t)10) == pdTRUE) {
-          Serial.println(F("Wi-Fi not connected. Attempting to reconnect..."));
+          Serial.println("Wi-Fi not connected. Attempting to reconnect...");
           xSemaphoreGive(serialMutex);
         }
         setupWiFi();
       }
 
-      vTaskDelay(50 / portTICK_PERIOD_MS);
+      // Short delay between wing polls
+      vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 
+    // Delay before next full loop of all wings
     vTaskDelay(200 / portTICK_PERIOD_MS);
   }
 }
+// ----------------------------------------------------
+//  pollCommonCommands => wing_id=0
+// ----------------------------------------------------
+void pollCommonCommands() {
+  if (WiFi.status() != WL_CONNECTED) return;
 
+  HTTPClient http;
+  String url = String(baseUrl) + apiEndpoint
+             + "?project_id=" + String(projectId)
+             + "&wing_id=0";  // Here is the magic: get "common" commands
+  http.begin(url);
+
+  int httpCode = http.GET();
+  if (httpCode > 0) {
+    String payload = http.getString();
+    StaticJsonDocument<512> doc;
+    DeserializationError error = deserializeJson(doc, payload);
+
+    if (!error) {
+      if (doc.containsKey("control")) {
+        commonControl = doc["control"].as<String>();
+        LOG_INFO("CommonControl => " + commonControl);
+      } else if (doc.containsKey("error")) {
+        LOG_ERROR("Common => " + doc["error"].as<String>());
+      }
+    } else {
+      LOG_ERROR("JSON parse error (common): " + String(error.c_str()));
+    }
+  } else {
+    LOG_ERROR("HTTP error (common): " + http.errorToString(httpCode));
+  }
+  http.end();
+}
+// ----------------------------------------------------
+//                   LED Control Task
+// ----------------------------------------------------
 void ledControlTask(void* parameter) {
   while (true) {
     for (int i = 0; i < NUM_WINGS; i++) {
       WingInfo& wing = wings[i];
       String currentControl = wing.activeControl;
 
-      if (wing.wingId == 16) {
-        if (currentControl == "2BHK1" && !wing.IsRunningPattern2BHK1) {
-          // Reset other patterns
-          wing.IsRunningPattern2BHK1 = true;
-          wing.IsRunningPattern2BHK2 = false;
-          wing.IsRunningPattern3BHKA1 = false;
-          wing.IsRunningPattern3BHKA2 = false;
-          wing.IsRunningPattern3BHKB1 = false;
-          wing.IsRunningPattern3BHKB2 = false;
-          wing.IsRunningPatternRefugee = false;
-          wing.IsRunningPattern3BHKRefugee1 = false;
-          wing.IsRunningPattern3BHKRefugee2 = false;
-          wing.IsRunningPattern1BHK = false;
-          wing.IsRunningPattern2BHK = false;
-          wing.IsRunningPattern3BHK = false;
-          wing.IsRunningPatternAvailableRooms = false;
-          wing.IsRunningPatternPatterns = false;
+      if (currentControl == "OFF") {
+        sendCommand(wing.slaveAddress, CMD_TURN_OFF_ALL);
+      }
+      else if (currentControl == "TurnOnAllLights") {
+        sendCommand(wing.slaveAddress, CMD_TURN_ON_ALL);
+      }
+      else if (currentControl == "ActivatePatterns") {
+        sendCommand(wing.slaveAddress, CMD_ACTIVATE_PATTERNS);
+      }
+      else if (currentControl == "ControlAllTowers") {
+        sendCommand(wing.slaveAddress, CMD_CONTROL_ALL_TOWERS);
+      }
+      else if (currentControl == "ViewAvailableFlats") {
+        // This fetches room availability from server & sends chunked data
+        runPatternAvailableRooms(wing);
+      }
+      else if (currentControl == "Filter1BHK") {
+        sendCommand(wing.slaveAddress, CMD_FILTER_1BHK);
+      }
+      else if (currentControl == "Filter2BHK") {
+        sendCommand(wing.slaveAddress, CMD_FILTER_2BHK);
+      }
+      else if (currentControl == "Filter3BHK") {
+        sendCommand(wing.slaveAddress, CMD_FILTER_3BHK);
+      }
 
-          sendCommand(wing.slaveAddress, CMD_TURN_ON_2BHK1);
-        } else if (currentControl == "2BHK2" && !wing.IsRunningPattern2BHK2) {
-          // Reset other patterns
-          wing.IsRunningPattern2BHK1 = false;
-          wing.IsRunningPattern2BHK2 = true;
-          wing.IsRunningPattern3BHKA1 = false;
-          wing.IsRunningPattern3BHKA2 = false;
-          wing.IsRunningPattern3BHKB1 = false;
-          wing.IsRunningPattern3BHKB2 = false;
-          wing.IsRunningPatternRefugee = false;
-          wing.IsRunningPattern3BHKRefugee1 = false;
-          wing.IsRunningPattern3BHKRefugee2 = false;
-          wing.IsRunningPattern1BHK = false;
-          wing.IsRunningPattern2BHK = false;
-          wing.IsRunningPattern3BHK = false;
-          wing.IsRunningPatternAvailableRooms = false;
-          wing.IsRunningPatternPatterns = false;
+      // ================= Wing A (ID=14) =================
+      else if (wing.wingId == 14 && currentControl == "WingA2BHK689sqft") {
+        sendCommand(wing.slaveAddress, CMD_WINGA_2BHK_689_SQFT);
+      }
+      else if (wing.wingId == 14 && currentControl == "WingA1BHK458sqft") {
+        sendCommand(wing.slaveAddress, CMD_WINGA_1BHK_458_SQFT);
+      }
+      else if (wing.wingId == 14 && currentControl == "WingA1BHK461sqft") {
+        sendCommand(wing.slaveAddress, CMD_WINGA_1BHK_461_SQFT);
+      }
+      // (If you still need to handle this older DB row #43)
+      else if (wing.wingId == 14 && currentControl == "1 BHK1") {
+        // Possibly treat it as Filter1BHK or something similar
+        sendCommand(wing.slaveAddress, CMD_FILTER_1BHK);
+      }
 
-          sendCommand(wing.slaveAddress, CMD_TURN_ON_2BHK2);
-        } else if (currentControl == "3BHKA1" && !wing.IsRunningPattern3BHKA1) {
-          wing.IsRunningPattern2BHK1 = false;
-          wing.IsRunningPattern2BHK2 = false;
-          wing.IsRunningPattern3BHKA1 = true;
-          wing.IsRunningPattern3BHKA2 = false;
-          wing.IsRunningPattern3BHKB1 = false;
-          wing.IsRunningPattern3BHKB2 = false;
-          wing.IsRunningPatternRefugee = false;
-          wing.IsRunningPattern3BHKRefugee1 = false;
-          wing.IsRunningPattern3BHKRefugee2 = false;
-          wing.IsRunningPattern1BHK = false;
-          wing.IsRunningPattern2BHK = false;
-          wing.IsRunningPattern3BHK = false;
-          wing.IsRunningPatternAvailableRooms = false;
-          wing.IsRunningPatternPatterns = false;
+      // ================= Wing B (ID=15) =================
+      else if (wing.wingId == 15 && currentControl == "WingB2BHK689sqft") {
+        sendCommand(wing.slaveAddress, CMD_WINGB_2BHK_689_SQFT);
+      }
+      else if (wing.wingId == 15 && currentControl == "WingB1BHK458sqft") {
+        sendCommand(wing.slaveAddress, CMD_WINGB_1BHK_458_SQFT);
+      }
+      else if (wing.wingId == 15 && currentControl == "WingB1BHK461sqft") {
+        sendCommand(wing.slaveAddress, CMD_WINGB_1BHK_461_SQFT);
+      }
 
-          sendCommand(wing.slaveAddress, CMD_TURN_ON_3BHKA1);
-        } else if (currentControl == "3BHKA2" && !wing.IsRunningPattern3BHKA2) {
-          wing.IsRunningPattern2BHK1 = false;
-          wing.IsRunningPattern2BHK2 = false;
-          wing.IsRunningPattern3BHKA1 = false;
-          wing.IsRunningPattern3BHKA2 = true;
-          wing.IsRunningPattern3BHKB1 = false;
-          wing.IsRunningPattern3BHKB2 = false;
-          wing.IsRunningPatternRefugee = false;
-          wing.IsRunningPattern3BHKRefugee1 = false;
-          wing.IsRunningPattern3BHKRefugee2 = false;
-          wing.IsRunningPattern1BHK = false;
-          wing.IsRunningPattern2BHK = false;
-          wing.IsRunningPattern3BHK = false;
-          wing.IsRunningPatternAvailableRooms = false;
-          wing.IsRunningPatternPatterns = false;
-          // Reset other patterns
-          sendCommand(wing.slaveAddress, CMD_TURN_ON_3BHKA2);
-        } else if (currentControl == "3BHKB1" && !wing.IsRunningPattern3BHKB1) {
-          wing.IsRunningPattern2BHK1 = false;
-          wing.IsRunningPattern2BHK2 = false;
-          wing.IsRunningPattern3BHKA1 = false;
-          wing.IsRunningPattern3BHKA2 = false;
-          wing.IsRunningPattern3BHKB1 = true;
-          wing.IsRunningPattern3BHKB2 = false;
-          wing.IsRunningPatternRefugee = false;
-          wing.IsRunningPattern3BHKRefugee1 = false;
-          wing.IsRunningPattern3BHKRefugee2 = false;
-          wing.IsRunningPattern1BHK = false;
-          wing.IsRunningPattern2BHK = false;
-          wing.IsRunningPattern3BHK = false;
-          wing.IsRunningPatternAvailableRooms = false;
-          wing.IsRunningPatternPatterns = false;
-          // Reset other patterns
-          sendCommand(wing.slaveAddress, CMD_TURN_ON_3BHKB1);
-        } else if (currentControl == "3BHKB2" && !wing.IsRunningPattern3BHKB2) {
-          wing.IsRunningPattern2BHK1 = false;
-          wing.IsRunningPattern2BHK2 = false;
-          wing.IsRunningPattern3BHKA1 = false;
-          wing.IsRunningPattern3BHKA2 = false;
-          wing.IsRunningPattern3BHKB1 = false;
-          wing.IsRunningPattern3BHKB2 = true;
-          wing.IsRunningPatternRefugee = false;
-          wing.IsRunningPattern3BHKRefugee1 = false;
-          wing.IsRunningPattern3BHKRefugee2 = false;
-          wing.IsRunningPattern1BHK = false;
-          wing.IsRunningPattern2BHK = false;
-          wing.IsRunningPattern3BHK = false;
-          wing.IsRunningPatternAvailableRooms = false;
-          wing.IsRunningPatternPatterns = false;
-          // Reset other patterns
-          sendCommand(wing.slaveAddress, CMD_TURN_ON_3BHKB2);
-        } else if (currentControl == "REFUGEE" && !wing.IsRunningPatternRefugee) {
-          wing.IsRunningPatternRefugee = true;
-          wing.IsRunningPattern2BHK1 = false;
-          wing.IsRunningPattern2BHK2 = false;
-          wing.IsRunningPattern3BHKA1 = false;
-          wing.IsRunningPattern3BHKA2 = false;
-          wing.IsRunningPattern3BHKB1 = false;
-          wing.IsRunningPattern3BHKB2 = false;
-          wing.IsRunningPattern3BHKRefugee1 = false;
-          wing.IsRunningPattern3BHKRefugee2 = false;
-          wing.IsRunningPattern1BHK = false;
-          wing.IsRunningPattern2BHK = false;
-          wing.IsRunningPattern3BHK = false;
-          wing.IsRunningPatternAvailableRooms = false;
-          wing.IsRunningPatternPatterns = false;
-          // Reset other patterns
-          sendCommand(wing.slaveAddress, CMD_TURN_ON_REFUGEE);
-        } else if (currentControl == "3BHKREFUGEE1" && !wing.IsRunningPattern3BHKRefugee1) {
-          wing.IsRunningPattern3BHKRefugee1 = true;
-          wing.IsRunningPattern2BHK1 = false;
-          wing.IsRunningPattern2BHK2 = false;
-          wing.IsRunningPattern3BHKA1 = false;
-          wing.IsRunningPattern3BHKA2 = false;
-          wing.IsRunningPattern3BHKB1 = false;
-          wing.IsRunningPattern3BHKB2 = false;
-          wing.IsRunningPatternRefugee = false;
-          wing.IsRunningPattern3BHKRefugee2 = false;
-          wing.IsRunningPattern1BHK = false;
-          wing.IsRunningPattern2BHK = false;
-          wing.IsRunningPattern3BHK = false;
-          wing.IsRunningPatternAvailableRooms = false;
-          wing.IsRunningPatternPatterns = false;
-          // Reset other patterns
-          sendCommand(wing.slaveAddress, CMD_TURN_ON_3BHKREFUGEE1);
-        } else if (currentControl == "3BHKREFUGEE2" && !wing.IsRunningPattern3BHKRefugee2) {
-          wing.IsRunningPattern3BHKRefugee2 = true;
-          wing.IsRunningPattern2BHK1 = false;
-          wing.IsRunningPattern2BHK2 = false;
-          wing.IsRunningPattern3BHKA1 = false;
-          wing.IsRunningPattern3BHKA2 = false;
-          wing.IsRunningPattern3BHKB1 = false;
-          wing.IsRunningPattern3BHKB2 = false;
-          wing.IsRunningPatternRefugee = false;
-          wing.IsRunningPattern3BHKRefugee1 = false;
-          wing.IsRunningPattern1BHK = false;
-          wing.IsRunningPattern2BHK = false;
-          wing.IsRunningPattern3BHK = false;
-          wing.IsRunningPatternAvailableRooms = false;
-          wing.IsRunningPatternPatterns = false;
-          // Reset other patterns
-          sendCommand(wing.slaveAddress, CMD_TURN_ON_3BHKREFUGEE2);
-        } else if (currentControl == "OFF") {
-          // Reset all patterns
-          wing.IsRunningPattern1BHK = false;
-          wing.IsRunningPattern2BHK = false;
-          wing.IsRunningPattern3BHK = false;
-          wing.IsRunningPatternAvailableRooms = false;
-          wing.IsRunningPatternPatterns = false;
-          wing.IsRunningPattern2BHK1 = false;
-          wing.IsRunningPattern2BHK2 = false;
-          wing.IsRunningPattern3BHKA1 = false;
-          wing.IsRunningPattern3BHKA2 = false;
-          wing.IsRunningPattern3BHKB1 = false;
-          wing.IsRunningPattern3BHKB2 = false;
-          wing.IsRunningPatternRefugee = false;
-          wing.IsRunningPattern3BHKRefugee1 = false;
-          wing.IsRunningPattern3BHKRefugee2 = false;
-
-          sendCommand(wing.slaveAddress, CMD_TURN_OFF_ALL);
-        } else if (currentControl == "Available Rooms") {
-          wing.IsRunningPattern1BHK = false;
-          wing.IsRunningPattern2BHK = false;
-          wing.IsRunningPattern3BHK = false;
-          wing.IsRunningPatternAvailableRooms = true;
-          wing.IsRunningPatternPatterns = false;
-          wing.IsRunningPattern2BHK1 = false;
-          wing.IsRunningPattern2BHK2 = false;
-          wing.IsRunningPattern3BHKA1 = false;
-          wing.IsRunningPattern3BHKA2 = false;
-          wing.IsRunningPattern3BHKB1 = false;
-          wing.IsRunningPattern3BHKB2 = false;
-          wing.IsRunningPatternRefugee = false;
-          wing.IsRunningPattern3BHKRefugee1 = false;
-          wing.IsRunningPattern3BHKRefugee2 = false;
-          runPatternAvailableRooms(wing);  // Updated to pass the wing
-        } else if (currentControl == "Patterns" && !wing.IsRunningPatternPatterns) {
-          wing.IsRunningPattern1BHK = false;
-          wing.IsRunningPattern2BHK = false;
-          wing.IsRunningPattern3BHK = false;
-          wing.IsRunningPatternAvailableRooms = false;
-          wing.IsRunningPatternPatterns = true;
-          wing.IsRunningPattern2BHK1 = false;
-          wing.IsRunningPattern2BHK2 = false;
-          wing.IsRunningPattern3BHKA1 = false;
-          wing.IsRunningPattern3BHKA2 = false;
-          wing.IsRunningPattern3BHKB1 = false;
-          wing.IsRunningPattern3BHKB2 = false;
-          wing.IsRunningPatternRefugee = false;
-          wing.IsRunningPattern3BHKRefugee1 = false;
-          wing.IsRunningPattern3BHKRefugee2 = false;
-          sendCommand(wing.slaveAddress, CMD_RUN_PATTERN);
-        } else {
-          Serial.println("Unknown Command for Wing C: ID > 16 | "+currentControl);
-        }
-      } else {
-        if (currentControl == "1 BHK1" && !wing.IsRunningPattern1BHK) {
-          wing.IsRunningPattern1BHK = true;
-          wing.IsRunningPattern2BHK = false;
-          wing.IsRunningPattern3BHK = false;
-          wing.IsRunningPatternAvailableRooms = false;
-          wing.IsRunningPatternPatterns = false;
-          sendCommand(wing.slaveAddress, CMD_TURN_ON_1BHK);
-        } else if (currentControl == "1 BHK2" && !wing.IsRunningPattern2BHK) {
-          wing.IsRunningPattern1BHK = false;
-          wing.IsRunningPattern2BHK = true;
-          wing.IsRunningPattern3BHK = false;
-          wing.IsRunningPatternAvailableRooms = false;
-          wing.IsRunningPatternPatterns = false;
-          sendCommand(wing.slaveAddress, CMD_TURN_ON_2BHK);
-        } else if (currentControl == "2 BHK" && !wing.IsRunningPattern3BHK) {
-          wing.IsRunningPattern1BHK = false;
-          wing.IsRunningPattern2BHK = false;
-          wing.IsRunningPattern3BHK = true;
-          wing.IsRunningPatternAvailableRooms = false;
-          wing.IsRunningPatternPatterns = false;
-          sendCommand(wing.slaveAddress, CMD_TURN_ON_3BHK);
-        } else if (currentControl == "Available Rooms") {
-          wing.IsRunningPattern1BHK = false;
-          wing.IsRunningPattern2BHK = false;
-          wing.IsRunningPattern3BHK = false;
-          wing.IsRunningPatternAvailableRooms = true;
-          wing.IsRunningPatternPatterns = false;
-          runPatternAvailableRooms(wing);  // Updated to pass the wing
-        } else if (currentControl == "Patterns" && !wing.IsRunningPatternPatterns) {
-          wing.IsRunningPattern1BHK = false;
-          wing.IsRunningPattern2BHK = false;
-          wing.IsRunningPattern3BHK = false;
-          wing.IsRunningPatternAvailableRooms = false;
-          wing.IsRunningPatternPatterns = true;
-          sendCommand(wing.slaveAddress, CMD_RUN_PATTERN);
-        } else if (currentControl == "OFF") {
-          wing.IsRunningPattern1BHK = false;
-          wing.IsRunningPattern2BHK = false;
-          wing.IsRunningPattern3BHK = false;
-          wing.IsRunningPatternAvailableRooms = false;
-          wing.IsRunningPatternPatterns = false;
-          sendCommand(wing.slaveAddress, CMD_TURN_OFF_ALL);
-        } else {
-          Serial.println("Unknown Command for Wing C: ID > "+String(wing.wingId)+" | "+currentControl);
-          
+      // ================= Wing C (ID=16) =================
+      else if (wing.wingId == 16 && currentControl == "WingC2BHK696sqft") {
+        sendCommand(wing.slaveAddress, CMD_WINGC_2BHK_696_SQFT);
+      }
+      else if (wing.wingId == 16 && currentControl == "WingC2BHK731sqft") {
+        sendCommand(wing.slaveAddress, CMD_WINGC_2BHK_731_SQFT);
+      }
+      else if (wing.wingId == 16 && currentControl == "WingC3BHK924sqft") {
+        sendCommand(wing.slaveAddress, CMD_WINGC_3BHK_924_SQFT);
+      }
+      else if (wing.wingId == 16 && currentControl == "WingC3BHK959sqft") {
+        sendCommand(wing.slaveAddress, CMD_WINGC_3BHK_959_SQFT);
+      }
+      else if (wing.wingId == 16 && currentControl == "WingC3BHKType1931sqft") {
+        sendCommand(wing.slaveAddress, CMD_WINGC_3BHK_1931_SQFT);
+      }
+      else if (wing.wingId == 16 && currentControl == "WingC3BHKType1972sqft") {
+        sendCommand(wing.slaveAddress, CMD_WINGC_3BHK_1972_SQFT);
+      }
+      else if (wing.wingId == 16 && currentControl == "WingC3BHKType2931sqft") {
+        sendCommand(wing.slaveAddress, CMD_WINGC_3BHK_2931_SQFT);
+      }
+      else if (wing.wingId == 16 && currentControl == "WingC3BHKType2972sqft") {
+        sendCommand(wing.slaveAddress, CMD_WINGC_3BHK_2972_SQFT);
+      }
+      else {
+        // Catch any unrecognized commands
+        if (currentControl != "") {
+          Serial.println("Unknown command for Wing " + String(wing.wingId) + ": " + currentControl);
         }
       }
 
-      Serial.println("Active Command for Wing: "+String(wing.wingId)+" | "+currentControl);
-      
+      // Debug log
+      Serial.println("Wing " + String(wing.wingId) + " handled control: " + currentControl);
+
+      // Short delay between each wing
       vTaskDelay(50 / portTICK_PERIOD_MS);
     }
+
+    // Delay before repeating
     vTaskDelay(200 / portTICK_PERIOD_MS);
   }
 }
 
-// =========================
-// ====== I²C COMMUNICATION FUNCTIONS ======
-// =========================
-
-// Function to send commands to a specific slave
+// ----------------------------------------------------
+//          I2C: Send Single Command Function
+// ----------------------------------------------------
 void sendCommand(uint8_t slaveAddress, uint8_t commandID) {
   if (xSemaphoreTake(serialMutex, (TickType_t)10) == pdTRUE) {
     Serial.print("Sending Command ID: 0x");
@@ -559,54 +466,57 @@ void sendCommand(uint8_t slaveAddress, uint8_t commandID) {
     xSemaphoreGive(serialMutex);
   }
 
-  // Send Start of Transmission Packet
+  // Start packet
   Wire.beginTransmission(slaveAddress);
   Wire.write(0xAA);       // Start byte
-  Wire.write(commandID);  // Unique Command ID
-  Wire.endTransmission();
+  Wire.write(commandID);  // Our command
+  int res = Wire.endTransmission();
+  Serial.println(res);
+  vTaskDelay(10 / portTICK_PERIOD_MS);
 
-  vTaskDelay(10 / portTICK_PERIOD_MS);  // Short delay
-
-  // Send End of Transmission Packet
+  // End packet
   Wire.beginTransmission(slaveAddress);
-  Wire.write(0x55);  // End byte
-  Wire.endTransmission();
+  Wire.write(0x55);       // End byte
+  res = Wire.endTransmission();
+  Serial.println(res);
 }
 
-// Function to send availability data over I²C
+// ----------------------------------------------------
+//       I2C: Send Chunked Availability Data
+// ----------------------------------------------------
 void sendAvailabilityData(uint8_t slaveAddress, uint8_t* roomAvailability, size_t dataSize) {
-  const size_t maxChunkSize = 27;  // Maximum data payload per chunk
+  const size_t maxChunkSize = 27;  // Max data in one packet
   size_t bytesSent = 0;
 
   if (xSemaphoreTake(serialMutex, (TickType_t)10) == pdTRUE) {
-    Serial.println("Sending Availability Data to Slave Address: 0x" + String(slaveAddress, HEX));
+    Serial.println("Sending Availability Data to Slave: 0x" + String(slaveAddress, HEX));
     xSemaphoreGive(serialMutex);
   }
 
-  // Send Start of Transmission Packet
+  // Start of transmission
   Wire.beginTransmission(slaveAddress);
-  Wire.write(0xAA);                        // Start byte
-  Wire.write(CMD_SHOW_AVAIL);              // Command ID
-  Wire.write((uint8_t)(dataSize >> 8));    // Total data size high byte
-  Wire.write((uint8_t)(dataSize & 0xFF));  // Total data size low byte
+  Wire.write(0xAA);                         // Start byte
+  Wire.write(CMD_SHOW_AVAIL);              // Command ID for "show availability"
+  Wire.write((uint8_t)(dataSize >> 8));    // High byte of total size
+  Wire.write((uint8_t)(dataSize & 0xFF));  // Low byte of total size
   Wire.endTransmission();
 
-  vTaskDelay(2 / portTICK_PERIOD_MS);  // Short delay
+  vTaskDelay(2 / portTICK_PERIOD_MS);
 
-  // Now send data in chunks
+  // Send data in chunks
   while (bytesSent < dataSize) {
-    size_t chunkSize = min((size_t)maxChunkSize, dataSize - bytesSent);
+    size_t chunkSize = min(maxChunkSize, dataSize - bytesSent);
 
     Wire.beginTransmission(slaveAddress);
-    Wire.write(0xAB);                         // Data chunk start byte
-    Wire.write((uint8_t)(bytesSent >> 8));    // Offset high byte
-    Wire.write((uint8_t)(bytesSent & 0xFF));  // Offset low byte
-    Wire.write((uint8_t)chunkSize);           // Data length in this chunk
+    Wire.write(0xAB);  // Data chunk start byte
+    Wire.write((uint8_t)(bytesSent >> 8));     // Offset high
+    Wire.write((uint8_t)(bytesSent & 0xFF));   // Offset low
+    Wire.write((uint8_t)chunkSize);            // Chunk length
 
-    // Send data payload
+    // Payload
     Wire.write(&roomAvailability[bytesSent], chunkSize);
 
-    // Calculate and send checksum
+    // Checksum
     uint8_t checksum = 0;
     for (size_t i = 0; i < chunkSize; i++) {
       checksum += roomAvailability[bytesSent + i];
@@ -616,35 +526,33 @@ void sendAvailabilityData(uint8_t slaveAddress, uint8_t* roomAvailability, size_
     Wire.endTransmission();
 
     bytesSent += chunkSize;
-    vTaskDelay(2 / portTICK_PERIOD_MS);  // Short delay between chunks
+    vTaskDelay(2 / portTICK_PERIOD_MS);
   }
 
-  // Send End of Transmission Packet
+  // End packet
   Wire.beginTransmission(slaveAddress);
   Wire.write(0x55);  // End byte
   Wire.endTransmission();
 
   if (xSemaphoreTake(serialMutex, (TickType_t)10) == pdTRUE) {
-    Serial.println("Availability data sent successfully to Slave Address: 0x" + String(slaveAddress, HEX));
+    Serial.println("Availability data sent successfully to Slave: 0x" + String(slaveAddress, HEX));
     xSemaphoreGive(serialMutex);
   }
 }
 
-// =========================
-// ====== PATTERN FUNCTIONS ======
-// =========================
-
-// Pattern for "Available Rooms"
+// ----------------------------------------------------
+//       Run Pattern for "ViewAvailableFlats"
+//       Fetches JSON from server, sends chunked data
+// ----------------------------------------------------
 void runPatternAvailableRooms(WingInfo& wing) {
   if (xSemaphoreTake(serialMutex, (TickType_t)10) == pdTRUE) {
-    Serial.println("Running Pattern: Available Rooms for Wing " + String(wing.wingId));
+    Serial.println("Running: ViewAvailableFlats for Wing " + String(wing.wingId));
     xSemaphoreGive(serialMutex);
   }
 
-  // Check Wi-Fi connection
   if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;
-    // Dynamically construct the room status endpoint based on wingId
+    // Example endpoint: getRoomStatus.php?wing_id=XX
     String roomStatusEndpoint = "getRoomStatus.php?wing_id=" + String(wing.wingId);
     String url = String(baseUrl) + roomStatusEndpoint;
     http.begin(url);
@@ -656,46 +564,47 @@ void runPatternAvailableRooms(WingInfo& wing) {
 
     int httpCode = http.GET();
     String payload = "";
-    if (httpCode > 0) {  // Check for successful request
+
+    if (httpCode > 0) {
       payload = http.getString();
 
       if (xSemaphoreTake(serialMutex, (TickType_t)10) == pdTRUE) {
         Serial.println("Received payload length: " + String(payload.length()));
-        Serial.println("Payload snippet: " + payload.substring(0, 100));  // First 100 characters
+        // Print snippet of the payload
+        Serial.println("Payload snippet: " + payload.substring(0, min((int)payload.length(), 100)));
         xSemaphoreGive(serialMutex);
       }
     } else {
       if (xSemaphoreTake(serialMutex, (TickType_t)10) == pdTRUE) {
-        Serial.println("HTTP GET Error: " + String(http.errorToString(httpCode).c_str()));
+        Serial.println("HTTP GET Error: " + String(http.errorToString(httpCode)));
         xSemaphoreGive(serialMutex);
       }
       http.end();
-      return;
+      return; 
     }
 
     http.end();
 
-    // Parse JSON payload
+    // Parse JSON if we have a payload
     if (payload.length() > 0) {
-      StaticJsonDocument<16384> doc;  // Adjust size as needed
+      StaticJsonDocument<16384> doc;  // Adjust if needed
       DeserializationError error = deserializeJson(doc, payload);
 
       if (!error) {
-        // Assuming the JSON structure is a 2D array: [[floor0_rooms], [floor1_rooms], ...]
-        size_t index = 0;  // Index in roomAvailability array
-
+        // Expecting a 2D array of floors/rooms
+        size_t index = 0;
         for (size_t floor = 0; floor < doc.size(); floor++) {
           JsonArray floorArray = doc[floor];
           for (size_t room = 0; room < floorArray.size(); room++) {
             int status = floorArray[room].as<int>();
-            wing.roomAvailability[index++] = (uint8_t)status;  // Store directly in the roomAvailability array
+            wing.roomAvailability[index++] = (uint8_t)status;
           }
         }
 
-        // Now send the roomAvailability data over I²C
+        // Now send the data to the slave
         sendAvailabilityData(wing.slaveAddress, wing.roomAvailability, TOTAL_ROOMS);
-
-      } else {
+      }
+      else {
         if (xSemaphoreTake(serialMutex, (TickType_t)10) == pdTRUE) {
           Serial.println("JSON Parsing Error: " + String(error.c_str()));
           xSemaphoreGive(serialMutex);
@@ -706,16 +615,16 @@ void runPatternAvailableRooms(WingInfo& wing) {
         Serial.println("No payload received from Room Status API.");
         xSemaphoreGive(serialMutex);
       }
-      // Optionally, handle no data scenario
     }
-
-  } else {
+  }
+  else {
     if (xSemaphoreTake(serialMutex, (TickType_t)10) == pdTRUE) {
-      Serial.println("Wi-Fi not connected. Trying to reconnect...");
+      Serial.println("Wi-Fi not connected; reattempting Wi-Fi connection...");
       xSemaphoreGive(serialMutex);
     }
     setupWiFi();
   }
 
+  // A small delay to let the data be sent
   vTaskDelay(200 / portTICK_PERIOD_MS);
 }

@@ -12,7 +12,7 @@
     // Initialize the LCD
     lcd.begin();
     lcd.backlight();
-
+    //lcd.setBacklight(100);
     // Set the ultrasonic sensor pins
     pinMode(trigPin, OUTPUT);
     pinMode(echoPin, INPUT);

@@ -1,20 +1,23 @@
 #pragma once
 
+#include <stdint.h>
+#include <string.h>
+
+
 #include "crgb.h"
 #include "fixed_map.h"
 #include "fx/fx.h"
 #include "fx/detail/fx_compositor.h"
 #include "fx/detail/fx_layer.h"
 #include "namespace.h"
-#include "ptr.h"
+#include "ref.h"
 #include "ui.h"
-#include "fx/detail/time_warp.h"
-#include <stdint.h>
-#include <string.h>
+#include "fx/time.h"
+#include "fx/video.h"
 
 
 // Forward declaration
-class TimeWarp;
+class TimeFunction;
 
 #ifndef FASTLED_FX_ENGINE_MAX_FX
 #define FASTLED_FX_ENGINE_MAX_FX 64
@@ -33,7 +36,7 @@ FASTLED_NAMESPACE_BEGIN
  */
 class FxEngine {
   public:
-    typedef FixedMap<int, FxPtr, FASTLED_FX_ENGINE_MAX_FX> IntFxMap;
+    typedef FixedMap<int, FxRef, FASTLED_FX_ENGINE_MAX_FX> IntFxMap;
     /**
      * @brief Constructs an FxEngine with the specified number of LEDs.
      * @param numLeds The number of LEDs in the strip.
@@ -50,17 +53,26 @@ class FxEngine {
      * @param effect Pointer to the effect to be added.
      * @return The index of the added effect, or -1 if the effect couldn't be added.
      */
-    int addFx(FxPtr effect);
+    int addFx(FxRef effect);
+
+
+    /**
+     * @brief Adds a new video effect to the engine.
+     * @param video The video to be added.
+     * @param xymap The XYMap to be added.
+     * @return The index of the added effect, or -1 if the effect couldn't be added.
+     */
+    int addVideo(Video video, XYMap xymap);
 
     /**
      * @brief Adds a new effect to the engine. Allocate from static memory.
      *        This is not reference tracked and an object passed in must never be
-     *        deleted, as the engine will use a non tracking Ptr which may outlive
+     *        deleted, as the engine will use a non tracking Ref which may outlive
      *        a call to removeFx() and the engine will thefore not know that an
      *        object has been deleted. But if it's a static object that's
      *        then the object probably wasn't going to be deleted anyway.
      */
-    int addFx(Fx& effect) { return addFx(Ptr<Fx>::NoTracking(effect)); }
+    int addFx(Fx& effect) { return addFx(Ref<Fx>::NoTracking(effect)); }
 
     /**
      * @brief Requests removal of an effect from the engine, which might not happen
@@ -68,14 +80,14 @@ class FxEngine {
      * @param index The index of the effect to remove.
      * @return A pointer to the removed effect, or nullptr if the index was invalid.
      */
-    FxPtr removeFx(int index);
+    FxRef removeFx(int index);
 
     /**
      * @brief Retrieves an effect from the engine without removing it.
      * @param index The id of the effect to retrieve.
      * @return A pointer to the effect, or nullptr if the index was invalid.
      */
-    FxPtr getFx(int index);
+    FxRef getFx(int index);
 
     int getCurrentFxId() const { return mCurrId; }
 
@@ -105,15 +117,15 @@ class FxEngine {
     IntFxMap& _getEffects() { return mEffects; }
 
     /**
-     * @brief Sets the time scale for the TimeWarp object.
+     * @brief Sets the time scale for the TimeFunction object.
      * @param timeScale The new time scale value.
      */
-    void setTimeScale(float timeScale) { mTimeWarp.setTimeScale(timeScale); }
+    void setTimeScale(float timeScale) { mTimeFunction.setScale(timeScale); }
 
   private:
     Slider mTimeBender;
     int mCounter = 0;
-    TimeWarp mTimeWarp;  // FxEngine controls the clock, to allow "time-bending" effects.
+    TimeScale mTimeFunction;  // FxEngine controls the clock, to allow "time-bending" effects.
     IntFxMap mEffects; ///< Collection of effects
     FxCompositor mCompositor; ///< Handles effect transitions and rendering
     int mCurrId; ///< Id of the current effect
@@ -123,14 +135,14 @@ class FxEngine {
 
 inline FxEngine::FxEngine(uint16_t numLeds)
     : mTimeBender("FxEngineSpeed", 1.0f, -50.0f, 50.0f, 0.01f), 
-      mTimeWarp(0), 
+      mTimeFunction(0), 
       mCompositor(numLeds), 
       mCurrId(0) {
 }
 
 inline FxEngine::~FxEngine() {}
 
-inline int FxEngine::addFx(FxPtr effect) {
+inline int FxEngine::addFx(FxRef effect) {
     bool auto_set = mEffects.empty();
     bool ok = mEffects.insert(mCounter, effect);
     if (!ok) {
@@ -141,6 +153,12 @@ inline int FxEngine::addFx(FxPtr effect) {
         mCompositor.startTransition(0, 0, effect);
     }
     return mCounter++;
+}
+
+int FxEngine::addVideo(Video video, XYMap xymap) {
+    auto vidfx = VideoFxRef::New(video, xymap);
+    int id = addFx(vidfx);
+    return id;
 }
 
 inline bool FxEngine::nextFx(uint16_t duration) {
@@ -162,15 +180,15 @@ inline bool FxEngine::setNextFx(int index, uint16_t duration) {
     return true;
 }
 
-inline FxPtr FxEngine::removeFx(int index) {
+inline FxRef FxEngine::removeFx(int index) {
     if (!mEffects.has(index)) {
-        return FxPtr();
+        return FxRef();
     }
     
-    FxPtr removedFx;
+    FxRef removedFx;
     bool ok = mEffects.get(index, &removedFx);
     if (!ok) {
-        return FxPtr();
+        return FxRef();
     }
     
     if (mCurrId == index) {
@@ -183,25 +201,25 @@ inline FxPtr FxEngine::removeFx(int index) {
     return removedFx;
 }
 
-inline FxPtr FxEngine::getFx(int id) {
+inline FxRef FxEngine::getFx(int id) {
     if (mEffects.has(id)) {
-        FxPtr fx;
+        FxRef fx;
         mEffects.get(id, &fx);
         return fx;
     }
-    return FxPtr();
+    return FxRef();
 }
 
 inline bool FxEngine::draw(uint32_t now, CRGB *finalBuffer) {
-    mTimeWarp.setTimeScale(mTimeBender);
-    mTimeWarp.update(now);
-    uint32_t warpedTime = mTimeWarp.getTime();
+    mTimeFunction.setScale(mTimeBender);
+    mTimeFunction.update(now);
+    uint32_t warpedTime = mTimeFunction.time();
 
     if (mEffects.empty()) {
         return false;
     }
     if (mDurationSet) {
-        FxPtr fx;
+        FxRef fx;
         bool ok = mEffects.get(mCurrId, &fx);
         if (!ok) {
             // something went wrong.

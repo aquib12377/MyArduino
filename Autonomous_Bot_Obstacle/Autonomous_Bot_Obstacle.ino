@@ -13,14 +13,14 @@
 // =====================
 
 // Motor Control Pins
-#define MOTOR1_IN1 7
-#define MOTOR1_IN2 8
-#define MOTOR2_IN1 9
-#define MOTOR2_IN2 10
+#define MOTOR1_IN1 A0
+#define MOTOR1_IN2 A1
+#define MOTOR2_IN1 A2
+#define MOTOR2_IN2 A3
 
 // Ultrasonic Sensor Pins
-#define TRIG_PIN 11
-#define ECHO_PIN 12
+#define TRIG_PIN 2
+#define ECHO_PIN 3
 
 // =====================
 // Constants

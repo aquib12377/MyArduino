@@ -10,11 +10,11 @@
 
 // Command IDs (updated to match master code)
 #define CMD_TURN_OFF_ALL       0xA0  // 0xA0 from master code
-#define CMD_TURN_ON_1BHK       0xB1  // 0xB1 from master code
-#define CMD_TURN_ON_2BHK       0xB2  // 0xB2 from master code
-#define CMD_TURN_ON_3BHK       0xB3  // 0xB3 from master code
+#define CMD_TURN_ON_1BHK       0xB3  // 0xB1 from master code
+#define CMD_TURN_ON_2BHK       0xB4  // 0xB2 from master code
+#define CMD_TURN_ON_3BHK       0xB5  // 0xB3 from master code
 #define CMD_SHOW_AVAIL         0xC4  // 0xC4 from master code
-#define CMD_RUN_PATTERN        0xD5  // 0xD5 from master code
+#define CMD_RUN_PATTERN        0xA2  // 0xD5 from master code
 
 // Pattern IDs
 #define PATTERN_ONE_BY_ONE 0x01
@@ -400,14 +400,6 @@ void runPattern() {
     turnOffAllLEDs();
     // You can call any of the patterns here based on the specific needs of the pattern.
     runOneByOnePattern();       // Example: Running One By One Pattern
-    turnOffAllLEDs();
-    runRunningFadingRainbowPattern(200);      // Example: Running Floor Wipe Pattern
-    turnOffAllLEDs();
-    //runFloorAlternatePattern(); // Example: Running Floor Alternating Pattern
-    turnOffAllLEDs();
-    gradientRainbow(10);
-    turnOffAllLEDs();
-    fastRainbowCycle(5);
     turnOffAllLEDs();
 
   }
