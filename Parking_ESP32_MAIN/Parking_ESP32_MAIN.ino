@@ -3,37 +3,39 @@
 #include <WebServer.h>
 #include <ESPmDNS.h>
 #include <ESP32Servo.h>
-#include <time.h>       // For timestamp if required
-
-// I2C LCD libraries
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
+
+// --- RFID Libraries ---
+#include <SPI.h>
+#include <MFRC522.h>
 
 /************ Wi-Fi credentials ************/
 const char* ssid     = "MyProject";
 const char* password = "12345678";
 
 /************ Define pins ************/
-// IR sensors for entry/exit
-#define IR_SENSOR_1  32   // Example pin
-#define IR_SENSOR_2  33   // Example pin
+// Remove entry/exit IR sensor pins => no longer used
 
-// Parking slot IR sensors
+// Parking slot IR sensors (unchanged)
 #define SLOT_IR_1  25
 #define SLOT_IR_2  26
 #define SLOT_IR_3  27
 #define SLOT_IR_4  14
 
 // Servo control pin
-#define SERVO_PIN   5
+#define SERVO_PIN   12
 
-// Pin to trigger ESP32-CAM to take a picture
-#define CAM_TRIGGER_PIN  4
+// Pin to trigger ESP32-CAM? (Not strictly necessary if we’re only sending UID over Serial)
+// If you don’t need it, you can remove it. Kept here in case you still want to pulse it.
+#define CAM_TRIGGER_PIN  13
+
+/************ RFID Pins ************/
+// Example pins for RC522
+#define RFID_SS_PIN  5
+#define RFID_RST_PIN 4
 
 /************ Global Variables ************/
-// For detecting entry/exit direction
-int lastSensorTriggered = 0; // 0 = none, 1 = IR1, 2 = IR2
-
 // WebServer on port 80
 WebServer server(80);
 
@@ -44,12 +46,30 @@ Servo gateServo;
 int slotStates[4] = {0, 0, 0, 0};
 
 // Create an LCD object at I2C address 0x27 with 16 columns and 2 rows.
-// Adjust if your LCD has a different I2C address (e.g., 0x3F) or size (e.g., 20x4).
 LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+// Create MFRC522 instance
+MFRC522 mfrc522(RFID_SS_PIN, RFID_RST_PIN);
+
+/*********************************************************
+   Helper function: Convert RFID UID bytes to a String
+*********************************************************/
+String getUidString(MFRC522 &rfid) {
+  String uidStr = "";
+  for (byte i = 0; i < rfid.uid.size; i++) {
+    if (rfid.uid.uidByte[i] < 0x10) {
+      uidStr += "0";
+    }
+    uidStr += String(rfid.uid.uidByte[i], HEX);
+  }
+  uidStr.toUpperCase();
+  return uidStr;
+}
 
 /************ Function to check slot IR states ************/
 void updateSlotStates() {
-  slotStates[0] = (digitalRead(SLOT_IR_1) == LOW) ? 1 : 0; // Assuming LOW means blocked/occupied
+  // Assuming LOW = blocked = occupied
+  slotStates[0] = (digitalRead(SLOT_IR_1) == LOW) ? 1 : 0;
   slotStates[1] = (digitalRead(SLOT_IR_2) == LOW) ? 1 : 0;
   slotStates[2] = (digitalRead(SLOT_IR_3) == LOW) ? 1 : 0;
   slotStates[3] = (digitalRead(SLOT_IR_4) == LOW) ? 1 : 0;
@@ -57,22 +77,20 @@ void updateSlotStates() {
 
 /************ Function to update LCD UI ************/
 void updateLCDUI() {
-  // Clear and set cursor to top-left
   lcd.clear();
-  
   // First row: S1 and S2
   lcd.setCursor(0, 0);
   lcd.print("S1:");
-  lcd.print(slotStates[0] == 1 ? "Occ" : "Free");
+  lcd.print(slotStates[0] ? "Occ" : "Free");
   lcd.print(" S2:");
-  lcd.print(slotStates[1] == 1 ? "Occ" : "Free");
-  
+  lcd.print(slotStates[1] ? "Occ" : "Free");
+
   // Second row: S3 and S4
   lcd.setCursor(0, 1);
   lcd.print("S3:");
-  lcd.print(slotStates[2] == 1 ? "Occ" : "Free");
+  lcd.print(slotStates[2] ? "Occ" : "Free");
   lcd.print(" S4:");
-  lcd.print(slotStates[3] == 1 ? "Occ" : "Free");
+  lcd.print(slotStates[3] ? "Occ" : "Free");
 }
 
 /************ Function to handle root page ************/
@@ -81,21 +99,18 @@ void handleRoot() {
   updateSlotStates();
 
   // Generate a simple HTML page
- String htmlPage = 
+  String htmlPage =
     "<!DOCTYPE html>"
     "<html lang='en'>"
     "<head>"
       "<meta charset='UTF-8' />"
       "<meta name='viewport' content='width=device-width, initial-scale=1' />"
       "<title>Smart Parking</title>"
-      // Optional auto-refresh every 5 seconds; remove if not needed.
       "<meta http-equiv='refresh' content='5'/>"
-      // Load Bootstrap CSS from CDN
       "<link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css' rel='stylesheet'/>"
       "<style>"
-      // A tiny style tweak, for example
-      ".occupied { color: #dc3545; font-weight: 600; }"  // red text
-      ".free { color: #28a745; font-weight: 600; }"      // green text
+        ".occupied { color: #dc3545; font-weight: 600; }"
+        ".free { color: #28a745; font-weight: 600; }"
       "</style>"
     "</head>"
     "<body class='bg-light'>"
@@ -106,25 +121,24 @@ void handleRoot() {
   // Generate a card for each slot
   for (int i = 0; i < 4; i++) {
     String slotNumber = String(i + 1);
-    String statusText = (slotStates[i] == 1) ? "Occupied" : "Available";
-    String statusClass = (slotStates[i] == 1) ? "occupied" : "free";
+    bool occupied = (slotStates[i] == 1);
+    String statusText = occupied ? "Occupied" : "Available";
+    String statusClass = occupied ? "occupied" : "free";
 
-    htmlPage += 
-          "<div class='col-sm-6 col-md-3 mb-3'>"
-            "<div class='card shadow-sm'>"
-              "<div class='card-body text-center'>"
-                "<h5 class='card-title'>Slot " + slotNumber + "</h5>"
-                "<p class='card-text " + statusClass + "'>" + statusText + "</p>"
-              "</div>"
-            "</div>"
-          "</div>";
+    htmlPage +=
+      "<div class='col-sm-6 col-md-3 mb-3'>"
+        "<div class='card shadow-sm'>"
+          "<div class='card-body text-center'>"
+            "<h5 class='card-title'>Slot " + slotNumber + "</h5>"
+            "<p class='card-text " + statusClass + "'>" + statusText + "</p>"
+          "</div>"
+        "</div>"
+      "</div>";
   }
 
-  // Close the row and container
-  htmlPage += 
-        "</div>"  // end .row
-      "</div>"    // end .container
-      // Load Bootstrap JS bundle (not strictly necessary for this simple page)
+  htmlPage +=
+        "</div>"
+      "</div>"
       "<script src='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js'></script>"
     "</body>"
     "</html>";
@@ -132,23 +146,17 @@ void handleRoot() {
   server.send(200, "text/html", htmlPage);
 }
 
-/************ Function to send dummy data ************/
-void sendVehicleData(const char* vehicleName, const char* vehicleNumber, const char* entryTime) {
-  Serial.println("Sending Vehicle Data:");
-  Serial.println(String("Name: ") + vehicleName);
-  Serial.println(String("Number: ") + vehicleNumber);
-  Serial.println(String("Time: ") + entryTime);
-
-  // (Pseudo code for sending data to a server or Firebase)
-}
-
 /************ Setup ************/
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(115200);    // For debugging
 
-  // Pin modes for IR sensors
-  pinMode(IR_SENSOR_1, INPUT_PULLUP);
-  pinMode(IR_SENSOR_2, INPUT_PULLUP);
+  // OPTIONAL: Use Serial2 to send data to ESP32-CAM
+  // Example: TX2 -> 17, RX2 -> 16, or adjust to your wiring
+  Serial2.begin(115200, SERIAL_8N1, 16, 17); // <-- Adjust pins as needed
+
+  // Initialize SPI + RC522
+  SPI.begin(18, 19, 23, RFID_SS_PIN); // (SCK=18, MISO=19, MOSI=23, SS=RFID_SS_PIN)
+  mfrc522.PCD_Init();
 
   // Pin modes for parking slot IR sensors
   pinMode(SLOT_IR_1, INPUT_PULLUP);
@@ -156,7 +164,7 @@ void setup() {
   pinMode(SLOT_IR_3, INPUT_PULLUP);
   pinMode(SLOT_IR_4, INPUT_PULLUP);
 
-  // Pin mode for CAM trigger
+  // Pin mode for CAM trigger (if needed)
   pinMode(CAM_TRIGGER_PIN, OUTPUT);
   digitalWrite(CAM_TRIGGER_PIN, LOW);
 
@@ -165,11 +173,11 @@ void setup() {
   gateServo.write(0); // Initialize gate in closed position
 
   // Initialize LCD
-  lcd.begin();         // Initialize the I2C LCD
-  lcd.backlight();    // Turn on the LCD backlight
-  lcd.clear();        // Clear the display
+  lcd.begin();      // I2C LCD init
+  lcd.backlight();
+  lcd.clear();
 
-  // Connect to WiFi
+  // Connect to Wi-Fi
   WiFi.begin(ssid, password);
   Serial.println("Connecting to WiFi...");
   while (WiFi.status() != WL_CONNECTED) {
@@ -196,54 +204,37 @@ void loop() {
   // Handle incoming web requests
   server.handleClient();
 
-  // (1) Read the two IR sensors for entry/exit logic
-  bool ir1State = (digitalRead(IR_SENSOR_1) == LOW);
-  bool ir2State = (digitalRead(IR_SENSOR_2) == LOW);
-
-  // (2) Check for first sensor triggered
-  if (ir1State && lastSensorTriggered == 0) {
-    lastSensorTriggered = 1;  // IR1 triggered first
+  // Check if an RFID tag is present
+  if (!mfrc522.PICC_IsNewCardPresent()) {
+    return;
   }
-  if (ir2State && lastSensorTriggered == 0) {
-    lastSensorTriggered = 2;  // IR2 triggered first
+  // Attempt to read the card
+  if (!mfrc522.PICC_ReadCardSerial()) {
+    return;
   }
 
-  // (3) If IR1 -> IR2 => Entry
-  if (ir2State && lastSensorTriggered == 1) {
-    Serial.println("== Vehicle ENTRY Detected ==");
+  // We have a new card; get its UID as a String
+  String uidStr = getUidString(mfrc522);
+  Serial.println("RFID UID detected: " + uidStr);
 
-    // Send dummy vehicle data
-    String currentTime = String(millis()); // or use a real timestamp from RTC
-    sendVehicleData("DummyVehicle", "ABC-1234", currentTime.c_str());
+  // OPTIONAL: Trigger the camera pin if you want
+  // digitalWrite(CAM_TRIGGER_PIN, HIGH);
+  // delay(100);
+  // digitalWrite(CAM_TRIGGER_PIN, LOW);
 
-    // Trigger ESP32-CAM
-    digitalWrite(CAM_TRIGGER_PIN, HIGH);
-    delay(500);
-    digitalWrite(CAM_TRIGGER_PIN, LOW);
+  // Send the UID to the ESP32-CAM via Serial2
+  // (Your ESP32-CAM code must listen on Serial2 for this string)
+  Serial2.println(uidStr);
 
-    // Open gate via servo
-    gateServo.write(90);
-    delay(3000);
-    gateServo.write(0);
+  // For demonstration, open the gate for 3 seconds, then close
+  gateServo.write(90);
+  delay(3000);
+  gateServo.write(0);
 
-    lastSensorTriggered = 0; // Reset
-  }
+  // Halt the card so it doesn’t continually get read
+  mfrc522.PICC_HaltA();
 
-  // (4) If IR2 -> IR1 => Exit
-  if (ir1State && lastSensorTriggered == 2) {
-    Serial.println("== Vehicle EXIT Detected ==");
-    // Optionally send exit data
-
-    lastSensorTriggered = 0; // Reset
-  }
-
-  // (5) Update the LCD UI every 5 seconds (non-blocking approach)
-  static unsigned long lastLcdUpdate = 0;
-  if (millis() - lastLcdUpdate > 5000) {
-    lastLcdUpdate = millis();
-
-    // Update slot states and refresh the LCD content
-    updateSlotStates();
-    updateLCDUI();
-  }
+  // Update the LCD once in a while (or every time, up to you)
+  updateSlotStates();
+  updateLCDUI();
 }

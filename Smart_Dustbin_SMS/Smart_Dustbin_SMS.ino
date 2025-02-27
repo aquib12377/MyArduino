@@ -164,27 +164,27 @@ void buzzerAlert() {
 }
 
 // Function to send SMS using the GSM module
-void sendSMS() {
-  gsmSerial.println("AT+CMGF=1");  // Set SMS mode to text
-  delay(1000);
-  updateSerial();
-  String message = "Dustbin is full. Please empty the dustbin.\nLat: 18.9345107\nLong:72.8226356";
-  gsmSerial.println("AT+CMGS=\"" + phoneNumber + "\"");  // Send SMS to phone number
-  delay(1000);
-  updateSerial();
-  gsmSerial.print(message);  // Message content
-  delay(100);
-  updateSerial();
-  gsmSerial.write(26);  // Send Ctrl+Z to indicate the end of the message
-  delay(1000);
-  updateSerial();
-}
-void updateSerial() {
-  delay(500);
-  while (Serial.available()) {
-    gsmSerial.write(Serial.read());  // Forward what Serial received to SIM800L
+  void sendSMS() {
+    gsmSerial.println("AT+CMGF=1");  // Set SMS mode to text
+    delay(1000);
+    updateSerial();
+    String message = "Dustbin is full. Please empty the dustbin.\nLat: 18.9345107\nLong:72.8226356";
+    gsmSerial.println("AT+CMGS=\"" + phoneNumber + "\"");  // Send SMS to phone number
+    delay(1000);
+    updateSerial();
+    gsmSerial.print(message);  // Message content
+    delay(100);
+    updateSerial();
+    gsmSerial.write(26);  // Send Ctrl+Z to indicate the end of the message
+    delay(1000);
+    updateSerial();
   }
-  while (gsmSerial.available()) {
-    Serial.write(gsmSerial.read());  // Forward what SIM800L received to Serial
+  void updateSerial() {
+    delay(500);
+    while (Serial.available()) {
+      gsmSerial.write(Serial.read());  // Forward what Serial received to SIM800L
+    }
+    while (gsmSerial.available()) {
+      Serial.write(gsmSerial.read());  // Forward what SIM800L received to Serial
+    }
   }
-}

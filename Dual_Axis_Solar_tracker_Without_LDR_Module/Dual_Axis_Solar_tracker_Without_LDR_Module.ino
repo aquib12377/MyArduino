@@ -7,19 +7,19 @@ int servohLimitLow = 5;
 
 Servo vertical;  // vertical servo
 int servov = 45;
-int servovLimitHigh = 60;
-int servovLimitLow = 1;
+int servovLimitHigh = 120;
+int servovLimitLow = 60;
 
 // LDR pin connections
-int ldrlt = A2;  // LDR top left
-int ldrrt = A3;  // LDR top right
-int ldrld = A4;  // LDR down left
-int ldrrd = A5;  // LDR down right
+int ldrlt = A0;  // LDR top left
+int ldrrt = A2;  // LDR top right
+int ldrld = A3;  // LDR down left
+int ldrrd = A4;  // LDR down right
 
 void setup() {
   Serial.begin(9600);  // Initialize serial communication
-  horizontal.attach(9);
-  vertical.attach(10);
+  horizontal.attach(6);
+  vertical.attach(5);
   horizontal.write(180);
   vertical.write(45);
   delay(2500);
@@ -40,7 +40,7 @@ void loop() {
   int dvert = avt - avd;    // Difference up and down
   int dhoriz = avl - avr;   // Difference left and right
 
-  // Print sensor readings and average values
+  //Print sensor readings and average values
   // Serial.print("LDR Readings - LT: "); Serial.print(lt);
   // Serial.print(", RT: "); Serial.print(rt);
   // Serial.print(", LD: "); Serial.print(ld);
@@ -71,10 +71,10 @@ void loop() {
   // Adjust horizontal servo
   if (-1 * tol > dhoriz || dhoriz > tol) {
     if (avl > avr) {
-      servoh = --servoh;
+      servoh = ++servoh;
       if (servoh < servohLimitLow) { servoh = servohLimitLow; }
     } else if (avl < avr) {
-      servoh = ++servoh;
+      servoh = --servoh;
       if (servoh > servohLimitHigh) { servoh = servohLimitHigh; }
     }
     horizontal.write(servoh);
