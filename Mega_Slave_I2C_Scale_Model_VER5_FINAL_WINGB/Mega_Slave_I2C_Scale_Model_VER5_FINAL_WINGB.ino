@@ -78,12 +78,12 @@ void setup() {
   Serial.println("Setup complete");
   Serial.println("Running Pattern till command received from ESP32");
 
-  for (int floor = 0; floor < NUM_FLOORS; floor++) {
-    for (int i = 0; i < TOTAL_LEDS_PER_FLOOR; i++) {
-      ledsFloor[floor]->setPixelColor(i, ledsFloor[floor]->Color(255, 255, 255));
-    }
-    ledsFloor[floor]->show();
-  }
+  // for (int floor = 0; floor < NUM_FLOORS; floor++) {
+  //   for (int i = 0; i < TOTAL_LEDS_PER_FLOOR; i++) {
+  //     ledsFloor[floor]->setPixelColor(i, ledsFloor[floor]->Color(255, 255, 255));
+  //   }
+  //   ledsFloor[floor]->show();
+  // }
 }
 
 void loop() {
@@ -129,7 +129,7 @@ void loop() {
         // The availability data is processed in receiveEvent()
         // Once all data is received, update LEDs
         if (availabilityDataBytesReceived >= totalAvailabilityDataSize) {
-          showAvailability();
+          turnOffAllLEDs();
           availabilityDataBytesReceived = 0; // Reset for next transmission
         } else {
           Serial.println("Availability data not fully received yet.");

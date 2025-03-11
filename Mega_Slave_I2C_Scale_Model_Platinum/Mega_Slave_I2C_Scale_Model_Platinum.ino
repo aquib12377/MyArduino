@@ -1,7 +1,7 @@
 #include <Wire.h>
 #include <Adafruit_NeoPixel.h>
 
-#define NUM_FLOORS 18
+#define NUM_FLOORS 16
 #define NUM_ROOMS_PER_FLOOR 4
 #define NUM_LEDS_PER_ROOM 9
 #define TOTAL_LEDS_PER_FLOOR (NUM_ROOMS_PER_FLOOR * NUM_LEDS_PER_ROOM)
@@ -22,36 +22,25 @@
 #define CMD_WINGA_1BHK_461_SQFT 0xB2
 
 #define CMD_SHOW_AVAIL 0xC8
-#define REFUGEE_COLOR 0xFFA500  // Orange in 24-bit hex (R=255,G=165,B=0)
+#define REFUGEE_COLOR 0xFFA500
 
 const int NUM_COLORS = 5;
-const int FADE_STEPS = 100;   // Number of steps in each transition
-const int DELAY_TIME_MS = 2;  // Delay between steps in milliseconds
+const int FADE_STEPS = 100;
+const int DELAY_TIME_MS = 2;
 
 uint8_t softColors[NUM_COLORS][3] = {
-  { 255, 149, 130 },  // Soft color 1
-  { 250, 210, 130 },  // Soft color 1
-  { 122, 211, 255 },  // Soft color 1
-  { 164, 135, 255 },  // Soft color 1
-  { 251, 130, 211 },  // Soft color 1
+  { 255, 149, 130 },
+  { 250, 210, 130 },
+  { 122, 211, 255 },
+  { 164, 135, 255 },
+  { 251, 130, 211 },
 };
 
 const uint8_t bhkTypes[NUM_ROOMS_PER_FLOOR] = {
-  1,2,3,1
+  2, 2, 3, 3
 };
 
 Adafruit_NeoPixel* ledsFloor[NUM_FLOORS];
-
-struct FadeTask {
-  int floor;
-  int room;
-  int brightness;
-  int direction;  // +1 for fading in, -1 for fading out
-  bool active;
-};
-
-#define NUM_TASKS 90
-FadeTask tasks[NUM_TASKS];
 
 volatile bool newCommandReceived = false;
 volatile uint8_t currentCommand = 0;
@@ -69,43 +58,18 @@ enum ReceiveState {
 };
 ReceiveState receiveState = WAIT_FOR_START;
 
-#define IDLE_TIMEOUT (1UL * 60UL * 1000UL)  // 5 minutes in milliseconds
+#define IDLE_TIMEOUT (1UL * 1UL * 1000UL)
 
 #define NUM_GROUPS 14
 #define ROOMS_PER_GROUP 20
 #define MAX_FADING_GROUPS 7
 #define FADE_STEPS 50
-#define FADE_DELAY_MS 10  // delay between fade steps
+#define FADE_DELAY_MS 10
 
-bool groupIsFading[NUM_GROUPS] = { false };
-int groupId[NUM_FLOORS][NUM_ROOMS_PER_FLOOR];
-
-
-
-// Flags to track selected groups
-bool selectedGroup[NUM_GROUPS] = { false };
-struct GroupFade {
-  int floor;
-  int group;
-  uint32_t fromColor;
-  uint32_t toColor;
-  int currentStep;
-  bool active;
-};
-
-GroupFade groupFades[MAX_FADING_GROUPS];
-unsigned long lastCommandTime = 0;  // Tracks last time we got a command
+unsigned long lastCommandTime = 0;
 
 bool isIdleMode = false;
-void initializeFadeTasks() {
-  for (int t = 0; t < NUM_TASKS; ++t) {
-    tasks[t].floor = random(0, NUM_FLOORS);
-    tasks[t].room = random(0, NUM_ROOMS_PER_FLOOR);
-    tasks[t].brightness = 0;
-    tasks[t].direction = 1;  // start with fade-in
-    tasks[t].active = true;
-  }
-}
+
 void setup() {
   Serial.begin(115200);
 
@@ -119,21 +83,16 @@ void setup() {
       ledsFloor[f] = new Adafruit_NeoPixel(TOTAL_LEDS_PER_FLOOR, pin, NEO_GRB + NEO_KHZ800);
       ledsFloor[f]->begin();
       ledsFloor[f]->setBrightness(255);
-      ledsFloor[f]->show();  // all off
+      ledsFloor[f]->show();
     } else {
-      ledsFloor[f] = NULL;  // invalid pin => no strip
+      ledsFloor[f] = NULL;
     }
   }
 
-  initializeFadeTasks();
   memset(roomAvailability, 0, sizeof(roomAvailability));
   Serial.println("Wing A slave ready.");
   turnOffAllLEDs();
-int b = 0;
-while(true)
-{
- runPattern();
-}}
+}
 
 void loop() {
   if (!isIdleMode) {
@@ -144,7 +103,6 @@ void loop() {
     }
   }
 
-  // (B) If we are idle, run an idle pattern
   if (isIdleMode) {
     patternSoftColorsSmooth();
   }
@@ -161,7 +119,6 @@ void loop() {
     }
     lastCommandTime = millis();
 
-    // (2) If we are in idle mode, exit it
     isIdleMode = false;
     switch (cmd) {
 
@@ -224,6 +181,23 @@ void loop() {
         break;
     }
     lastCommand = currentCommand;
+  }
+}
+
+
+void turnOnRefugeeFlats() {
+  for (int floor = 0; floor < NUM_FLOORS; floor++) {
+    for (int room = 0; room < NUM_ROOMS_PER_FLOOR; room++) {
+      if (isRefugee(floor, room)) {
+        Serial.print(F("Turned ON Refugee Flats:"));
+        Serial.print(F("Floor: "));
+        Serial.print(floor + 1);
+        Serial.print(F(" | Room: "));
+        Serial.print(room + 1);
+        ledsFloor[floor]->Color(46, 139, 87);
+        ledsFloor[floor]->show();
+      }
+    }
   }
 }
 
@@ -330,11 +304,11 @@ int getFloorDataPin(int floor) {
     case 1: return 12;
     case 2: return 11;
     case 3: return 10;
-        case 4: return 6;//6
-    case 5: return 8;//8
-    case 6: return 7;//7
-    case 7: return 9;//9
-    case 8: return 8;
+    case 4: return 9;  //6
+    case 5: return 8;  //8
+    case 6: return 7;  //7
+    case 7: return 6;  //9
+    case 8: return 19;
     case 9: return 4;
     case 10: return 3;
     case 11: return 2;
@@ -406,10 +380,10 @@ void executeTurnOnBHK(uint8_t bhkType) {
         continue;
       if (bhkTypes[r] == bhkType) {
         uint32_t color;
-        if (bhkType == 1) color = ledsFloor[f]->Color(0, 255, 255);       // cyan
-        else if (bhkType == 2) color = ledsFloor[f]->Color(255, 255, 0);  // yellow
-        else if (bhkType == 3) color = ledsFloor[f]->Color(255, 100, 100);  // magenta
-        else color = ledsFloor[f]->Color(255, 255, 255);                  // default white
+        if (bhkType == 1) color = ledsFloor[f]->Color(softColors[1][0], softColors[1][1], softColors[1][2]);       // cyan
+        else if (bhkType == 2) color = ledsFloor[f]->Color(softColors[0][0], softColors[0][1], softColors[0][2]);  // yellow
+        else if (bhkType == 3) color = ledsFloor[f]->Color(softColors[2][0], softColors[2][1], softColors[2][2]);  // magenta
+        else color = ledsFloor[f]->Color(255, 255, 255);                                                           // default white
 
         int ledStart = r * NUM_LEDS_PER_ROOM;
         for (int i = 0; i < NUM_LEDS_PER_ROOM; i++) {
@@ -421,7 +395,6 @@ void executeTurnOnBHK(uint8_t bhkType) {
   }
 }
 
-// Show availability data (0 => Red / 1 => Green, etc.)
 void showAvailability() {
   //=================================================================================
   //    Uncommnent for testing available room lights with dummy random data
@@ -456,72 +429,66 @@ void showAvailability() {
 }
 
 // ======================= OPTIONAL PATTERN =======================
-void runPattern() {
-  // Example: cycle 1BHK -> 2BHK -> 3BHK -> all -> repeat
-  // until a new command interrupts
-  while (true) {
-    noInterrupts();
-    bool stop = newCommandReceived;
-    interrupts();
-    if (stop) break;
+bool shouldStop() {
+  noInterrupts();
+  bool stop = newCommandReceived;
+  interrupts();
+  return stop;
+}
 
-    pattern1();
-    turnOffAllLEDs();
-    pattern2();
-    turnOffAllLEDs();
-    pattern3();
-    turnOffAllLEDs();
-    pattern4();
-    turnOffAllLEDs();
-    //pattern5Smooth();
-    int o = 0;
-    uint32_t whiteColor = ledsFloor[0]->Color(255, 255, 0);
+void displayAllPatterns() {
+  pattern1();
+  turnOffAllLEDs();
+  pattern2();
+  turnOffAllLEDs();
+  pattern3();
+  turnOffAllLEDs();
+  pattern4();
+  turnOffAllLEDs();
+}
 
-    while (++o < 3) {
+void runBHKCycle() {
+  const int repeatCount = 3;
+  for (int i = 0; i < repeatCount; ++i) {
+    for (int j = 1; j <= 3; ++j) {
       turnOffAllLEDs();
-      executeTurnOnBHK(1);
+      executeTurnOnBHK(j);
       delay(1000);
-      turnOffAllLEDs();
-      executeTurnOnBHK(2);
-      delay(1000);
-      turnOffAllLEDs();
-      executeTurnOnBHK(3);
-      delay(1000);
-      turnOffAllLEDs();
     }
+    turnOffAllLEDs();
   }
 }
 
-
+void runPattern() {
+  while (true) {
+    if (shouldStop()) break;
+    displayAllPatterns();
+    runBHKCycle();
+  }
+}
 
 // =========== PATTERN 1 ===========
-// Lights up each LED on each floor with white, one-by-one
 void pattern1() {
-  uint32_t color = ledsFloor[0]->Color(255, 255, 255);  // white
+  uint32_t color = ledsFloor[0]->Color(255, 255, 255);
   for (int floor = 0; floor < NUM_FLOORS; floor++) {
     for (int i = 0; i < TOTAL_LEDS_PER_FLOOR; i++) {
-      // Calculate the room from LED index
       int room = i / NUM_LEDS_PER_ROOM;
-      // If refugee, skip
       if (isRefugee(floor, room)) {
         continue;
       }
       ledsFloor[floor]->setPixelColor(i, color);
       ledsFloor[floor]->show();
-      delay(2);  // Adjust speed
+      delay(5);
     }
   }
 }
 
 // =========== PATTERN 2 ===========
-// Moves "up" then "down" each floor, coloring LEDs
 void pattern2() {
-  // Start color
-  uint32_t colorUp = ledsFloor[0]->Color(0, 255, 255);    // e.g., cyan
-  uint32_t colorDown = ledsFloor[0]->Color(255, 255, 0);  // e.g., yellow
+  uint32_t colorUp = ledsFloor[0]->Color(0, 255, 255);
+  uint32_t colorDown = ledsFloor[0]->Color(255, 255, 0);
 
   for (int floor = 0; floor < NUM_FLOORS; floor++) {
-    // "Up" the floor
     for (int i = 0; i < TOTAL_LEDS_PER_FLOOR; i++) {
       int room = i / NUM_LEDS_PER_ROOM;
       if (isRefugee(floor, room)) {
@@ -529,10 +496,9 @@ void pattern2() {
       }
       ledsFloor[floor]->setPixelColor(i, colorUp);
       ledsFloor[floor]->show();
-      delay(2);
+      delay(5);
     }
 
-    // "Down" the floor
     for (int i = TOTAL_LEDS_PER_FLOOR - 1; i >= 0; i--) {
       int room = i / NUM_LEDS_PER_ROOM;
       if (isRefugee(floor, room)) {
@@ -540,13 +506,12 @@ void pattern2() {
       }
       ledsFloor[floor]->setPixelColor(i, colorDown);
       ledsFloor[floor]->show();
-      delay(2);
+      delay(5);
     }
   }
 }
 
 // =========== PATTERN 3 ===========
-// Horizontal RGB fading (Magenta->Cyan->LightCoral->Turquoise) across each floor
 void pattern3() {
   const int numColors = 4;
   uint8_t colors[numColors][3] = {
@@ -581,7 +546,6 @@ void pattern3() {
 }
 
 // =========== PATTERN 4 ===========
-// Vertical RGB fading across floors (Red->Green->Yellow->Blue->Orange)
 void pattern4() {
   const int numColors = 5;
   uint8_t verticalColors[numColors][3] = {
@@ -603,7 +567,6 @@ void pattern4() {
     uint8_t g = (uint8_t)((1 - localT) * verticalColors[segment][1] + localT * verticalColors[segment + 1][1]);
     uint8_t b = (uint8_t)((1 - localT) * verticalColors[segment][2] + localT * verticalColors[segment + 1][2]);
 
-    // Color the entire floor, except refugee flats
     for (int i = 0; i < TOTAL_LEDS_PER_FLOOR; i++) {
       int room = i / NUM_LEDS_PER_ROOM;
       if (isRefugee(floor, room)) {
@@ -616,85 +579,65 @@ void pattern4() {
   }
 }
 
-// =========== PATTERN 5 ===========
-
 // =========== patternSoftColors ===========
-// Example fade pattern across multiple colors
 void patternSoftColorsSmooth() {
+  const int colors[4][3] = {
+    { 173, 216, 230 },  // Lightest Blue
+    { 158, 201, 215 },  // Slightly Darker
+    { 143, 186, 200 },  // Even Darker
+    { 128, 171, 185 }   // Darkest Blue
+  };
+
   while (true) {
-    noInterrupts();
-    bool stop = newCommandReceived;
-    interrupts();
-    if (stop) break;
+    if (shouldStop()) break;
 
-    uint32_t goldenColor = 0;
-    for (int f = 0; f < NUM_FLOORS; f++) {
-      if (ledsFloor[f]) {
-        goldenColor = ledsFloor[f]->Color(255, 215, 0);
-        break;
+    turnOffAllLEDs();
+    executeTurnOnBHK(2);
+    delay(500);
+    turnOffAllLEDs();
+    executeTurnOnBHK(3);
+    delay(500);
+    turnOffAllLEDs();
+
+    for (int j = 0; j < NUM_ROOMS_PER_FLOOR; j++) {
+      for (int i = 0; i < NUM_FLOORS; i++) {
+        controlFlat(i, j, colors[j % 4][0], colors[j % 4][1], colors[j % 4][2]);
+        delay(80);
       }
     }
 
-    // Update each fade task
-    for (int t = 0; t < NUM_TASKS; t++) {
-      if (!tasks[t].active) continue;
+    delay(500);
 
-      int floor = tasks[t].floor;
-      if (!ledsFloor[floor]) continue;  // skip if floor LED strip is not available
-
-      Adafruit_NeoPixel* strip = ledsFloor[floor];
-      int room = tasks[t].room;
-      int startIndex = room * NUM_LEDS_PER_ROOM;
-
-      // Adjust brightness for this task
-      tasks[t].brightness += tasks[t].direction;
-      if (tasks[t].brightness >= 255) {
-        tasks[t].brightness = 255;
-        tasks[t].direction = -5;  // start fading out once fully bright
-      } else if (tasks[t].brightness <= 0) {
-        tasks[t].brightness = 0;
-        tasks[t].direction = 5;  // switch back to fading in
-
-        // Optionally assign a new random floor/room when a cycle completes
-        tasks[t].floor = random(0, NUM_FLOORS);
-        tasks[t].room = random(0, NUM_ROOMS_PER_FLOOR);
+    for (int k = 0; k < NUM_FLOORS + NUM_ROOMS_PER_FLOOR - 1; k++) {
+      for (int i = 0; i < NUM_FLOORS; i++) {
+        int j = k - i;
+        if (j >= 0 && j < NUM_ROOMS_PER_FLOOR) {
+          controlFlat(i, j, colors[j % 4][0], colors[j % 4][1], colors[j % 4][2]);
+        }
       }
-
-      // Scale the golden color by the current brightness
-      uint8_t r = (uint8_t)(255 * tasks[t].brightness / 255);  // Golden red component
-      uint8_t g = (uint8_t)(255 * tasks[t].brightness / 255);  // Golden green component
-      uint8_t b = (uint8_t)(100 * tasks[t].brightness / 255);  // Golden blue component
-
-      uint32_t scaledColor = strip->Color(r, g, b);
-
-      // Apply the scaled color to all LEDs in the room
-      for (int i = 0; i < NUM_LEDS_PER_ROOM; i++) {
-        strip->setPixelColor(startIndex + i, scaledColor);
-      }
+      delay(150);
     }
 
-    // Update all LED strips after processing tasks
-    for (int f = 0; f < NUM_FLOORS; f++) {
-      if (ledsFloor[f]) {
-        ledsFloor[f]->show();
-      }
+    delay(500);
+
+    for (int t = 0; t < 20; t++) {
+      int i = random(NUM_FLOORS);
+      int j = random(NUM_ROOMS_PER_FLOOR);
+      controlFlat(i, j, colors[j % 4][0], colors[j % 4][1], colors[j % 4][2]);
+      delay(100);
     }
 
-    delay(1);  // Short pause to control update speed; adjust as necessary
+    delay(500);
+    turnOffAllLEDs();
   }
 }
 
-
-
-
 // =================== NEW CONTROL METHODS ===================
-
 void controlFlat(int floor, int room, uint8_t r, uint8_t g, uint8_t b) {
   if (floor < 0 || floor >= NUM_FLOORS) return;
   if (room < 0 || room >= NUM_ROOMS_PER_FLOOR) return;
   if (!ledsFloor[floor]) return;
 
-  // Skip changing color for refugee flats
   if (isRefugee(floor, room)) return;
 
   int ledStart = room * NUM_LEDS_PER_ROOM;
@@ -709,9 +652,7 @@ void controlFloor(int floor, uint8_t r, uint8_t g, uint8_t b) {
   if (floor < 0 || floor >= NUM_FLOORS) return;
   if (!ledsFloor[floor]) return;
 
-  // Instead of setting all LEDs directly, iterate room by room
   for (int room = 0; room < NUM_ROOMS_PER_FLOOR; room++) {
-    // Skip refugee rooms
     if (isRefugee(floor, room)) continue;
 
     int ledStart = room * NUM_LEDS_PER_ROOM;
@@ -732,7 +673,5 @@ void turnOffFloor(int floor) {
 }
 
 bool isRefugee(int floor, int room) {
-  // Adjust if your indexing is zero-based: e.g. floor=14 if you say "15th floor"
-  // Here we assume floor=15 is literally the 16th floor in zero-based indexing.
-  return (floor == 15 && (room == 2 || room == 3|| room == 4|| room == 5|| room == 6));
+  return (floor == 4 && (room == 2)) || (floor == 11 && (room == 1));
 }

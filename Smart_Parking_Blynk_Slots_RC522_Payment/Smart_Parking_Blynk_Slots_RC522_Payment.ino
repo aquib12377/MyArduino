@@ -13,9 +13,11 @@
 
 #define RST_PIN 4  // Reset pin for RFID
 #define SS_PIN 5   // Slave select pin for RFID
-#define IR_SENSOR_1 32
-#define IR_SENSOR_2 33
-#define IR_SENSOR_3 34
+#define IR_SENSOR_1 34
+#define IR_SENSOR_2 35
+#define IR_SENSOR_3 32
+#define IR_SENSOR_4 33
+#define IR_SENSOR_5 26
 #define SERVO_PIN 25
 
 Servo gateServo;
@@ -46,6 +48,8 @@ void setup() {
   pinMode(IR_SENSOR_1, INPUT_PULLUP);
   pinMode(IR_SENSOR_2, INPUT_PULLUP);
   pinMode(IR_SENSOR_3, INPUT_PULLUP);
+  pinMode(IR_SENSOR_4, INPUT_PULLUP);
+  pinMode(IR_SENSOR_5, INPUT_PULLUP);
 
   // Attach servo and set initial position
   gateServo.attach(SERVO_PIN);
@@ -127,14 +131,18 @@ void updateSlotStatus() {
   int slot1Status = digitalRead(IR_SENSOR_1)==LOW;
   int slot2Status = digitalRead(IR_SENSOR_2)==LOW;
   int slot3Status = digitalRead(IR_SENSOR_3)==LOW;
+  int slot4Status = digitalRead(IR_SENSOR_4)==LOW;
+  int slot5Status = digitalRead(IR_SENSOR_5)==LOW;
 
   Blynk.virtualWrite(V0, slot1Status); // Slot 1 status
   Blynk.virtualWrite(V1, slot2Status); // Slot 2 status
   Blynk.virtualWrite(V2, slot3Status); // Slot 3 status
+  Blynk.virtualWrite(V3, slot4Status); // Slot 3 status
+  Blynk.virtualWrite(V4, slot5Status); // Slot 3 status
 
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("Slots: ");
+  lcd.print("S4:" + String(slot4Status) + " S5:" + String(slot5Status));
   lcd.setCursor(0, 1);
   lcd.print("S1:" + String(slot1Status) + " S2:" + String(slot2Status) + " S3:" + String(slot3Status));
 

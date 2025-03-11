@@ -21,7 +21,9 @@
 #define CMD_TURN_ON_3BHKREFUGEE2 0xC7
 #define CMD_SHOW_AVAIL 0xC8   // 0xC4 from master code
 #define CMD_RUN_PATTERN 0xA2  // 0xD5 from master code
-
+#define CMD_3BHK 0xA7
+#define CMD_2BHK 0xA6
+#define CMD_1BHK 0xA5
 // Pattern IDs
 #define PATTERN_ONE_BY_ONE 0x01
 
@@ -40,7 +42,7 @@ struct FadeTask {
   int direction;  // +1 for fading in, -1 for fading out
   bool active;
 };
-#define IDLE_TIMEOUT (1UL * 60UL * 100UL)  // 5 minutes in milliseconds
+#define IDLE_TIMEOUT (1UL * 60UL * 1000UL)  // 5 minutes in milliseconds
 
 #define NUM_TASKS 180
 FadeTask tasks[NUM_TASKS];
@@ -108,26 +110,7 @@ void setup() {
   Serial.println("Setup complete");
   Serial.println("Running Pattern till command received from ESP32");
   initializeFadeTasks();
-  //runPattern();
-  // for (int floor = 0; floor < NUM_FLOORS; floor++) {
-  //   for (int i = 0; i < TOTAL_LEDS_PER_FLOOR; i++) {
-  //     ledsFloor[floor]->setPixelColor(i, ledsFloor[floor]->Color(255, 222, 255));
-  //   }
-  //   ledsFloor[floor]->show();
-  //   delay(100);
-  // }
-  // for (int floor = 0; floor < NUM_FLOORS; floor++) {
-  //   if (!ledsFloor[floor]) continue;
-  //   for (int room = 0; room < NUM_ROOMS_PER_FLOOR; room++) {
-  //     if (isRefugee(floor, room)) {
-  //       int ledStartIndex = room * NUM_LEDS_PER_ROOM;
-  //       for (int i = 0; i < NUM_LEDS_PER_ROOM; i++) {
-  //         ledsFloor[floor]->setPixelColor(ledStartIndex + i, 255, 0, 0);
-  //       }
-  //     }
-  //   }
-  //   ledsFloor[floor]->show();
-  // }
+
 }
 
 void loop() {
@@ -143,6 +126,8 @@ void loop() {
   // (B) If we are idle, run an idle pattern
   if (isIdleMode) {
     Serial.println("Running Idle Mode");
+    turnOffAllLEDs();
+    delay(50);
     patternSoftColorsSmooth();
   }
   // Debugging: Print received bytes outside ISR
@@ -160,7 +145,7 @@ void loop() {
     newCommandReceived = false;
     uint8_t command = currentCommand;
     interrupts();  // Re-enable interrupts
-
+    //Wire.
     Serial.print("Processing Command: 0x");
     Serial.println(command, HEX);
 if (lastCommand == currentCommand && currentCommand != CMD_SHOW_AVAIL) {
@@ -171,6 +156,7 @@ if (lastCommand == currentCommand && currentCommand != CMD_SHOW_AVAIL) {
       turnOffAllLEDs();
     }
 lastCommandTime = millis();
+turnOffAllLEDs();
     switch (command) {
       case CMD_TURN_ON_2BHK1:
         Serial.println("Executing: CMD_TURN_ON_2BHK1");
@@ -208,18 +194,31 @@ lastCommandTime = millis();
         Serial.println("Executing: CMD_TURN_ON_3BHKREFUGEE2");
         executeTurnOn3BHKRefugee2();
         break;
+      case CMD_3BHK:
+        //Serial.println("Executing: CMD_TURN_ON_3BHKREFUGEE2");
+        executeTurnOnBHK(3);
+        break;
+      case CMD_2BHK:
+        //Serial.println("Executing: CMD_TURN_ON_3BHKREFUGEE2");
+        executeTurnOnBHK(2);
+        break;
+      case CMD_1BHK:
+        //Serial.println("Executing: CMD_TURN_ON_3BHKREFUGEE2");
+        executeTurnOnBHK(1);
+        break;
       case CMD_SHOW_AVAIL:
         Serial.println("Executing: CMD_SHOW_AVAIL");
         if (availabilityDataBytesReceived >= totalAvailabilityDataSize) {
-          showAvailability();
+          turnOffAllLEDs();
           availabilityDataBytesReceived = 0;
         } else {
+          turnOffAllLEDs();
           Serial.println("Availability data not fully received yet.");
         }
         break;
       case CMD_RUN_PATTERN:
         Serial.println("Executing: CMD_RUN_PATTERN");
-        runPattern();
+        patternSoftColorsSmooth();
         break;
       case CMD_TURN_OFF_ALL:
         Serial.println("Executing: CMD_TURN_OFF_ALL");

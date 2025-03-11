@@ -17,9 +17,9 @@
 #define CMD_FILTER_2BHK 0xA6
 #define CMD_FILTER_3BHK 0xA7
 
-#define CMD_WINGA_2BHK_689_SQFT 0xB0
-#define CMD_WINGA_1BHK_458_SQFT 0xB1
-#define CMD_WINGA_1BHK_461_SQFT 0xB2
+#define CMD_WINGA_2BHK_689_SQFT 0xB3
+#define CMD_WINGA_1BHK_458_SQFT 0xB4
+#define CMD_WINGA_1BHK_461_SQFT 0xB5
 
 #define CMD_SHOW_AVAIL 0xC8
 #define REFUGEE_COLOR 0xFFA500  // Orange in 24-bit hex (R=255,G=165,B=0)
@@ -37,7 +37,7 @@ uint8_t softColors[NUM_COLORS][3] = {
 };
 
 const uint8_t bhkTypes[NUM_ROOMS_PER_FLOOR] = {
-  2, 2, 1, 1, 2, 2, 3, 3
+ 3,3, 2, 2, 1, 1, 2, 2
 };
 
 Adafruit_NeoPixel* ledsFloor[NUM_FLOORS];
@@ -97,6 +97,15 @@ GroupFade groupFades[MAX_FADING_GROUPS];
 unsigned long lastCommandTime = 0;  // Tracks last time we got a command
 
 bool isIdleMode = false;
+
+// static uint8_t C_LIGHT_BLUE[3]    = {173, 216, 230};
+// static uint8_t C_SEA_BLUE[3]      = {  0, 105, 148};
+// static uint8_t C_ROYAL_BLUE[3]    = { 65, 105, 225};
+// static uint8_t C_SEA_GREEN[3]     = { 46, 139,  87};
+// static uint8_t C_WARM_YELLOW[3]   = {255, 220,  80};
+// static uint8_t C_PURE_WHITE[3]    = {255, 255, 255};
+// static uint8_t C_BRIGHT_YELLOW[3] = {255, 255,   0};
+
 void initializeFadeTasks() {
   for (int t = 0; t < NUM_TASKS; ++t) {
     tasks[t].floor = random(0, NUM_FLOORS);
@@ -124,49 +133,16 @@ void setup() {
       ledsFloor[f] = NULL;  // invalid pin => no strip
     }
   }
-  // for (int floor = 0; floor < NUM_FLOORS; floor++) {
-  //   if (!ledsFloor[floor]) continue;
-  //   for (int room = 0; room < NUM_ROOMS_PER_FLOOR; room++) {
-  //     if (isRefugee(floor, room)) {
-  //       int ledStartIndex = room * NUM_LEDS_PER_ROOM;
-  //       for (int i = 0; i < NUM_LEDS_PER_ROOM; i++) {
-  //         ledsFloor[floor]->setPixelColor(ledStartIndex + i,255,0,255);
-  //       }
-  //     }
-  //   }
-  //   ledsFloor[floor]->show();
-  // }
+
   initializeFadeTasks();
   memset(roomAvailability, 0, sizeof(roomAvailability));
   Serial.println("Wing A slave ready.");
-  // turnOnAllLEDs();
-  // delay(1000);
-  // turnOffAllLEDs();
 
-  //Refugee for Wing B
-  // controlFlat(3, 2, 255, 0, 0);
-  // controlFlat(8, 2, 255, 0, 0);
-  // controlFlat(13, 2, 255, 0, 0);
-  // controlFlat(18, 2, 255, 0, 0);
-  // controlFlat(22, 2, 255, 0, 0);
-  // controlFlat(27, 2, 255, 0, 0);
-  // controlFlat(32, 2, 255, 0, 0);
-
-  // for (int i = 0; i < 8; i++) {
-  // controlFlat(0, i, 255, 0, 0);
-  // delay(1000);
-  // }
   turnOffAllLEDs();
-  // while(true)
-  // {
-  //   for (int floor = 0 ; floor <= NUM_FLOORS; floor++) {
-  //     controlFloor(floor, 255, 149, 130);
-  //     delay(500);
-  //   }
-  //   turnOffAllLEDs();
-  //   delay(500);
-  // }
+  //patternSoftColorsSmooth();
 }
+
+
 
 void loop() {
   if (!isIdleMode) {
@@ -180,9 +156,12 @@ void loop() {
 
   // (B) If we are idle, run an idle pattern
   if (isIdleMode) {
+    turnOffAllLEDs();
     patternSoftColorsSmooth();
   }
   if (newCommandReceived) {
+        turnOffAllLEDs();
+
     noInterrupts();
     newCommandReceived = false;
     uint8_t cmd = currentCommand;
@@ -205,19 +184,19 @@ void loop() {
         break;
       case CMD_TURN_ON_ALL:
         Serial.println("CMD_TURN_ON_ALL");
-        turnOnAllLEDs();
+        patternSoftColorsSmooth();
         break;
       case CMD_ACTIVATE_PATTERNS:
         Serial.println("CMD_ACTIVATE_PATTERNS");
-        runPattern();
+        patternSoftColorsSmooth();
         break;
       case CMD_CONTROL_ALL_TOWERS:
         Serial.println("CMD_CONTROL_ALL_TOWERS");
-        turnOnAllLEDs();
+        patternSoftColorsSmooth();
         break;
       case CMD_VIEW_AVAILABLE_FLATS:
         Serial.println("CMD_VIEW_AVAILABLE_FLATS");
-        showAvailability();
+        turnOffAllLEDs();
         break;
       case CMD_FILTER_1BHK:
         Serial.println("CMD_FILTER_1BHK");
@@ -231,22 +210,10 @@ void loop() {
         Serial.println("CMD_FILTER_3BHK");
         executeTurnOnBHK(3);
         break;
-      case CMD_WINGA_2BHK_689_SQFT:
-        Serial.println("CMD_WINGA_2BHK_689_SQFT");
-        executeTurnOnBHK(2);
-        break;
-      case CMD_WINGA_1BHK_458_SQFT:
-        Serial.println("CMD_WINGA_1BHK_458_SQFT");
-        executeTurnOnBHK(1);
-        break;
-      case CMD_WINGA_1BHK_461_SQFT:
-        Serial.println("CMD_WINGA_1BHK_461_SQFT");
-        executeTurnOnBHK(3);
-        break;
       case CMD_SHOW_AVAIL:
         Serial.println("CMD_SHOW_AVAIL");
         if (availabilityDataBytesReceived >= totalAvailabilityDataSize) {
-          showAvailability();
+          turnOffAllLEDs();
           availabilityDataBytesReceived = 0;
         } else {
           Serial.println("Availability data incomplete.");
@@ -471,15 +438,15 @@ void showAvailability() {
   //=================================================================================
   //    Uncommnent for testing available room lights with dummy random data
   //=================================================================================
-  for (int f = 0; f < NUM_FLOORS; f++) {
+  for (int f = 0; f < 25; f++) {
     if (!ledsFloor[f]) continue;
     for (int r = 0; r < NUM_ROOMS_PER_FLOOR; r++) {
       if (isRefugee(f, r))
         continue;
       uint8_t stat = roomAvailability[f][r];
       uint32_t color = (stat == 0)
-                         ? ledsFloor[f]->Color(255, 70, 70)     // occupied => red
-                         : ledsFloor[f]->Color(110, 255, 101);  // available => green
+                         ? ledsFloor[f]->Color(255, 0, 0)     // occupied => red
+                         : ledsFloor[f]->Color(0, 255, 0);  // available => green
       int ledStart = r * NUM_LEDS_PER_ROOM;
       for (int i = 0; i < NUM_LEDS_PER_ROOM; i++) {
         ledsFloor[f]->setPixelColor(ledStart + i, color);
@@ -654,6 +621,27 @@ void pattern4() {
 
 // =========== patternSoftColors ===========
 // Example fade pattern across multiple colors
+// Define an array of color pointers
+static uint8_t C_LIGHT_BLUE[3]    = {173, 216, 230};
+static uint8_t C_SEA_BLUE[3]      = {  0, 105, 148};
+static uint8_t C_ROYAL_BLUE[3]    = { 65, 105, 225};
+static uint8_t C_SEA_GREEN[3]     = { 46, 139,  87};
+static uint8_t C_WARM_YELLOW[3]   = {255, 220,  80};
+static uint8_t C_PURE_WHITE[3]    = {255, 255, 255};
+static uint8_t C_BRIGHT_YELLOW[3] = {255, 255,   0};
+static uint8_t* COLORS[] = {
+    C_LIGHT_BLUE,
+    C_SEA_BLUE,
+    C_ROYAL_BLUE,
+    C_SEA_GREEN,
+    C_WARM_YELLOW,
+    C_PURE_WHITE,
+    C_BRIGHT_YELLOW
+};
+
+// Number of colors in the array
+const int NUM_COLORS_P = sizeof(COLORS) / sizeof(COLORS[0]);
+
 void patternSoftColorsSmooth() {
   while (true) {
     noInterrupts();
@@ -717,6 +705,8 @@ void patternSoftColorsSmooth() {
     delay(1);  // Short pause to control update speed; adjust as necessary
   }
 }
+
+
 
 
 

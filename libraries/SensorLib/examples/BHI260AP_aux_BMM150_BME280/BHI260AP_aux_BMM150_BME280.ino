@@ -40,7 +40,7 @@ Example firmware source: https://github.com/boschsensortec/BHY2_SensorAPI/tree/m
 You can also compile custom firmware to write
 How to build custom firmware see : https://www.bosch-sensortec.com/media/boschsensortec/downloads/application_notes_1/bst-bhi260ab-an000.pdf
 */
-#define WRITE_TO_FLASH          1           //Set 1 write fw to flash ,set 0 write fw to ram
+#define WRITE_TO_FLASH          true           //Set 1 write fw to flash ,set 0 write fw to ram
 
 #if WRITE_TO_FLASH
 #include "BHI260_aux_BMM150_BME280-flash.fw.h"
@@ -90,6 +90,7 @@ void parse_bme280_sensor_data(uint8_t sensor_id, uint8_t *data_ptr, uint32_t len
         Serial.print("pressure:"); Serial.print(pressure); Serial.println("hPa");
         break;
     default:
+        Serial.println("Unkown.");
         break;
     }
 }
@@ -102,20 +103,23 @@ void setup()
     // Set the reset pin and interrupt pin, if any
     bhy.setPins(BHI260AP_RST, BHI260AP_IRQ);
 
+    // Force update of the current firmware, regardless of whether it exists.
+    // After uploading the firmware once, you can change it to false to speed up the startup time.
+    bool force_update = true;
     // Set the firmware array address and firmware size
-    bhy.setFirmware(firmware, fw_size, WRITE_TO_FLASH);
+    bhy.setFirmware(firmware, fw_size, WRITE_TO_FLASH, force_update);
 
-#if WRITE_TO_FLASH
     // Set to load firmware from flash
-    bhy.setBootFormFlash(true);
-#endif
+    bhy.setBootFromFlash(WRITE_TO_FLASH);
 
+    Serial.println("Initializing Sensors...");
 #ifdef BHY2_USE_I2C
     // Using I2C interface
     // BHI260AP_SLAVE_ADDRESS_L = 0x28
     // BHI260AP_SLAVE_ADDRESS_H = 0x29
+    Serial.println("");
     if (!bhy.init(Wire, BHI260AP_SDA, BHI260AP_SCL, BHI260AP_SLAVE_ADDRESS_L)) {
-        Serial.print("Failed to init BHI260AP - ");
+        Serial.print("Failed to initialize sensor - error code:");
         Serial.println(bhy.getError());
         while (1) {
             delay(1000);
@@ -124,7 +128,7 @@ void setup()
 #else
     // Using SPI interface
     if (!bhy.init(SPI, BHI260AP_CS, BHI260AP_MOSI, BHI260AP_MISO, BHI260AP_SCK)) {
-        Serial.print("Failed to init BHI260AP - ");
+        Serial.print("Failed to initialize sensor - error code:");
         Serial.println(bhy.getError());
         while (1) {
             delay(1000);
@@ -132,12 +136,17 @@ void setup()
     }
 #endif
 
-    Serial.println("Init BHI260AP Sensor success!");
+    Serial.println("Initializing the sensor successfully!");
 
     // Output all available sensors to Serial
     bhy.printSensors(Serial);
 
-    float sample_rate = 0.0;      /* Read out hintr_ctrl measured at 100Hz */
+    /*
+    * Enable monitoring.
+    * sample_rate ​​can only control the rate of the pressure sensor.
+    * Temperature and humidity will only be updated when there is a change.
+    * * */
+    float sample_rate = 1.0;      /* Set to 1Hz update frequency */
     uint32_t report_latency_ms = 0; /* Report immediately */
 
     /*
@@ -145,12 +154,17 @@ void setup()
     * Function depends on BME280.
     * If the hardware is not connected to BME280, the function cannot be used.
     * * */
-    bhy.configure(SENSOR_ID_TEMP, sample_rate, report_latency_ms);
-    bhy.configure(SENSOR_ID_HUM, sample_rate, report_latency_ms);
-    bhy.configure(SENSOR_ID_BARO, sample_rate, report_latency_ms);
+    bool rlst = false;
 
+    rlst = bhy.configure(SENSOR_ID_TEMP, sample_rate, report_latency_ms);
+    Serial.printf("Configure temperature sensor %.2f HZ %s\n", sample_rate, rlst ? "successfully" : "failed");
+    rlst = bhy.configure(SENSOR_ID_BARO, sample_rate, report_latency_ms);
+    Serial.printf("Configure pressure sensor %.2f HZ %s\n", sample_rate,  rlst ? "successfully" : "failed");
+    rlst = bhy.configure(SENSOR_ID_HUM, sample_rate, report_latency_ms);
+    Serial.printf("Configure humidity sensor %.2f HZ %s\n", sample_rate,  rlst ? "successfully" : "failed");
 
     // Register BME280 data parse callback function
+    Serial.println("Register sensor result callback function");
     bhy.onResultEvent(SENSOR_ID_TEMP, parse_bme280_sensor_data);
     bhy.onResultEvent(SENSOR_ID_HUM, parse_bme280_sensor_data);
     bhy.onResultEvent(SENSOR_ID_BARO, parse_bme280_sensor_data);

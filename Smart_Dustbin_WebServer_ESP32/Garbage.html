@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Smart Garbage Management</title>
+
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+
+  <!-- Example Google Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" 
+        href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap">
+
+  <style>
+    /* Base Reset */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    /* Body & Font */
+    body {
+      font-family: 'Poppins', Arial, sans-serif;
+      background: #f4f7fc; /* Light background */
+      color: #333;
+    }
+
+    /* Header */
+    header {
+      background: linear-gradient(135deg, #0288D1 0%, #26C6DA 100%);
+      color: #fff;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    header h1 {
+      font-size: 1.8rem;
+      font-weight: 500;
+    }
+
+    /* Main container */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px 40px;
+    }
+
+    /* Card style for table and map */
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+
+    /* Table container */
+    #dustbin-table {
+      padding: 20px;
+    }
+
+    /* Table styling */
+    #dustbin-table h2 {
+      margin-bottom: 10px;
+      font-weight: 600;
+      font-size: 1.2rem;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      background: #fff;
+      margin-top: 10px;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    th {
+      background: #EAF2FB;  /* Subtle background for header row */
+      text-align: left;
+      font-weight: 500;
+      padding: 12px;
+    }
+    td {
+      padding: 12px;
+      border-bottom: 1px solid #eee;
+    }
+    tr:hover {
+      background-color: #f7faff;
+    }
+
+    /* Map container */
+    #map {
+      width: 100%;
+      height: 60vh; /* 60% of viewport height */
+    }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      font-size: 0.85rem;
+      color: #555;
+      padding: 15px;
+      margin-top: 30px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header / Title Bar -->
+  <header>
+    <h1>Smart Garbage Management</h1>
+  </header>
+
+  <!-- Main Content Container -->
+  <div class="container">
+
+    <!-- Card: Table Section (Now Above the Map) -->
+    <div class="card">
+      <div id="dustbin-table">
+        <!-- The dynamic dustbin table is inserted here by JS -->
+      </div>
+    </div>
+
+    <!-- Card: Map Section -->
+    <div class="card">
+      <div id="map"></div>
+    </div>
+
+  </div>
+
+  <!-- Optional Footer -->
+  <footer>
+    &copy; 2025 Garbage Management | Powered by Firebase &amp; Leaflet
+  </footer>
+
+  <!-- Leaflet JS -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  ></script>
+
+  <!-- Firebase + Your Config -->
+  <script type="module">
+    /************************************************
+     * 1) Import Firebase SDK Modules
+     ***********************************************/
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-analytics.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-database.js";
+
+    /************************************************
+     * 2) Your Web App's Firebase Configuration
+     ***********************************************/
+    const firebaseConfig = {
+    apiKey: "AIzaSyCqBmV25ovNLB-7SSDyc08d_oBG4YmC54s",
+    authDomain: "garbagesystem-4a8e1.firebaseapp.com",
+    databaseURL: "https://garbagesystem-4a8e1-default-rtdb.firebaseio.com",
+    projectId: "garbagesystem-4a8e1",
+    storageBucket: "garbagesystem-4a8e1.firebasestorage.app",
+    messagingSenderId: "989839750268",
+    appId: "1:989839750268:web:237a8d7db219b7aaf305f9",
+    measurementId: "G-Z7KT4Z5WH0"
+  };
+
+    /************************************************
+     * 3) Initialize Firebase
+     ***********************************************/
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    const db = getDatabase(app);
+
+    /************************************************
+     * 4) Initialize Leaflet Map
+     ***********************************************/
+    // Start with a generic view; we'll auto-fit after we place markers
+    const map = L.map('map').setView([20.5937, 78.9629], 5); 
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Define a custom dustbin icon (dustbin.png should be in the same folder as this HTML)
+    const dustbinIcon = L.icon({
+      iconUrl: 'dustbin.png',  // if in root directory, just 'dustbin.png'
+      iconSize:     [100, 100],  // size of the icon (width, height)
+      iconAnchor:   [16, 37],  // point of the icon which will correspond to marker's location
+      popupAnchor:  [0, -30]   // point from which the popup should open relative to the iconAnchor
+    });
+
+    // We'll keep markers in an object keyed by dustbin ID
+    const dustbinMarkers = {};
+
+    /************************************************
+     * 5) Listen to Realtime Database for dustbins
+     ***********************************************/
+    const dustbinsRef = ref(db, "dustbins");
+    onValue(dustbinsRef, (snapshot) => {
+      const dustbinsData = snapshot.val(); 
+      if (!dustbinsData) {
+        console.log("No dustbin data found in Firebase.");
+        document.getElementById("dustbin-table").innerHTML 
+          = "<h2>Dustbin Details</h2><p>No Data Available</p>";
+        return;
+      }
+      updateMapMarkers(dustbinsData);
+      updateDustbinTable(dustbinsData);
+    }, (error) => {
+      console.error("Error reading dustbins data:", error);
+    });
+
+    /************************************************
+     * 6) Update Markers on Leaflet Map
+     ***********************************************/
+    function updateMapMarkers(dustbinsData) {
+      const latlngs = [];
+
+      for (const dustbinId in dustbinsData) {
+        const bin = dustbinsData[dustbinId];
+        const lat = bin.latitude || 0;
+        const lon = bin.longitude || 0;
+        const fullness = bin.fullness || 0;
+
+        if (!dustbinMarkers[dustbinId]) {
+          // Create marker using our custom dustbin icon
+          const marker = L.marker([lat, lon], { icon: dustbinIcon }).addTo(map);
+          dustbinMarkers[dustbinId] = marker;
+        }
+
+        // Update marker position
+        dustbinMarkers[dustbinId].setLatLng([lat, lon]);
+
+        // Marker popup
+        const popupText = `
+          <strong>Dustbin #${dustbinId}</strong><br/>
+          Fullness: ${fullness}%<br/>
+          Coordinates: (${lat.toFixed(6)}, ${lon.toFixed(6)})
+        `;
+        dustbinMarkers[dustbinId].bindPopup(popupText);
+
+        // Collect lat/long for map auto-fit
+        latlngs.push([lat, lon]);
+      }
+
+      // Remove markers for dustbins that no longer exist
+      for (const existingId in dustbinMarkers) {
+        if (!dustbinsData[existingId]) {
+          map.removeLayer(dustbinMarkers[existingId]);
+          delete dustbinMarkers[existingId];
+        }
+      }
+
+      // Auto-fit if we have at least one dustbin
+      if (latlngs.length > 0) {
+        map.fitBounds(latlngs, { padding: [50, 50], maxZoom: 16 });
+      }
+    }
+
+    /************************************************
+     * 7) Update Dustbin Table
+     ***********************************************/
+    function updateDustbinTable(dustbinsData) {
+      let html = `
+        <h2>Dustbin Details</h2>
+        <table>
+          <tr>
+            <th>Dustbin ID</th>
+            <th>Fullness (%)</th>
+            <th>Latitude</th>
+            <th>Longitude</th>
+          </tr>
+      `;
+
+      for (const dustbinId in dustbinsData) {
+        const bin = dustbinsData[dustbinId];
+        const fullness = bin.fullness ?? "N/A";
+        const lat = (bin.latitude ?? 0).toFixed(6);
+        const lng = (bin.longitude ?? 0).toFixed(6);
+
+        html += `
+          <tr>
+            <td>${dustbinId}</td>
+            <td>${fullness}</td>
+            <td>${lat}</td>
+            <td>${lng}</td>
+          </tr>
+        `;
+      }
+      html += `</table>`;
+      document.getElementById("dustbin-table").innerHTML = html;
+    }
+  </script>
+</body>
+</html>

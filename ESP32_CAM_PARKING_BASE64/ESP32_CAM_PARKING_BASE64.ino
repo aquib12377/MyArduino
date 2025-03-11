@@ -102,6 +102,7 @@ String capturePhotoBase64() {
     return "";
   }
 
+  base64::
   // Convert to Base64
   String base64Image = base64::encode((uint8_t *)fb->buf, fb->len);
 

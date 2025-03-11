@@ -22,8 +22,8 @@
 #endif
 
 // ===== Wi-Fi / API =====
-const char* ssid        = "MyProject";
-const char* password    = "12345678";
+const char* ssid        = "Delta_Greenville";
+const char* password    = "Delta#786";
 const char* baseUrl = "https://admin.modelsofbrainwing.com/";
 const char* apiEndpoint = "get_led_control.php";  // e.g. returns {"control":"..."}
 const int projectId = 8;                          // Project ID
@@ -122,9 +122,9 @@ void setup() {
   pinMode(8, OUTPUT);
 
   // Ensure relays start in a known state (e.g., OFF)
-  digitalWrite(10, HIGH);
-  digitalWrite(9, HIGH);
-  digitalWrite(8, HIGH);
+  digitalWrite(10, LOW);
+  digitalWrite(9, LOW);
+  digitalWrite(8, LOW);
   setupWiFi();
 
   Wire.begin(11, 12);       // Adjust pins if needed
@@ -220,7 +220,7 @@ void pollAPITask(void* parameter) {
 
       HTTPClient http;
       String url = String(baseUrl) + apiEndpoint
-                   + "?project_id=" + String(projectId)
+                   + "  =" + String(projectId)
                    + "&wing_id=" + String(wing.wingId);
       http.begin(url);
 
@@ -266,7 +266,7 @@ void pollAPITask(void* parameter) {
     }
 
     // Delay before next cycle
-    vTaskDelay(200 / portTICK_PERIOD_MS);
+    vTaskDelay(500 / portTICK_PERIOD_MS);
   }
 }
 
@@ -308,6 +308,10 @@ void pollCommonCommands() {
 
         LOG_INFO("CommonControl => " + commonControl);
       } else if (doc.containsKey("error")) {
+          digitalWrite(8, HIGH);  // Turn on relay connected to pin 7
+                    digitalWrite(9, HIGH);  // Turn on relay connected to pin 7
+          digitalWrite(10, HIGH);  // Turn on relay connected to pin 7
+
         LOG_ERROR("Common => " + doc["error"].as<String>());
       }
     } else {
@@ -445,20 +449,20 @@ void ledControlTask(void* parameter) {
 //  Send Single Command via I2C
 // ----------------------------------------------------
 void sendCommand(uint8_t slaveAddress, uint8_t commandID) {
-  if (xSemaphoreTake(serialMutex, (TickType_t)10) == pdTRUE) {
-    Serial.print("I2C => 0x");
-    Serial.print(commandID, HEX);
-    Serial.print(" => Slave 0x");
-    Serial.println(slaveAddress, HEX);
-    xSemaphoreGive(serialMutex);
-  }
+  // if (xSemaphoreTake(serialMutex, (TickType_t)10) == pdTRUE) {
+  //   Serial.print("I2C => 0x");
+  //   Serial.print(commandID, HEX);
+  //   Serial.print(" => Slave 0x");
+  //   Serial.println(slaveAddress, HEX);
+  //   xSemaphoreGive(serialMutex);
+  // }
 
   Wire.beginTransmission(slaveAddress);
   Wire.write(0xAA);
   Wire.write(commandID);
   int res = Wire.endTransmission();
 Serial.println(res);
-  vTaskDelay(10 / portTICK_PERIOD_MS);
+  delay(10);
 
   Wire.beginTransmission(slaveAddress);
   Wire.write(0x55);

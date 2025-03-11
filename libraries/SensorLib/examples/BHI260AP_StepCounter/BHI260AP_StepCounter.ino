@@ -72,12 +72,17 @@ void setup()
     // Set the reset pin and interrupt pin, if any
     bhy.setPins(BHI260AP_RST, BHI260AP_IRQ);
 
+    Serial.println("Initializing Sensors...");
+
+    /*Set the default firmware, only 6 axes, no other functions*/
+    bhy.setFirmware(bhy2_firmware_image, sizeof(bhy2_firmware_image));
+
 #ifdef BHY2_USE_I2C
     // Using I2C interface
     // BHI260AP_SLAVE_ADDRESS_L = 0x28
     // BHI260AP_SLAVE_ADDRESS_H = 0x29
     if (!bhy.init(Wire, BHI260AP_SDA, BHI260AP_SCL, BHI260AP_SLAVE_ADDRESS_L)) {
-        Serial.print("Failed to init BHI260AP - ");
+        Serial.print("Failed to initialize sensor - error code:");
         Serial.println(bhy.getError());
         while (1) {
             delay(1000);
@@ -86,7 +91,7 @@ void setup()
 #else
     // Using SPI interface
     if (!bhy.init(SPI, BHI260AP_CS, BHI260AP_MOSI, BHI260AP_MISO, BHI260AP_SCK)) {
-        Serial.print("Failed to init BHI260AP - ");
+        Serial.print("Failed to initialize sensor - error code:");
         Serial.println(bhy.getError());
         while (1) {
             delay(1000);
@@ -94,7 +99,7 @@ void setup()
     }
 #endif
 
-    Serial.println("Init BHI260AP Sensor success!");
+    Serial.println("Initializing the sensor successfully!");
 
     // Output all available sensors to Serial
     bhy.printSensors(Serial);
