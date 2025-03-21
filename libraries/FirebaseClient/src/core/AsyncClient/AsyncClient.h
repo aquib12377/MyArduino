@@ -1,166 +1,15 @@
-/**
- * Created November 19, 2024
- *
- * For MCU build target (CORE_ARDUINO_XXXX), see Options.h.
- *
- * The MIT License (MIT)
- * Copyright (c) 2024 K. Suwatchai (Mobizt)
- *
- *
- * Permission is hereby granted, free of charge, to any person returning a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- * the Software, and to permit persons to whom the Software is furnished to do so,
- * subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
-#ifndef ASYNC_CLIENT_H
-#define ASYNC_CLIENT_H
+#ifndef CORE_ASYNC_CLIENT_ASYNC_CLIENT_H
+#define CORE_ASYNC_CLIENT_ASYNC_CLIENT_H
+
 #include <vector>
-#include "./core/AsyncClient/RequestHandler.h"
-#include "./core/AsyncClient/ResponseHandler.h"
-#include "./core/NetConfig.h"
-#include "./core/Memory.h"
-#include "./core/FileConfig.h"
 #include "./core/Error.h"
-#include "./core/OTA.h"
-#include "./core/AsyncResult/AsyncResult.h"
-#include "./core/AsyncResult/ResultBase.h"
-#include "./core/AsyncResult/RTDBResultBase.h"
-#include "./core/AuthConfig.h"
-#include "./core/List.h"
-#include "./core/Core.h"
-#include "./core/URL.h"
+#include "./core/Utils/OTA.h"
+#include "./core/Utils/StringUtil.h"
+#include "./core/AsyncClient/SlotManager.h"
 
-#if defined(ENABLE_ASYNC_TCP_CLIENT)
-#include "./core/AsyncTCPConfig.h"
-#endif
+using namespace firebase_ns;
 
-using namespace firebase;
-
-enum async_state
-{
-    async_state_undefined,
-    async_state_send_header,
-    async_state_send_payload,
-    async_state_read_response,
-    async_state_complete
-};
-
-enum function_return_type
-{
-    function_return_type_undefined = -2,
-    function_return_type_failure = -1,
-    function_return_type_continue = 0,
-    function_return_type_complete = 1,
-    function_return_type_retry = 2
-};
-
-struct async_data_item_t
-{
-    friend class FirebaseApp;
-
-public:
-    struct async_error_t
-    {
-        async_state state = async_state_undefined;
-        int code = 0;
-    };
-
-    async_state state = async_state_undefined;
-    function_return_type return_type = function_return_type_undefined;
-    async_request_handler_t request;
-    async_response_handler_t response;
-    async_error_t error;
-    bool to_remove = false;
-    bool auth_used = false;
-    bool complete = false;
-    bool async = false;
-    bool sse = false;
-    bool path_not_existed = false;
-    bool download = false;
-    bool upload_progress_enabled = false;
-    bool upload = false;
-    uint32_t auth_ts = 0;
-    uint32_t addr = 0;
-    AsyncResult aResult;
-    AsyncResult *refResult = nullptr;
-    uint32_t ref_result_addr = 0;
-    AsyncResultCallback cb = NULL;
-    Timer err_timer;
-    async_data_item_t()
-    {
-        addr = reinterpret_cast<uint32_t>(this);
-        err_timer.feed(0);
-    }
-
-    void setRefResult(AsyncResult *refResult, uint32_t rvec_addr)
-    {
-        this->refResult = refResult;
-        ref_result_addr = reinterpret_cast<uint32_t>(refResult);
-        this->refResult->rvec_addr = rvec_addr;
-        if (rvec_addr > 0)
-        {
-            std::vector<uint32_t> *rVec = reinterpret_cast<std::vector<uint32_t> *>(rvec_addr);
-            List vec;
-            vec.addRemoveList(*rVec, ref_result_addr, true);
-        }
-    }
-
-    void reset()
-    {
-        state = async_state_undefined;
-        return_type = function_return_type_undefined;
-        request.clear();
-        response.clear();
-        error.code = 0;
-        error.state = async_state_undefined;
-        to_remove = false;
-        auth_used = false;
-        complete = false;
-        async = false;
-        sse = false;
-        path_not_existed = false;
-        cb = NULL;
-        err_timer.reset();
-    }
-};
-
-struct slot_options_t
-{
-public:
-    bool auth_used = false;
-    bool sse = false;
-    bool async = false;
-    bool sv = false;
-    bool ota = false;
-    bool no_etag = false;
-    bool auth_param = false;
-    app_token_t *app_token = nullptr;
-    slot_options_t() {}
-    explicit slot_options_t(bool auth_used, bool sse, bool async, bool sv, bool ota, bool no_etag, bool auth_param = false)
-    {
-        this->auth_used = auth_used;
-        this->sse = sse;
-        this->async = async;
-        this->sv = sv;
-        this->ota = ota;
-        this->no_etag = no_etag;
-        this->auth_param = auth_param;
-    }
-};
-
-class AsyncClientClass : public ResultBase, RTDBResultBase
+class AsyncClientClass : public RTDBResultImpl
 {
     friend class AppBase;
     friend class RealtimeDatabase;
@@ -171,112 +20,51 @@ class AsyncClientClass : public ResultBase, RTDBResultBase
     friend class Messaging;
     friend class Storage;
     friend class CloudStorage;
+    friend class FirestoreBase;
+    friend class RuleSets;
+    friend class Releases;
 
 private:
-    app_debug_t app_debug;
-    app_event_t app_event;
-    FirebaseError lastErr;
-    String header, reqEtag, resETag, sse_events_filter;
-    AsyncResult *refResult = nullptr;
-    AsyncResult aResult;
-    int netErrState = 0;
-    uint32_t auth_ts = 0;
-    uint32_t cvec_addr = 0;
-    uint32_t result_addr = 0;
-    uint32_t sync_send_timeout_sec = 0, sync_read_timeout_sec = 0, session_timeout_sec = 0;
-    Timer session_timer;
-    Client *client = nullptr;
-    bool client_changed = false, network_changed = false;
-#if defined(ENABLE_ASYNC_TCP_CLIENT)
-    AsyncTCPConfig *async_tcp_config = nullptr;
-#else
-    void *async_tcp_config = nullptr;
-#endif
-    async_request_handler_t::tcp_client_type client_type = async_request_handler_t::tcp_client_type_sync;
-    bool sse = false;
-    String host;
-    uint16_t port;
-    std::vector<uint32_t> sVec;
+    StringUtil sut;
+    URLUtil uut;
+    SlotManager sman;
+    String header, resETag;
+    uint32_t addr = 0, auth_ts = 0, cvec_addr = 0, sync_send_timeout_sec = 0, sync_read_timeout_sec = 0;
     Memory mem;
     Base64Util b64ut;
     OTAUtil otaut;
-    network_config_data net;
-    uint32_t addr = 0;
-    bool inProcess = false;
-    bool inStopAsync = false;
+    bool inProcess = false, inStopAsync = false;
 
-    void closeFile(async_data_item_t *sData)
+    // Friends access
+    std::vector<uint32_t> &getResultList() { return sman.rVec; }
+    app_log_t &getAppDebug() { return sman.debug_log; }
+    app_log_t &getAppEvent() { return sman.event_log; }
+    void stop() { sman.stop(); }
+    void removeSlot(uint8_t slot, bool sse = true) { sman.removeSlot(slot, sse); }
+    template <typename T>
+    void setClientError(T &request, int code) { sman.setClientError(request, code); }
+    async_data *createSlot(slot_options_t &options) { return sman.createSlot(options); }
+    void eventPushBack(async_data *sData, int code, const String &msg) { sman.event_log.push_back(code, msg); }
+    size_t slotCount() const { return sman.sVec.size(); }
+    AsyncResult *getResult() { return sman.getResult(); }
+    void handleRemove()
     {
-#if defined(ENABLE_FS)
-        if (sData->request.file_data.file && sData->request.file_data.file_status == file_config_data::file_status_opened)
+        for (size_t slot = 0; slot < slotCount(); slot++)
         {
-            sData->request.file_data.file_size = 0;
-            sData->request.payloadIndex = 0;
-            sData->request.dataIndex = 0;
-            sData->request.file_data.file_status = file_config_data::file_status_closed;
-            sData->request.file_data.file.close();
-        }
-#endif
-    }
-
-    bool openFile(async_data_item_t *sData, file_operating_mode mode)
-    {
-#if defined(ENABLE_FS)
-        sData->request.file_data.cb(sData->request.file_data.file, sData->request.file_data.filename.c_str(), mode);
-        if (!sData->request.file_data.file)
-            return false;
-#else
-        return false;
-#endif
-        sData->request.file_data.file_status = file_config_data::file_status_opened;
-        return true;
-    }
-
-    void newCon(async_data_item_t *sData, const char *host, uint16_t port)
-    {
-
-        if ((!sData->sse && session_timeout_sec >= FIREBASE_SESSION_TIMEOUT_SEC && session_timer.remaining() == 0) || (sse && !sData->sse) || (!sse && sData->sse) || (sData->auth_used && sData->state == async_state_undefined) ||
-            strcmp(this->host.c_str(), host) != 0 || this->port != port)
-        {
-            stop(sData);
-            getResult()->clear();
-        }
-
-        // Required for sync task.
-        if (!sData->async)
-        {
-            sData->aResult.lastError.clearError();
-            lastErr.clearError();
+            const async_data *sData = sman.getData(slot);
+            if (sData && sData->to_remove)
+                removeSlot(slot);
         }
     }
 
-    function_return_type networkConnect(async_data_item_t *sData)
+    function_return_type sendHeader(async_data *sData, const char *data) { return sendImpl(sData, reinterpret_cast<const uint8_t *>(data), data ? strlen(data) : 0, data ? strlen(data) : 0, astate_send_header); }
+
+    function_return_type sendHeader(async_data *sData, const uint8_t *data, size_t len) { return sendImpl(sData, data, len, len, astate_send_header); }
+
+    // Handles file/blob data sending process of raw, base64 encoded string and resumable upload.
+    function_return_type sendFileData(async_data *sData, async_state state = astate_send_payload)
     {
-        function_return_type ret = netConnect(sData);
-
-        if (!sData || ret == function_return_type_failure)
-        {
-            // In case TCP (network) disconnected error.
-            setAsyncError(sData ? sData : nullptr, sData ? sData->state : async_state_undefined, FIREBASE_ERROR_TCP_DISCONNECTED, sData ? !sData->sse : true, false);
-            return function_return_type_failure;
-        }
-
-        return ret;
-    }
-
-    function_return_type sendHeader(async_data_item_t *sData, const char *data)
-    {
-        return send(sData, reinterpret_cast<const uint8_t *>(data), data ? strlen(data) : 0, data ? strlen(data) : 0, async_state_send_header);
-    }
-
-    function_return_type sendHeader(async_data_item_t *sData, const uint8_t *data, size_t len)
-    {
-        return send(sData, data, len, len, async_state_send_header);
-    }
-
-    function_return_type sendBuff(async_data_item_t *sData, async_state state = async_state_send_payload)
-    {
-        function_return_type ret = function_return_type_continue;
+        function_return_type ret = ret_continue;
 
         size_t totalLen = sData->request.file_data.file_size;
         bool fileopen = sData->request.payloadIndex == 0;
@@ -287,23 +75,19 @@ private:
         if (fileopen)
         {
 #if defined(ENABLE_FS)
-            if (sData->request.file_data.filename.length() > 0)
+            if (sData->request.file_data.filename.length() > 0 &&
+                sData->request.file_data.file_status == file_config_data::file_status_closed &&
+                !sData->request.openFile(file_mode_open_read))
             {
-                if (sData->request.file_data.file_status == file_config_data::file_status_closed)
-                {
-                    if (!openFile(sData, file_mode_open_read))
-                    {
-                        // In case file open error.
-                        setAsyncError(sData, state, FIREBASE_ERROR_OPEN_FILE, !sData->sse, true);
-                        return function_return_type_failure;
-                    }
-                }
+                // File open error.
+                sman.setAsyncError(sData, state, FIREBASE_ERROR_OPEN_FILE, !sData->sse, true);
+                return ret_failure;
             }
 #endif
             if (sData->request.base64)
             {
-                ret = send(sData, reinterpret_cast<const uint8_t *>("\""), 1, totalLen, async_state_send_payload);
-                if (ret != function_return_type_continue)
+                ret = sendImpl(sData, reinterpret_cast<const uint8_t *>("\""), 1, totalLen, astate_send_payload);
+                if (ret != ret_continue)
                     return ret;
             }
         }
@@ -318,21 +102,15 @@ private:
             int toSend = 0;
             if (sData->request.base64)
             {
-
                 toSend = FIREBASE_BASE64_CHUNK_SIZE;
 
 #if defined(ENABLE_FS)
-                if (sData->request.file_data.filename.length() > 0)
-                {
-                    if (sData->request.file_data.file.available() < toSend)
-                        toSend = sData->request.file_data.file.available();
-                }
+                if (sData->request.file_data.filename.length() > 0 && sData->request.file_data.file.available() < toSend)
+                    toSend = sData->request.file_data.file.available();
 #endif
-                if (sData->request.file_data.data && sData->request.file_data.data_size)
-                {
-                    if ((int)(sData->request.file_data.data_size - sData->request.file_data.data_pos) < toSend)
-                        toSend = sData->request.file_data.data_size - sData->request.file_data.data_pos;
-                }
+                if (sData->request.file_data.data && sData->request.file_data.data_size &&
+                    (int)(sData->request.file_data.data_size - sData->request.file_data.data_pos) < toSend)
+                    toSend = sData->request.file_data.data_size - sData->request.file_data.data_pos;
 
                 buf = reinterpret_cast<uint8_t *>(mem.alloc(toSend));
 #if defined(ENABLE_FS)
@@ -341,9 +119,9 @@ private:
                     toSend = sData->request.file_data.file.read(buf, toSend);
                     if (toSend == 0)
                     {
-                        // In case file read error.
-                        setAsyncError(sData, state, FIREBASE_ERROR_FILE_READ, !sData->sse, true);
-                        ret = function_return_type_failure;
+                        // File read error.
+                        sman.setAsyncError(sData, state, FIREBASE_ERROR_FILE_READ, !sData->sse, true);
+                        ret = ret_failure;
                         goto exit;
                     }
                 }
@@ -376,25 +154,22 @@ private:
                     toSend = sData->request.file_data.file.read(buf, toSend);
                     if (toSend == 0)
                     {
-                        // In case file read error.
-                        setAsyncError(sData, state, FIREBASE_ERROR_FILE_READ, !sData->sse, true);
-                        ret = function_return_type_failure;
+                        // File read error.
+                        sman.setAsyncError(sData, state, FIREBASE_ERROR_FILE_READ, !sData->sse, true);
+                        ret = ret_failure;
                         goto exit;
                     }
                 }
 #endif
                 if (sData->request.file_data.data && sData->request.file_data.data_size)
-                {
                     memcpy(buf, sData->request.file_data.data + sData->request.file_data.data_pos, toSend);
-                }
-
                 sData->request.file_data.data_pos += toSend;
             }
 
-            ret = send(sData, buf, toSend, totalLen, async_state_send_payload);
+            ret = sendImpl(sData, buf, toSend, totalLen, astate_send_payload);
         }
         else if (sData->request.base64)
-            ret = send(sData, reinterpret_cast<const uint8_t *>("\""), 1, totalLen, async_state_send_payload);
+            ret = sendImpl(sData, reinterpret_cast<const uint8_t *>("\""), 1, totalLen, astate_send_payload);
 
 #if defined(ENABLE_FS)
     exit:
@@ -406,46 +181,44 @@ private:
         return ret;
     }
 
-    function_return_type send(async_data_item_t *sData, const char *data, async_state state = async_state_send_payload)
+    // Handles string data sending process.
+    function_return_type send(async_data *sData, const char *data, async_state state = astate_send_payload)
     {
-        return send(sData, reinterpret_cast<const uint8_t *>(data), data ? strlen(data) : 0, data ? strlen(data) : 0, state);
+        return sendImpl(sData, reinterpret_cast<const uint8_t *>(data), data ? strlen(data) : 0, data ? strlen(data) : 0, state);
     }
 
-    function_return_type send(async_data_item_t *sData, const uint8_t *data, size_t len, size_t size, async_state state = async_state_send_payload)
+    // Handles raw data sending process.
+    function_return_type sendImpl(async_data *sData, const uint8_t *data, size_t len, size_t size, async_state state = astate_send_payload)
     {
+        sys_idle();
         sData->state = state;
-
-        if (data && len && this->client)
+        if (data && len && sman.client)
         {
             uint16_t toSend = len - sData->request.dataIndex > FIREBASE_CHUNK_SIZE ? FIREBASE_CHUNK_SIZE : len - sData->request.dataIndex;
-
-            size_t sent = sData->request.tcpWrite(client_type, client, async_tcp_config, data + sData->request.dataIndex, toSend);
-            sys_idle();
-
+            size_t sent = sData->request.tcpWrite(data + sData->request.dataIndex, toSend);
             if (sent == toSend)
             {
                 sData->request.dataIndex += toSend;
                 sData->request.payloadIndex += toSend;
-
                 if (sData->upload && sData->upload_progress_enabled && sData->request.file_data.file_size)
                 {
                     sData->aResult.upload_data.total = sData->request.file_data.file_size > size ? sData->request.file_data.file_size : size;
                     sData->aResult.upload_data.uploaded = sData->request.payloadIndex;
-                    returnResult(sData, false);
+                    sman.returnResult(sData, false);
                 }
 
                 if (sData->request.dataIndex == len)
                     sData->request.dataIndex = 0;
 
 #if defined(ENABLE_CLOUD_STORAGE)
-
                 if (sData->request.file_data.resumable.isEnabled() && sData->request.file_data.resumable.isUpload())
                 {
                     int ret = sData->request.file_data.resumable.isComplete(size, sData->request.payloadIndex);
                     if (ret == 2)
                     {
-                        sData->state = async_state_read_response;
-                        sData->return_type = function_return_type_complete;
+                        // All chunks are uploaded.
+                        sData->state = astate_read_response;
+                        sData->return_type = ret_complete;
                         sData->request.dataIndex = 0;
                         sData->request.payloadIndex = 0;
                         sData->response.clear();
@@ -453,48 +226,49 @@ private:
                     }
                     else if (ret == 1)
                     {
-                        sData->return_type = function_return_type_continue;
+                        // There are more chunks to upload.
+                        sData->return_type = ret_continue;
                         return sData->return_type;
                     }
                 }
                 else if (sData->request.payloadIndex < size)
                 {
-                    sData->return_type = function_return_type_continue;
+                    // There are more chunks to upload.
+                    sData->return_type = ret_continue;
                     return sData->return_type;
                 }
-
 #else
                 if (sData->request.payloadIndex < size)
                 {
-                    sData->return_type = function_return_type_continue;
+                    sData->return_type = ret_continue;
                     return sData->return_type;
                 }
 #endif
             }
         }
 
-        sData->return_type = sData->request.payloadIndex == size && size > 0 ? function_return_type_complete : function_return_type_failure;
+        sData->return_type = sData->request.payloadIndex == size && size > 0 ? ret_complete : ret_failure;
 
-        // In case TCP write error.
-        if (sData->return_type == function_return_type_failure)
-            setAsyncError(sData, state, FIREBASE_ERROR_TCP_SEND, !sData->sse, false);
+        // TCP write error.
+        if (sData->return_type == ret_failure)
+            sman.setAsyncError(sData, state, FIREBASE_ERROR_TCP_SEND, !sData->sse, false);
 
         sData->request.payloadIndex = 0;
         sData->request.dataIndex = 0;
         sData->request.file_data.data_pos = 0;
 
-        if (sData->return_type == function_return_type_complete)
+        if (sData->return_type == ret_complete)
         {
-            if (state == async_state_send_header)
+            if (state == astate_send_header)
             {
                 // No payload when Content-Length is 0, or not set.
-                if (sData->request.val[req_hndlr_ns::header].indexOf("Content-Length: 0\r\n") > -1 || sData->request.val[req_hndlr_ns::header].indexOf("Content-Length") == -1)
-                    sData->state = async_state_read_response;
+                if (sData->request.val[reqns::header].indexOf("Content-Length: 0\r\n") > -1 || sData->request.val[reqns::header].indexOf("Content-Length") == -1)
+                    sData->state = astate_read_response;
                 else
-                    sData->state = async_state_send_payload;
+                    sData->state = astate_send_payload;
             }
-            else if (state == async_state_send_payload)
-                sData->state = async_state_read_response;
+            else if (state == astate_send_payload)
+                sData->state = astate_read_response;
 
 #if defined(ENABLE_CLOUD_STORAGE)
             if (sData->upload)
@@ -504,344 +278,171 @@ private:
             }
 #endif
 
-            if (sData->state != async_state_read_response)
+            if (sData->state != astate_read_response)
                 sData->response.clear();
         }
-
         return sData->return_type;
     }
 
-    function_return_type send(async_data_item_t *sData)
+    // Handles TCP data sending process.
+    function_return_type send(async_data *sData)
     {
-        function_return_type ret = networkConnect(sData);
+        function_return_type ret = sman.networkConnect(sData); // Check the network status and re-connect
 
-        if (ret != function_return_type_complete)
+        if (ret != ret_complete)
             return ret;
 
-        ret = function_return_type_continue;
+        ret = ret_continue;
 
-        if (sData->state == async_state_undefined || sData->state == async_state_send_header)
+        if (sData->state == astate_undefined || sData->state == astate_send_header) // Initial connection or payload sending state.
         {
-            newCon(sData, getHost(sData, true).c_str(), sData->request.port);
-
-            if ((client_type == async_request_handler_t::tcp_client_type_sync && !client->connected()) || client_type == async_request_handler_t::tcp_client_type_async)
+            // Auth token checking
+            if (!sData->auth_used && sData->request.app_token &&
+                sData->request.app_token->auth_data_type != user_auth_data_no_token &&
+                sData->request.app_token->val[app_tk_ns::token].length() == 0)
             {
-                ret = connect(sData, getHost(sData, true).c_str(), sData->request.port);
+                // Missing auth token error.
+                sman.setAsyncError(sData, sData->state, FIREBASE_ERROR_UNAUTHENTICATE, !sData->sse, false);
+                return ret_failure;
+            }
 
-                // allow non-blocking async tcp connection
-                if (ret == function_return_type_continue)
+            // Stop the server connection when entering the initial/auth token request states or host, port, and SSE mode changes or session timed out.
+            sman.newCon(sData, sData->request.getHost(true, &sData->response.val[resns::location]).c_str(), sData->request.port);
+
+            if ((sman.client_type == tcpc_sync && !sman.conn.isConnected()) || sman.client_type == tcpc_async)
+            {
+                if (sData->request.getHost(true, &sData->response.val[resns::location]).length() == 0)
+                {
+                    sData->aResult.lastError.setClientError(FIREBASE_ERROR_INVALID_HOST);
+                    return sman.connErrorHandler(sData, sData->state);
+                }
+
+                // Connect to the server if not connected.
+                ret = sman.connect(sData, sData->request.getHost(true, &sData->response.val[resns::location]).c_str(), sData->request.port);
+
+                // Allowing non-blocking async tcp connection
+                if (ret == ret_continue)
                     return ret;
 
-                if (ret != function_return_type_complete)
-                    return connErrorHandler(sData, sData->state);
+                if (ret != ret_complete)
+                    return sman.connErrorHandler(sData, sData->state);
 
-                sse = sData->sse;
+                sman.conn.sse = sData->sse;
+                sman.conn.async = sData->async;
                 sData->auth_ts = auth_ts;
             }
 
             if (sData->upload)
                 sData->upload_progress_enabled = false;
-
-            if (sData->request.app_token && sData->request.app_token->auth_data_type != user_auth_data_no_token)
+            // Non-auth task header sending.
+            if (!sData->auth_used && sData->request.app_token && sData->request.app_token->auth_data_type != user_auth_data_no_token)
             {
-                if (sData->request.app_token->val[app_tk_ns::token].length() == 0)
-                {
-                    // In case missing auth token error.
-                    setAsyncError(sData, sData->state, FIREBASE_ERROR_UNAUTHENTICATE, !sData->sse, false);
-                    return function_return_type_failure;
-                }
-
-                header = sData->request.val[req_hndlr_ns::header];
+                // Set the auth token to the end point uri or authorization header when it is available.
+                header = sData->request.val[reqns::header];
                 header.replace(FIREBASE_AUTH_PLACEHOLDER, sData->request.app_token->val[app_tk_ns::token]);
                 ret = sendHeader(sData, header.c_str());
-                header.remove(0, header.length());
+                sut.clear(header);
                 return ret;
             }
-            return sendHeader(sData, sData->request.val[req_hndlr_ns::header].c_str());
+            // Auth task header sending.
+            return sendHeader(sData, sData->request.val[reqns::header].c_str());
         }
-        else if (sData->state == async_state_send_payload)
+        else if (sData->state == astate_send_payload)
         {
             if (sData->upload)
                 sData->upload_progress_enabled = true;
 
-            if (sData->request.method == async_request_handler_t::http_get || sData->request.method == async_request_handler_t::http_delete)
-                sData->state = async_state_read_response;
+            if (sData->request.method == reqns::http_get || sData->request.method == reqns::http_delete)
+                sData->state = astate_read_response;
             else
             {
-                if (sData->request.val[req_hndlr_ns::payload].length())
-                    ret = send(sData, sData->request.val[req_hndlr_ns::payload].c_str());
+                if (sData->request.val[reqns::payload].length())
+                    ret = send(sData, sData->request.val[reqns::payload].c_str());
                 else if (sData->upload)
                 {
                     if (sData->request.data && sData->request.dataLen)
-                        ret = send(sData, sData->request.data, sData->request.dataLen, sData->request.dataLen);
+                        ret = sendImpl(sData, sData->request.data, sData->request.dataLen, sData->request.dataLen);
                     else
-                        ret = sendBuff(sData);
+                        ret = sendFileData(sData);
                 }
             }
         }
         return ret;
     }
 
-    function_return_type receive(async_data_item_t *sData)
+    function_return_type receive(async_data *sData)
     {
-        function_return_type ret = networkConnect(sData);
+        function_return_type ret = sman.networkConnect(sData); // Check the network status and re-connect
 
-        if (ret != function_return_type_complete)
+        if (ret != ret_complete)
             return ret;
 
         // HTTP error is allowed in case non-auth task to get its response.
         if (!readResponse(sData))
         {
-            // In case HTTP or TCP read error.
-            setAsyncError(sData, sData->state, sData->response.httpCode > 0 ? sData->response.httpCode : FIREBASE_ERROR_TCP_RECEIVE_TIMEOUT, !sData->sse, false);
-            return function_return_type_failure;
+            // HTTP or TCP read error.
+            sman.setAsyncError(sData, sData->state, sData->response.httpCode > 0 ? sData->response.httpCode : FIREBASE_ERROR_TCP_RECEIVE_TIMEOUT, !sData->sse, false);
+            return ret_failure;
         }
 
-        if (sData->response.httpCode == 0)
-            return function_return_type_continue;
+        if (sData->response.httpCode == 0) // No responses.
+            return ret_continue;
 
 #if defined(ENABLE_CLOUD_STORAGE)
-
         if (sData->request.file_data.resumable.isEnabled() && sData->request.file_data.resumable.getLocation().length() && !sData->response.flags.header_remaining && !sData->response.flags.payload_remaining)
         {
+            // Connect to the new upload location (stop and connect).
             String ext;
-            String _host = getHost(sData, false, &ext);
-
-            if (connect(sData, _host.c_str(), sData->request.port) > function_return_type_failure)
+            String _host = sData->request.getHost(false, nullptr, &ext);
+            sman.stop();
+            if (sman.connect(sData, _host.c_str(), sData->request.port) > ret_failure)
             {
-                sData->request.val[req_hndlr_ns::payload].remove(0, sData->request.val[req_hndlr_ns::payload].length());
-                sData->request.file_data.resumable.getHeader(sData->request.val[req_hndlr_ns::header], _host, ext);
-                sData->state = async_state_send_header;
+                // Get the request header to perform the ranges upload (resumable).
+                sut.clear(sData->request.val[reqns::payload]);
+                sut.clear(sData->request.val[reqns::header]);
+                sData->request.file_data.resumable.getHeader(sData->request.val[reqns::header], _host, ext);
+                sData->state = astate_send_header;
                 sData->request.file_data.resumable.setHeaderState();
-                return function_return_type_continue;
+                return ret_continue;
             }
-
-            return connErrorHandler(sData, sData->state);
+            return sman.connErrorHandler(sData, sData->state);
         }
-
 #else
-        if (sData->response.val[res_hndlr_ns::location].length() && !sData->response.flags.header_remaining && !sData->response.flags.payload_remaining)
+        if (sData->response.val[resns::location].length() && !sData->response.flags.header_remaining && !sData->response.flags.payload_remaining)
         {
+            // Hadles redirection (stop and connect).
             String ext;
-            String _host = getHost(sData, false, &ext);
-            if (client)
-                client->stop();
-            if (connect(sData, _host.c_str(), sData->request.port) > function_return_type_failure)
+            String _host = sData->request.getHost(false, &sData->response.val[resns::location], &ext);
+            conn.stop();
+            if (conn.connect(_host.c_str(), sData->request.port) > ret_failure)
             {
-                URLUtil uut;
-                uut.relocate(sData->request.val[req_hndlr_ns::header], _host, ext);
-                sData->request.val[req_hndlr_ns::payload].remove(0, sData->request.val[req_hndlr_ns::payload].length());
-                sData->state = async_state_send_header;
-                return function_return_type_continue;
+                uut.relocate(sData->request.val[reqns::header], _host, ext);
+                sut.clear(sData->request.val[reqns::payload]);
+                sData->state = astate_send_header;
+                return ret_continue;
             }
-
-            return connErrorHandler(sData, sData->state);
+            return sman.connErrorHandler(sData, sData->state);
         }
-
 #endif
-
         if (!sData->sse && sData->response.httpCode > 0 && !sData->response.flags.header_remaining && !sData->response.flags.payload_remaining)
         {
-            sData->state = async_state_undefined;
-            return function_return_type_complete;
+            sData->state = astate_undefined;
+            return ret_complete;
         }
-
-        return function_return_type_continue;
+        return ret_continue;
     }
 
-    function_return_type connErrorHandler(async_data_item_t *sData, async_state state)
+    void clear(String &str) { sut.clear(str); }
+
+    bool readResponse(async_data *sData)
     {
-        // In case TCP connection error.
-        setAsyncError(sData, state, FIREBASE_ERROR_TCP_CONNECTION, !sData->sse, false);
-        return function_return_type_failure;
-    }
-
-    void setAsyncError(async_data_item_t *sData, async_state state, int code, bool toRemove, bool toCloseFile)
-    {
-        if (!sData)
-            return;
-
-        sData->error.state = state;
-        sData->error.code = code;
-
-        if (toRemove)
-            sData->to_remove = toRemove;
-
-        if (toCloseFile)
-            closeFile(sData);
-
-        setLastError(sData);
-    }
-
-    async_data_item_t *getData(uint8_t slot)
-    {
-        if (slot < sVec.size())
-            return reinterpret_cast<async_data_item_t *>(sVec[slot]);
-        return nullptr;
-    }
-
-    async_data_item_t *addSlot(int index = -1)
-    {
-        async_data_item_t *sData = new async_data_item_t();
-
-        sData->aResult.app_debug = &app_debug;
-        sData->aResult.app_event = &app_event;
-
-        if (index > -1)
-            sVec.insert(sVec.begin() + index, sData->addr);
-        else
-            sVec.push_back(sData->addr);
-
-        return sData;
-    }
-
-    AsyncResult *getResult(async_data_item_t *sData)
-    {
-        List vec;
-        return vec.existed(rVec, sData->ref_result_addr) ? sData->refResult : nullptr;
-    }
-
-    AsyncResult *getResult()
-    {
-        List vec;
-        return vec.existed(rVec, result_addr) ? refResult : &aResult;
-    }
-
-    void returnResult(async_data_item_t *sData, bool setData)
-    {
-
-        bool error_notify_timeout = false;
-        if (sData->err_timer.remaining() == 0)
-        {
-            sData->err_timer.feed(5);
-            error_notify_timeout = true;
-        }
-
-        bool sseTimeout = true;
-#if defined(ENABLE_DATABASE)
-        sseTimeout = sData->sse && sData->aResult.rtdbResult.eventTimeout();
-#endif
-        bool download_status = sData->download && sData->aResult.setDownloadProgress();
-        bool upload_status = sData->upload && sData->upload_progress_enabled && sData->aResult.setUploadProgress();
-
-        if (getResult(sData))
-        {
-            if (sseTimeout || setData || error_notify_timeout || download_status || upload_status)
-            {
-                sData->refResult->upload_data.reset();
-
-                *sData->refResult = sData->aResult;
-
-                if (setData)
-                    sData->refResult->setPayload(sData->aResult.val[ares_ns::data_payload]);
-
-                if (sData->aResult.download_data.downloaded == 0 || sData->aResult.upload_data.uploaded == 0)
-                {
-                    sData->refResult->setETag(sData->aResult.val[ares_ns::res_etag]);
-                    sData->refResult->setPath(sData->aResult.val[ares_ns::data_path]);
-                }
-            }
-        }
-
-        if (sData->cb && (sseTimeout || setData || error_notify_timeout || download_status || upload_status))
-        {
-            if (!sData->auth_used)
-                sData->cb(sData->aResult);
-        }
-
-        if (getResult(sData))
-        {
-            // In case external async result was set, when download completed,
-            // we need to set the download status again because the internal async result was deleted.
-            if (sData->aResult.download_data.progress == 100)
-                sData->refResult->download_data.download_progress.setProgress(sData->aResult.download_data.progress);
-
-            // In case external async result was set, when upload complete,
-            // we need to reset the internal async result upload status to prevent redundant complete messages.
-            if (sData->aResult.upload_data.progress == 100)
-                sData->aResult.upload_data.reset();
-        }
-    }
-
-    void setLastError(async_data_item_t *sData)
-    {
-        if (sData && sData->error.code < 0)
-        {
-            sData->aResult.lastError.setClientError(sData->error.code);
-            lastErr.setClientError(sData->error.code);
-            clearAppData(sData->aResult.app_data);
-
-            // Required for sync task.
-            if (!sData->async)
-            {
-                sData->aResult.lastError.isError();
-                lastErr.isError();
-            }
-        }
-        else if (sData && sData->response.httpCode > 0 && sData->response.httpCode >= FIREBASE_ERROR_HTTP_CODE_BAD_REQUEST)
-        {
-            sData->aResult.lastError.setResponseError(sData->response.val[res_hndlr_ns::payload], sData->response.httpCode);
-            lastErr.setResponseError(sData->response.val[res_hndlr_ns::payload], sData->response.httpCode);
-            clearAppData(sData->aResult.app_data);
-
-            // Required for sync task.
-            if (!sData->async)
-            {
-                sData->aResult.lastError.isError();
-                lastErr.isError();
-            }
-        }
-    }
-
-    int readLine(async_data_item_t *sData, String &buf)
-    {
-        int p = 0;
-
-        while (sData->response.tcpAvailable(client_type, client, async_tcp_config))
-        {
-            int res = sData->response.tcpRead(client_type, client, async_tcp_config);
-            if (res > -1)
-            {
-                buf += (char)res;
-                p++;
-                if (res == '\n')
-                    return p;
-            }
-        }
-        return p;
-    }
-
-    uint32_t hex2int(const char *hex)
-    {
-        uint32_t val = 0;
-        while (*hex)
-        {
-            // get current character then increment
-            uint8_t byte = *hex++;
-            // transform hex character to the 4bit equivalent number, using the ascii table indexes
-            if (byte >= '0' && byte <= '9')
-                byte = byte - '0';
-            else if (byte >= 'a' && byte <= 'f')
-                byte = byte - 'a' + 10;
-            else if (byte >= 'A' && byte <= 'F')
-                byte = byte - 'A' + 10;
-            // shift 4 to make space for new digit, and add the 4 bits of the new digit
-            val = (val << 4) | (byte & 0xF);
-        }
-        return val;
-    }
-
-    void clear(String &str) { str.remove(0, str.length()); }
-
-    bool readResponse(async_data_item_t *sData)
-    {
-        if (!client || !sData)
+        if (!sman.client || !sData)
             return false;
 
-        if (sData->response.tcpAvailable(client_type, client, async_tcp_config) > 0)
+        if (sData->response.tcpAvailable() > 0)
         {
             // status line or data?
-            if (!readStatusLine(sData))
+            if (!sData->response.readStatusLine())
             {
                 // remaining headers to read?
                 if (sData->response.flags.header_remaining)
@@ -852,51 +453,56 @@ private:
                     if (!readPayload(sData))
                         return false;
 
+                    String *payload = &sData->response.val[resns::payload];
+
                     if (sData->response.flags.sse || !sData->response.flags.payload_remaining)
                     {
                         if (!sData->auth_used)
                         {
-                            sData->aResult.setPayload(sData->response.val[res_hndlr_ns::payload]);
+                            if (!sData->response.flags.sse)
+                                sData->aResult.setPayload(*payload);
 
                             if (sData->aResult.download_data.total > 0)
-                                clearAppData(sData->aResult.app_data);
+                                sData->aResult.data_log.reset();
 
 #if defined(ENABLE_DATABASE)
 
-                            if (sData->request.method == async_request_handler_t::http_post)
+                            if (sData->request.method == reqns::http_post)
                                 parseNodeName(&sData->aResult.rtdbResult);
 
-                            // data available from sse event
-                            if (sData->response.flags.sse && sData->response.val[res_hndlr_ns::payload].length())
+                            // Data available from sse event
+                            if (sData->response.flags.sse && payload->length())
                             {
-                                // order of checking: event, data, newline
-                                if (sData->response.val[res_hndlr_ns::payload].indexOf("event: ") > -1 && sData->response.val[res_hndlr_ns::payload].indexOf("data: ") > -1 && sData->response.val[res_hndlr_ns::payload].indexOf("\n") > -1)
+                                if (payload->indexOf("event: ") > -1 && payload->indexOf("data: ") > -1 && payload->indexOf("\n") > -1)
                                 {
+                                    // Prevent sse timed out due to large sse Stream playload
+                                    // This is not prevent the timed out from user blocking code and delay.
+                                    feedSSETimer(&sData->aResult.rtdbResult);
 
-                                    parseSSE(&sData->aResult.rtdbResult);
+                                    uint32_t len = payload->length();
 
-                                    // Event filtering.
-                                    String event = sData->aResult.rtdbResult.event();
-                                    if (sse_events_filter.length() == 0 ||
-                                        (sData->response.flags.http_response && sse_events_filter.indexOf("get") > -1 && event.indexOf("put") > -1) ||
-                                        (!sData->response.flags.http_response && sse_events_filter.indexOf("put") > -1 && event.indexOf("put") > -1) ||
-                                        (sse_events_filter.indexOf("patch") > -1 && event.indexOf("patch") > -1) ||
-                                        (sse_events_filter.indexOf("keep-alive") > -1 && event.indexOf("keep-alive") > -1) ||
-                                        (sse_events_filter.indexOf("cancel") > -1 && event.indexOf("cancel") > -1) ||
-                                        (sse_events_filter.indexOf("auth_revoked") > -1 && event.indexOf("auth_revoked") > -1))
+                                    // The event data was received while more data (events) are available.
+                                    bool partial = (*payload)[len - 1] == '\n' && ((len > 2 && (*payload)[len - 2] == '}') || (len > 3 && (*payload)[len - 3] == '}'));
+
+                                    if (((*payload)[len - 1] == '\n' && sData->response.tcpAvailable() == 0) || partial)
                                     {
-                                        // save payload to slot result
-                                        sData->aResult.setPayload(sData->response.val[res_hndlr_ns::payload]);
-                                        clear(sData->response.val[res_hndlr_ns::payload]);
-                                        sData->response.flags.payload_available = true;
-                                        returnResult(sData, true);
-                                    }
-                                    else
-                                    {
-                                        clear(sData->response.val[res_hndlr_ns::payload]);
-                                    }
+                                        setRefPayload(&sData->aResult.rtdbResult, payload);
+                                        parseSSE(&sData->aResult.rtdbResult);
 
-                                    sData->response.flags.http_response = false;
+                                        // Event filtering.
+                                        if (sman.sseFilter(sData))
+                                        {
+                                            // save payload to slot result
+                                            sData->aResult.setPayload(*payload);
+                                            clear(*payload);
+                                            sData->response.flags.payload_available = true;
+                                            sman.returnResult(sData, true);
+                                        }
+                                        else
+                                            clear(*payload);
+
+                                        sData->response.flags.http_response = false;
+                                    }
                                 }
                             }
 #endif
@@ -905,225 +511,46 @@ private:
                 }
             }
         }
-
         return true;
     }
 
-    int getStatusCode(const String &header)
-    {
-        String out;
-        int p1 = header.indexOf("HTTP/1.");
-        if (p1 > -1)
-        {
-            out = header.substring(p1 + 9, header.indexOf(' ', p1 + 9));
-            return atoi(out.c_str());
-        }
-        return 0;
-    }
-
-    bool readStatusLine(async_data_item_t *sData)
-    {
-        if (sData->response.httpCode > 0)
-            return false;
-
-        sData->response.val[res_hndlr_ns::header].reserve(1024);
-
-        // the first chunk (line) can be http response status or already connected stream payload
-        readLine(sData, sData->response.val[res_hndlr_ns::header]);
-        int status = getStatusCode(sData->response.val[res_hndlr_ns::header]);
-        if (status > 0)
-        {
-            // http response status
-            sData->response.flags.header_remaining = true;
-            sData->response.httpCode = status;
-        }
-        return true;
-    }
-
-    void readHeader(async_data_item_t *sData)
+    // Handles response header read process.
+    void readHeader(async_data *sData)
     {
         if (sData->response.flags.header_remaining)
         {
-            int read = readLine(sData, sData->response.val[res_hndlr_ns::header]);
-            if ((read == 1 && sData->response.val[res_hndlr_ns::header][sData->response.val[res_hndlr_ns::header].length() - 1] == '\n') ||
-                (read == 2 && sData->response.val[res_hndlr_ns::header][sData->response.val[res_hndlr_ns::header].length() - 2] == '\r' && sData->response.val[res_hndlr_ns::header][sData->response.val[res_hndlr_ns::header].length() - 1] == '\n'))
-            {
-                sData->response.flags.http_response = true;
-                clear(sData->response.val[res_hndlr_ns::etag]);
-                String temp[5];
+            String *location = &sData->response.val[resns::location];
 #if defined(ENABLE_CLOUD_STORAGE)
-                if (sData->upload)
-                    parseRespHeader(sData, sData->response.val[res_hndlr_ns::header], sData->request.file_data.resumable.getLocationRef(), "Location");
-#else
-                parseRespHeader(sData, sData->response.val[res_hndlr_ns::header], sData->response.val[res_hndlr_ns::location], "Location");
-
+            if (sData->upload)
+                location = &sData->request.file_data.resumable.getLocationRef();
 #endif
-                parseRespHeader(sData, sData->response.val[res_hndlr_ns::header], sData->response.val[res_hndlr_ns::etag], "ETag");
-                resETag = sData->response.val[res_hndlr_ns::etag];
-                sData->aResult.val[ares_ns::res_etag] = sData->response.val[res_hndlr_ns::etag];
-                sData->aResult.val[ares_ns::data_path] = sData->request.val[req_hndlr_ns::path];
+            // Read and parse for the specific headers.
+            if (sData->response.readHeader(sData->sse, !sData->auth_used, sData->upload, location))
+            {
+                resETag = sData->response.val[resns::etag];
+                sData->aResult.val[ares_ns::res_etag] = sData->response.val[resns::etag];
+                sData->aResult.val[ares_ns::data_path] = sData->request.val[reqns::path];
+
 #if defined(ENABLE_DATABASE)
-                setNullETagOption(&sData->aResult.rtdbResult, sData->response.val[res_hndlr_ns::etag].indexOf("null_etag") > -1);
+                setNullETagOption(&sData->aResult.rtdbResult, sData->response.val[resns::etag].indexOf("null_etag") > -1);
 #endif
-
-                parseRespHeader(sData, sData->response.val[res_hndlr_ns::header], temp[0], "Content-Length");
-
-                sData->response.payloadLen = atoi(temp[0].c_str());
-
-                parseRespHeader(sData, sData->response.val[res_hndlr_ns::header], temp[1], "Connection");
-                sData->response.flags.keep_alive = temp[1].length() && temp[1].indexOf("keep-alive") > -1;
-
-                parseRespHeader(sData, sData->response.val[res_hndlr_ns::header], temp[2], "Transfer-Encoding");
-                sData->response.flags.chunks = temp[2].length() && temp[2].indexOf("chunked") > -1;
-
-                parseRespHeader(sData, sData->response.val[res_hndlr_ns::header], temp[3], "Content-Type");
-                sData->response.flags.sse = temp[3].length() && temp[3].indexOf("text/event-stream") > -1;
-
-                if (sData->upload)
-                    parseRespHeader(sData, sData->response.val[res_hndlr_ns::header], temp[4], "Range");
-
-                clear(sData);
-
 #if defined(ENABLE_CLOUD_STORAGE)
                 if (sData->upload && sData->request.file_data.resumable.isEnabled())
                 {
                     sData->request.file_data.resumable.setHeaderState();
-                    if (sData->response.httpCode == FIREBASE_ERROR_HTTP_CODE_PERMANENT_REDIRECT && temp[4].indexOf("bytes=") > -1)
+                    if (sData->response.flags.uploadRange)
                         sData->request.file_data.resumable.updateRange();
                 }
 #endif
-                for (size_t i = 0; i < 5; i++)
-                    temp[i].remove(0, temp[i].length());
-
-                if (sData->response.httpCode > 0 && sData->response.httpCode != FIREBASE_ERROR_HTTP_CODE_NO_CONTENT)
-                    sData->response.flags.payload_remaining = true;
-
-                if (!sData->sse && (sData->response.httpCode == FIREBASE_ERROR_HTTP_CODE_OK || sData->response.httpCode == FIREBASE_ERROR_HTTP_CODE_PERMANENT_REDIRECT || sData->response.httpCode == FIREBASE_ERROR_HTTP_CODE_NO_CONTENT) && !sData->response.flags.chunks && sData->response.payloadLen == 0)
-                    sData->response.flags.payload_remaining = false;
-
-                if (sData->request.method == async_request_handler_t::http_delete && sData->response.httpCode == FIREBASE_ERROR_HTTP_CODE_NO_CONTENT)
-                    setDebugBase(app_debug, FPSTR("Delete operation complete"));
+                if (sData->request.method == reqns::http_delete && sData->response.httpCode == FIREBASE_ERROR_HTTP_CODE_NO_CONTENT)
+                    sman.debug_log.push_back(-1, FPSTR("Delete operation complete"));
             }
         }
     }
 
-    void parseRespHeader(async_data_item_t *sData, const String &src, String &out, const char *header)
-    {
-        if (sData->response.httpCode > 0)
-        {
-            int p1 = -1, p2 = -1, p3 = -1;
-            p1 = src.indexOf(header);
-            if (p1 > -1)
-                p2 = src.indexOf(':', p1);
-
-            if (p2 > -1)
-                p3 = src.indexOf("\r\n", p2);
-
-            if (p2 > -1 && p3 > -1)
-                out = src.substring(p2 + 1, p3);
-
-            out.trim();
-        }
-    }
-
-    int getChunkSize(async_data_item_t *sData, Client *client, String &line)
-    {
-        if (line.length() == 0)
-            readLine(sData, line);
-
-        int p = line.indexOf(";");
-        if (p == -1)
-            p = line.indexOf("\r\n");
-        if (p != -1)
-            sData->response.chunkInfo.chunkSize = hex2int(line.substring(0, p).c_str());
-
-        return sData->response.chunkInfo.chunkSize;
-    }
-
-    // Returns -1 when complete
-    int decodeChunks(async_data_item_t *sData, Client *client, String *out)
-    {
-        if (!client || !sData || !out)
-            return 0;
-        int res = 0, read = 0;
-        String line;
-
-        // because chunks might span multiple reads, we need to keep track of where we are in the chunk
-        // chunkInfo.dataLen is our current position in the chunk
-        // chunkInfo.chunkSize is the total size of the chunk
-
-        // readline() only reads while there is data available, so it might return early
-        // when available() is less than the remaining amount of data in the chunk
-
-        // read chunk-size, chunk-extension (if any) and CRLF
-        if (sData->response.chunkInfo.phase == async_response_handler_t::READ_CHUNK_SIZE)
-        {
-            sData->response.chunkInfo.phase = async_response_handler_t::READ_CHUNK_DATA;
-            sData->response.chunkInfo.chunkSize = -1;
-            sData->response.chunkInfo.dataLen = 0;
-            res = getChunkSize(sData, client, line);
-            sData->response.payloadLen += res > -1 ? res : 0;
-        }
-        // read chunk-data and CRLF
-        // append chunk-data to entity-body
-        else
-        {
-            // if chunk-size is 0, it's the last chunk, and can be skipped
-            if (sData->response.chunkInfo.chunkSize > 0)
-            {
-                read = readLine(sData, line);
-
-                // if we read till a CRLF, we have a chunk (or the rest of it)
-                // if the last two bytes are NOT CRLF, we have a partial chunk
-                // if we read 0 bytes, read next chunk size
-
-                // check for \n and \r, remove them if present (they're part of the protocol, not the data)
-                if (read >= 2 && line[read - 2] == '\r' && line[read - 1] == '\n')
-                {
-                    // last chunk?
-                    if (line[0] == '0') // last-chunk , chunk-extension (if any) and CRLF
-                        goto next;
-
-                    // remove the \r\n
-                    line.remove(line.length() - 2);
-                    read -= 2;
-                }
-
-                // if we still have data, append it and update the chunkInfo
-                if (read)
-                {
-                    *out += line;
-                    sData->response.chunkInfo.dataLen += read;
-                    sData->response.payloadRead += read;
-
-                    // check if we're done reading this chunk
-                    if (sData->response.chunkInfo.dataLen == sData->response.chunkInfo.chunkSize)
-                        sData->response.chunkInfo.phase = async_response_handler_t::READ_CHUNK_SIZE;
-                }
-                // if we read 0 bytes, read next chunk size
-                else
-                {
-                    sData->response.chunkInfo.phase = async_response_handler_t::READ_CHUNK_SIZE;
-                }
-            }
-            else
-            {
-
-            next:
-                read = readLine(sData, line);
-
-                // CRLF (end of chunked body)
-                if (read == 2 && line[0] == '\r' && line[1] == '\n')
-                    res = -1;
-                else // another chunk?
-                    getChunkSize(sData, client, line);
-            }
-        }
-
-        return res;
-    }
-
-    bool readPayload(async_data_item_t *sData)
+    // Handles response payload reading process.
+    // Write raw or base64 decoded response payload to file, blob, and flash (OTA).
+    bool readPayload(async_data *sData)
     {
         uint8_t *buf = nullptr;
 
@@ -1131,43 +558,60 @@ private:
         {
             sData->response.feedTimer(!sData->async && sync_read_timeout_sec > 0 ? sync_read_timeout_sec : -1);
 
-            // the next chunk data is the payload
+            // The next chunk data is the payload
             if (sData->response.httpCode != FIREBASE_ERROR_HTTP_CODE_NO_CONTENT)
             {
-
+                // Handles Chunked transfer encoding payload.
+                // Text only (not applicable for other mime data)
                 if (sData->response.flags.chunks)
                 {
-                    if (decodeChunks(sData, client, &sData->response.val[res_hndlr_ns::payload]) == -1)
+                    // Use temporary String buffer for decodeChunks
+                    String temp;
+                    int res = sData->response.decodeChunks(&temp);
+                    if (temp.length())
+                    {
+                        reserveString(sData); // Work around for large string concatenation issue.
+                        sData->response.val[resns::payload] += temp;
+                    }
+
+                    if (res == -1)
                         sData->response.flags.payload_remaining = false;
                 }
                 else
                 {
+                    // Raw text and byte array payloads.
+                    // Content length is not available for SSE Stream.
                     if (sData->download)
                     {
+                        // The content length header must be set for Byte array payload.
                         if (sData->response.payloadLen)
                         {
+                            // At the beginning step, preparing file, tempolary blob data buffer and flash (OTA) to write.
                             if (sData->response.payloadRead == 0)
                             {
                                 if (sData->request.ota)
                                 {
+#if defined(FIREBASE_OTA_STORAGE)
                                     otaut.setOTAStorage(sData->request.ota_storage_addr);
+#endif
+
                                     otaut.prepareDownloadOTA(sData->response.payloadLen, sData->request.base64, sData->request.ota_error);
                                     if (sData->request.ota_error != 0)
                                     {
-                                        // In case OTA error.
-                                        setAsyncError(sData, async_state_read_response, sData->request.ota_error, !sData->sse, false);
+                                        // OTA error.
+                                        sman.setAsyncError(sData, astate_read_response, sData->request.ota_error, !sData->sse, false);
                                         return false;
                                     }
                                 }
 #if defined(ENABLE_FS)
                                 else if (sData->request.file_data.filename.length() && sData->request.file_data.cb)
                                 {
-                                    closeFile(sData);
+                                    sData->request.closeFile();
 
-                                    if (!openFile(sData, file_mode_open_write))
+                                    if (!sData->request.openFile(file_mode_open_write))
                                     {
-                                        // In case file open error.
-                                        setAsyncError(sData, async_state_read_response, FIREBASE_ERROR_OPEN_FILE, !sData->sse, true);
+                                        // File open error.
+                                        sman.setAsyncError(sData, astate_read_response, FIREBASE_ERROR_OPEN_FILE, !sData->sse, true);
                                         return false;
                                     }
                                 }
@@ -1179,23 +623,32 @@ private:
                             int toRead = 0, read = 0;
                             uint8_t ofs = 0;
 
+                            // Due to the size of data returns from the SSL Client buffer may be varied and is not suitable for base64 decoder.
+                            // The following process will read the data as a chunk of multiple of 4 bytes (FIREBASE_CHUNK_SIZE)
+                            // that is suitable for the base64 decoder.
                             buf = asyncBase64Buffer(sData, mem, read, toRead);
 
+                            // There is more bytes (base64) to read and fill in to the chunk buffer.
                             if (sData->response.toFillLen)
                                 return true;
 
+                            // No base64 data read? Read the new data (base64 encoded or unencoded) with the expected length.
                             if (!buf)
                             {
+                                // if base64, skip the double quote at the beginning of string response payload (in Realtime Database)
                                 ofs = sData->request.base64 && sData->response.payloadRead == 0 ? 1 : 0;
                                 toRead = (int)(sData->response.payloadLen - sData->response.payloadRead) > FIREBASE_CHUNK_SIZE + ofs ? FIREBASE_CHUNK_SIZE + ofs : sData->response.payloadLen - sData->response.payloadRead;
                                 buf = reinterpret_cast<uint8_t *>(mem.alloc(toRead));
-                                read = sData->response.tcpRead(client_type, client, async_tcp_config, buf, toRead);
+                                read = sData->response.tcpRead(buf, toRead);
                             }
 
                             if (read > 0)
                             {
                                 if (sData->request.base64 && read < toRead)
                                 {
+                                    // If the read data (base64 encoded) is still less than the size we expected,
+                                    // save it in a larger chunk buffer (response.toFill) and keep the offset and
+                                    // length of the new incoming base64 data to be filled.
                                     sData->response.toFillIndex += read;
                                     sData->response.toFillLen = toRead - read;
                                     sData->response.toFill = reinterpret_cast<uint8_t *>(mem.alloc(toRead));
@@ -1204,16 +657,17 @@ private:
                                 }
 
                                 sData->response.payloadRead += read;
-                                if (sData->request.base64)
+                                if (sData->request.base64) // Base64 encoded response payload
                                 {
+                                    // Write to flash (OTA).
                                     otaut.getPad(buf + ofs, read, sData->request.b64Pad);
                                     if (sData->request.ota)
                                     {
                                         otaut.decodeBase64OTA(mem, &b64ut, reinterpret_cast<const char *>(buf), read - ofs, sData->request.ota_error);
                                         if (sData->request.ota_error != 0)
                                         {
-                                            // In case OTA error.
-                                            setAsyncError(sData, async_state_read_response, sData->request.ota_error, !sData->sse, false);
+                                            // OTA error.
+                                            sman.setAsyncError(sData, astate_read_response, sData->request.ota_error, !sData->sse, false);
                                             goto exit;
                                         }
 
@@ -1222,8 +676,8 @@ private:
                                             otaut.endDownloadOTA(b64ut, sData->request.b64Pad, sData->request.ota_error);
                                             if (sData->request.ota_error != 0)
                                             {
-                                                // In case OTA error.
-                                                setAsyncError(sData, async_state_read_response, sData->request.ota_error, !sData->sse, false);
+                                                // OTA error.
+                                                sman.setAsyncError(sData, astate_read_response, sData->request.ota_error, !sData->sse, false);
                                                 goto exit;
                                             }
                                         }
@@ -1231,11 +685,11 @@ private:
 #if defined(ENABLE_FS)
                                     else if (sData->request.file_data.filename.length() && sData->request.file_data.cb)
                                     {
-
+                                        // Write to file.
                                         if (!b64ut.decodeToFile(mem, sData->request.file_data.file, reinterpret_cast<const char *>(buf + ofs)))
                                         {
-                                            // In case file write error.
-                                            setAsyncError(sData, async_state_read_response, FIREBASE_ERROR_FILE_WRITE, !sData->sse, true);
+                                            // File write error.
+                                            sman.setAsyncError(sData, astate_read_response, FIREBASE_ERROR_FILE_WRITE, !sData->sse, true);
                                             goto exit;
                                         }
                                     }
@@ -1243,8 +697,9 @@ private:
                                     else
                                         b64ut.decodeToBlob(mem, &sData->request.file_data.outB, reinterpret_cast<const char *>(buf + ofs));
                                 }
-                                else
+                                else // Raw byte array response payload
                                 {
+                                    // To write flash (OTA)
                                     if (sData->request.ota)
                                     {
                                         b64ut.updateWrite(buf, read);
@@ -1254,8 +709,8 @@ private:
                                             otaut.endDownloadOTA(b64ut, 0, sData->request.ota_error);
                                             if (sData->request.ota_error != 0)
                                             {
-                                                // In case OTA error.
-                                                setAsyncError(sData, async_state_read_response, sData->request.ota_error, !sData->sse, false);
+                                                // OTA error.
+                                                sman.setAsyncError(sData, astate_read_response, sData->request.ota_error, !sData->sse, false);
                                                 goto exit;
                                             }
                                         }
@@ -1263,11 +718,12 @@ private:
 #if defined(ENABLE_FS)
                                     else if (sData->request.file_data.filename.length() && sData->request.file_data.cb)
                                     {
+                                        // To write file.
                                         int write = sData->request.file_data.file.write(buf, read);
                                         if (write < read)
                                         {
-                                            // In case file write error.
-                                            setAsyncError(sData, async_state_read_response, FIREBASE_ERROR_FILE_WRITE, !sData->sse, true);
+                                            // File write error.
+                                            sman.setAsyncError(sData, astate_read_response, FIREBASE_ERROR_FILE_WRITE, !sData->sse, true);
                                             goto exit;
                                         }
                                     }
@@ -1282,11 +738,18 @@ private:
                         {
                             sData->aResult.download_data.total = sData->response.payloadLen;
                             sData->aResult.download_data.downloaded = sData->response.payloadRead;
-                            returnResult(sData, false);
+                            sman.returnResult(sData, false);
                         }
                     }
                     else
-                        sData->response.payloadRead += readLine(sData, sData->response.val[res_hndlr_ns::payload]);
+                    {
+                        // Use temporary String buffer for the text response payload.
+                        String temp;
+                        size_t len = sData->response.readLine(&temp);
+                        sData->response.payloadRead += len;
+                        reserveString(sData); // Work around for large string concatenation issue.
+                        sData->response.val[resns::payload] += temp;
+                    }
                 }
             }
         }
@@ -1295,635 +758,93 @@ private:
         if (buf)
             mem.release(&buf);
 
-        if (sData->response.payloadLen > 0 && sData->response.payloadRead >= sData->response.payloadLen && sData->response.tcpAvailable(client_type, client, async_tcp_config) == 0)
+        if (sData->response.payloadLen > 0 && sData->response.payloadRead >= sData->response.payloadLen && sData->response.tcpAvailable() == 0)
         {
-
             // Async payload and header data collision workaround from session reusage.
             if (!sData->response.flags.chunks && sData->response.payloadRead > sData->response.payloadLen)
             {
-                sData->response.val[res_hndlr_ns::header] = sData->response.val[res_hndlr_ns::payload].substring(sData->response.payloadRead - sData->response.payloadLen);
-                sData->response.val[res_hndlr_ns::payload].remove(0, sData->response.payloadLen);
-                sData->return_type = function_return_type_continue;
-                sData->state = async_state_read_response;
+                sData->response.val[resns::header] = sData->response.val[resns::payload].substring(sData->response.payloadRead - sData->response.payloadLen);
+                sData->response.val[resns::payload].remove(0, sData->response.payloadLen);
+                sData->return_type = ret_continue;
+                sData->state = astate_read_response;
                 sData->response.flags.header_remaining = true;
             }
 
             if (sData->upload)
-            {
-                URLUtil uut;
-                uut.updateDownloadURL(sData->aResult.upload_data.downloadUrl, sData->response.val[res_hndlr_ns::payload]);
-            }
+                uut.updateDownloadURL(sData->aResult.upload_data.downloadUrl, sData->response.val[resns::payload]);
 
             if (sData->response.flags.chunks && sData->auth_used)
-                stop(sData);
+                sman.stop();
 
-            // In case HTTP error.
+            // HTTP server error.
             if (sData->response.httpCode >= FIREBASE_ERROR_HTTP_CODE_BAD_REQUEST)
             {
-                setAsyncError(sData, sData->state, sData->response.httpCode, !sData->sse, true);
-                sData->return_type = function_return_type_failure;
-                returnResult(sData, false);
+                sman.setAsyncError(sData, sData->state, sData->response.httpCode, !sData->sse, true);
+                sData->return_type = ret_failure;
+                sman.returnResult(sData, false);
             }
 
             if (sData->response.httpCode == FIREBASE_ERROR_HTTP_CODE_OK && sData->download)
             {
                 sData->aResult.download_data.total = sData->response.payloadLen;
                 sData->aResult.download_data.downloaded = sData->response.payloadRead;
-                returnResult(sData, false);
+                sman.returnResult(sData, false);
             }
 
-            sData->response.flags.payload_remaining = false;
-            closeFile(sData);
+            // Don't reset the payload remaining flag in case of chunked.
+            // It should set in readPayload when decodeChunks returns -1.
+            if (!sData->response.flags.chunks)
+                sData->response.flags.payload_remaining = false;
+
+            sData->request.closeFile();
 
             if (sData->auth_used)
                 sData->response.auth_data_available = true;
         }
-
         return sData->error.code == 0;
     }
 
-    // non-block memory buffer for collecting the multiple of 4 data prepared for base64 decoding
-    uint8_t *asyncBase64Buffer(async_data_item_t *sData, Memory &mem, int &toRead, int &read)
+    void reserveString(async_data *sData)
+    {
+        // String memory reservation is needed to handle large data in external memory.
+#if defined(ENABLE_PSRAM) && ((defined(ESP8266) && defined(MMU_EXTERNAL_HEAP)) || (defined(ESP32) && defined(BOARD_HAS_PSRAM)))
+        String old = sData->response.val[resns::payload];
+        sData->response.val[resns::payload].remove(0, sData->response.val[resns::payload].length());
+        sData->response.val[resns::payload].reserve(sData->response.payloadRead + 1);
+        sData->response.val[resns::payload] = old;
+#endif
+    }
+
+    uint8_t *asyncBase64Buffer(async_data *sData, Memory &mem, int &toRead, int &read)
     {
         uint8_t *buf = nullptr;
-
-        if (sData->request.base64)
+        // If the chunk buffer was previously allocated and more bytes are required to fill.
+        if (sData->request.base64 && sData->response.toFill && sData->response.toFillLen)
         {
-            if (sData->response.toFill && sData->response.toFillLen)
+            // Read the data with expected length to the chunk buffer at the specific offset.
+            int currentRead = sData->response.tcpRead(sData->response.toFill + sData->response.toFillIndex, sData->response.toFillLen);
+
+            // All bytes are filled, allocate the output buffer
+            // and copy the data from the chunk buffer.
+            if (currentRead == sData->response.toFillLen)
             {
-                int currentRead = sData->response.tcpRead(client_type, client, async_tcp_config, sData->response.toFill + sData->response.toFillIndex, sData->response.toFillLen);
-                if (currentRead == sData->response.toFillLen)
-                {
-                    buf = reinterpret_cast<uint8_t *>(mem.alloc(sData->response.toFillIndex + sData->response.toFillLen));
-                    memcpy(buf, sData->response.toFill, sData->response.toFillIndex + sData->response.toFillLen);
-                    mem.release(&sData->response.toFill);
-                    read = sData->response.toFillLen + sData->response.toFillIndex;
-                    toRead = read;
-                    sData->response.toFillIndex = 0;
-                    sData->response.toFillLen = 0;
-                }
-                else
-                {
-                    sData->response.toFillIndex += currentRead;
-                    sData->response.toFillLen -= currentRead;
-                }
+                buf = reinterpret_cast<uint8_t *>(mem.alloc(sData->response.toFillIndex + sData->response.toFillLen));
+                memcpy(buf, sData->response.toFill, sData->response.toFillIndex + sData->response.toFillLen);
+                mem.release(&sData->response.toFill);
+                read = sData->response.toFillLen + sData->response.toFillIndex;
+                toRead = read;
+                sData->response.toFillIndex = 0;
+                sData->response.toFillLen = 0;
+            }
+            else
+            {
+                // There are still more bytes that are remaining to read.
+                sData->response.toFillIndex += currentRead;
+                sData->response.toFillLen -= currentRead;
             }
         }
-
         return buf;
     }
-
-    void clear(async_data_item_t *sData)
-    {
-        clear(sData->response.val[res_hndlr_ns::header]);
-        if (!sData->auth_used)
-            clear(sData->response.val[res_hndlr_ns::payload]);
-        sData->response.flags.header_remaining = false;
-        sData->response.flags.payload_remaining = false;
-        sData->response.payloadRead = 0;
-        sData->response.error.resp_code = 0;
-        clear(sData->response.error.string);
-        sData->response.chunkInfo.chunkSize = 0;
-        sData->response.chunkInfo.dataLen = 0;
-        sData->response.chunkInfo.phase = async_response_handler_t::READ_CHUNK_SIZE;
-    }
-
-    void reset(async_data_item_t *sData, bool disconnect)
-    {
-        if (disconnect)
-            stop(sData);
-
-        sData->response.httpCode = 0;
-        sData->error.code = 0;
-        sData->response.flags.reset();
-        sData->state = async_state_undefined;
-        sData->return_type = function_return_type_undefined;
-        clear(sData->response.val[res_hndlr_ns::etag]);
-        sData->aResult.download_data.reset();
-        sData->aResult.upload_data.reset();
-        clear(sData);
-    }
-
-    function_return_type connect(async_data_item_t *sData, const char *host, uint16_t port)
-    {
-        sData->aResult.lastError.clearError();
-        lastErr.clearError();
-        clearAppData(sData->aResult.app_data);
-
-        if ((sData->auth_used || sData->sse) && (millis() - sData->aResult.conn_ms < FIREBASE_RECONNECTION_TIMEOUT_MSEC) && sData->aResult.conn_ms > 0)
-            return function_return_type_continue;
-
-        sData->aResult.conn_ms = millis();
-        resetDebug(app_debug);
-
-        if (client && !client->connected() && !sData->auth_used) // This info is already show in auth task
-            setDebugBase(app_debug, FPSTR("Connecting to server..."));
-
-        if (client && !client->connected() && client_type == async_request_handler_t::tcp_client_type_sync)
-            sData->return_type = client->connect(host, port) > 0 ? function_return_type_complete : function_return_type_failure;
-        else if (client_type == async_request_handler_t::tcp_client_type_async)
-        {
-
-#if defined(ENABLE_ASYNC_TCP_CLIENT)
-            if (async_tcp_config && async_tcp_config->tcpStatus && async_tcp_config->tcpConnect)
-            {
-                bool status = false;
-                if (async_tcp_config->tcpStatus)
-                    async_tcp_config->tcpStatus(status);
-
-                if (!status)
-                {
-                    if (async_tcp_config->tcpConnect)
-                        async_tcp_config->tcpConnect(host, port);
-
-                    if (async_tcp_config->tcpStatus)
-                        async_tcp_config->tcpStatus(status);
-                }
-
-                sData->return_type = status ? function_return_type_complete : function_return_type_continue;
-            }
-#endif
-        }
-
-        this->host = host;
-        this->port = port;
-
-        if (client && client->connected() && session_timeout_sec >= FIREBASE_SESSION_TIMEOUT_SEC)
-            session_timer.feed(session_timeout_sec);
-
-        return sData->return_type;
-    }
-
-    /**
-     * Get the ethernet link status.
-     * @return true for link up or false for link down.
-     */
-    bool ethLinkUp()
-    {
-        bool ret = false;
-
-#if defined(ENABLE_ETHERNET_NETWORK)
-
-#if defined(FIREBASE_LWIP_ETH_IS_AVAILABLE)
-
-#if defined(ESP32)
-        if (validIP(ETH.localIP()))
-        {
-            ETH.linkUp();
-            ret = true;
-        }
-#elif defined(ESP8266) || defined(CORE_ARDUINO_PICO)
-
-        if (!net.eth)
-            return false;
-
-#if defined(ESP8266) && defined(ESP8266_CORE_SDK_V3_X_X)
-
-#if defined(INC_ENC28J60_LWIP)
-        if (net.eth->enc28j60)
-        {
-            ret = net.eth->enc28j60->status() == WL_CONNECTED;
-            goto ex;
-        }
-#endif
-#if defined(INC_W5100_LWIP)
-        if (net.eth->w5100)
-        {
-            ret = net.eth->w5100->status() == WL_CONNECTED;
-            goto ex;
-        }
-#endif
-#if defined(INC_W5500_LWIP)
-        if (net.eth->w5500)
-        {
-            ret = net.eth->w5500->status() == WL_CONNECTED;
-            goto ex;
-        }
-#endif
-
-#elif defined(CORE_ARDUINO_PICO)
-
-#endif
-
-#endif
-
-        return ret;
-
-#if defined(INC_ENC28J60_LWIP) || defined(INC_W5100_LWIP) || defined(INC_W5500_LWIP)
-    ex:
-#endif
-
-        // workaround for ESP8266 Ethernet
-        delayMicroseconds(0);
-
-        return ret;
-#endif
-
-#endif
-
-        return ret;
-    }
-
-    /**
-     * Checking for valid IP.
-     * @return true for valid.
-     */
-    bool validIP(IPAddress ip)
-    {
-        char buf[16];
-        sprintf(buf, "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
-        return strcmp(buf, "0.0.0.0") != 0;
-    }
-
-    function_return_type gprsConnect(async_data_item_t *sData)
-    {
-
-#if defined(FIREBASE_GSM_MODEM_IS_AVAILABLE)
-        TinyGsm *gsmModem = (TinyGsm *)net.gsm.modem;
-
-        if (gsmModem)
-        {
-            if (net.gsm.conn_status == network_config_data::gsm_conn_status_idle)
-            {
-                net.gsm.conn_status = network_config_data::gsm_conn_status_waits_network;
-
-                gprsDisconnect();
-
-                // Unlock your SIM card with a PIN if needed
-                if (net.gsm.pin.length() && gsmModem->getSimStatus() != 3)
-                    gsmModem->simUnlock(net.gsm.pin.c_str());
-
-#if defined(TINY_GSM_MODEM_XBEE)
-                // The XBee must run the gprsConnect function BEFORE waiting for network!
-                gsmModem->gprsConnect(_apn.c_str(), _user.c_str(), _password.c_str());
-#endif
-
-                setDebugBase(app_debug, FPSTR("Waiting for network..."));
-                return function_return_type_continue;
-            }
-            else if (net.gsm.conn_status == network_config_data::gsm_conn_status_waits_network)
-            {
-                if (!gsmModem->waitForNetwork())
-                {
-                    setDebugBase(app_debug, FPSTR("Network connection failed"));
-                    netErrState = 1;
-                    net.network_status = false;
-                    net.gsm.conn_status = network_config_data::gsm_conn_status_idle;
-                    return function_return_type_failure;
-                }
-
-                net.gsm.conn_status = network_config_data::gsm_conn_status_waits_gprs;
-
-                setDebugBase(app_debug, FPSTR("Network connected"));
-
-                if (gsmModem->isNetworkConnected())
-                {
-                    if (netErrState == 0)
-                    {
-                        String debug = FPSTR("Connecting to ");
-                        debug += net.gsm.apn.c_str();
-                        setDebugBase(app_debug, debug);
-                    }
-                }
-
-                return function_return_type_continue;
-            }
-            else if (net.gsm.conn_status == network_config_data::gsm_conn_status_waits_gprs)
-            {
-                if (gsmModem->isNetworkConnected())
-                {
-
-                    net.network_status = gsmModem->gprsConnect(net.gsm.apn.c_str(), net.gsm.user.c_str(), net.gsm.password.c_str()) && gsmModem->isGprsConnected();
-
-                    if (netErrState == 0)
-                        setDebugBase(app_debug, net.network_status ? FPSTR("GPRS/EPS connected") : FPSTR("GPRS/EPS connection failed"));
-
-                    if (!net.network_status)
-                        netErrState = 1;
-                }
-            }
-
-            net.gsm.conn_status = network_config_data::gsm_conn_status_idle;
-
-            return net.network_status ? function_return_type_complete : function_return_type_failure;
-        }
-
-#endif
-        return function_return_type_failure;
-    }
-
-    bool gprsConnected()
-    {
-#if defined(FIREBASE_GSM_MODEM_IS_AVAILABLE)
-        TinyGsm *gsmModem = (TinyGsm *)net.gsm.modem;
-        net.network_status = gsmModem && gsmModem->isGprsConnected();
-#endif
-        return net.network_status;
-    }
-
-    bool gprsDisconnect()
-    {
-#if defined(FIREBASE_GSM_MODEM_IS_AVAILABLE)
-        TinyGsm *gsmModem = (TinyGsm *)net.gsm.modem;
-        net.network_status = gsmModem && gsmModem->gprsDisconnect();
-#endif
-        return !net.network_status;
-    }
-
-    function_return_type ethernetConnect(async_data_item_t *sData)
-    {
-
-#if defined(FIREBASE_ETHERNET_MODULE_IS_AVAILABLE) && defined(ENABLE_ETHERNET_NETWORK)
-
-        if (net.ethernet.conn_satatus == network_config_data::ethernet_conn_status_idle && net.ethernet.ethernet_cs_pin > -1)
-            FIREBASE_ETHERNET_MODULE_CLASS_IMPL.init(net.ethernet.ethernet_cs_pin);
-
-        if (net.ethernet.ethernet_reset_pin > -1)
-        {
-            if (net.ethernet.conn_satatus == network_config_data::ethernet_conn_status_idle)
-            {
-                setDebugBase(app_debug, FPSTR("Resetting Ethernet Board..."));
-
-                pinMode(net.ethernet.ethernet_reset_pin, OUTPUT);
-                digitalWrite(net.ethernet.ethernet_reset_pin, HIGH);
-
-                net.ethernet.conn_satatus = network_config_data::ethernet_conn_status_rst_pin_unselected;
-                net.ethernet.stobe_ms = millis();
-            }
-            else if (net.ethernet.conn_satatus == network_config_data::ethernet_conn_status_rst_pin_unselected && millis() - net.ethernet.stobe_ms > 200)
-            {
-                digitalWrite(net.ethernet.ethernet_reset_pin, LOW);
-                net.ethernet.conn_satatus = network_config_data::ethernet_conn_status_rst_pin_selected;
-                net.ethernet.stobe_ms = millis();
-            }
-            else if (net.ethernet.conn_satatus == network_config_data::ethernet_conn_status_rst_pin_selected && millis() - net.ethernet.stobe_ms > 50)
-            {
-                digitalWrite(net.ethernet.ethernet_reset_pin, HIGH);
-                net.ethernet.conn_satatus = network_config_data::ethernet_conn_status_rst_pin_released;
-                net.ethernet.stobe_ms = millis();
-            }
-            else if (net.ethernet.conn_satatus == network_config_data::ethernet_conn_status_rst_pin_released && millis() - net.ethernet.stobe_ms > 200)
-            {
-                net.ethernet.conn_satatus = network_config_data::ethernet_conn_status_begin;
-            }
-        }
-        else if (net.ethernet.conn_satatus == network_config_data::ethernet_conn_status_idle)
-            net.ethernet.conn_satatus = network_config_data::ethernet_conn_status_begin;
-
-        if (net.ethernet.conn_satatus == network_config_data::ethernet_conn_status_begin)
-        {
-
-            net.ethernet.conn_satatus = network_config_data::ethernet_conn_status_waits;
-            setDebugBase(app_debug, FPSTR("Starting Ethernet connection..."));
-
-            if (validIP(net.ethernet.static_ip.ipAddress))
-            {
-                if (net.ethernet.static_ip.optional == false)
-                    FIREBASE_ETHERNET_MODULE_CLASS_IMPL.begin(net.ethernet.ethernet_mac, net.ethernet.static_ip.ipAddress, net.ethernet.static_ip.dnsServer, net.ethernet.static_ip.defaultGateway, net.ethernet.static_ip.netMask);
-                else if (!FIREBASE_ETHERNET_MODULE_CLASS_IMPL.begin(net.ethernet.ethernet_mac))
-                {
-                    FIREBASE_ETHERNET_MODULE_CLASS_IMPL.begin(net.ethernet.ethernet_mac, net.ethernet.static_ip.ipAddress, net.ethernet.static_ip.dnsServer, net.ethernet.static_ip.defaultGateway, net.ethernet.static_ip.netMask);
-                }
-            }
-            else
-                FIREBASE_ETHERNET_MODULE_CLASS_IMPL.begin(net.ethernet.ethernet_mac);
-
-            net.eth_timer.feed(FIREBASE_ETHERNET_MODULE_TIMEOUT / 1000);
-        }
-        else if (net.ethernet.conn_satatus == network_config_data::ethernet_conn_status_waits)
-        {
-
-            if (FIREBASE_ETHERNET_MODULE_CLASS_IMPL.linkStatus() != LinkON && net.eth_timer.remaining() > 0)
-                return function_return_type_continue;
-
-            net.ethernet.conn_satatus = network_config_data::ethernet_conn_status_idle;
-
-            bool ret = ethernetConnected();
-
-            if (ret)
-            {
-                String msg = FPSTR("Connected, IP: ");
-                msg += FIREBASE_ETHERNET_MODULE_CLASS_IMPL.localIP().toString();
-                setDebugBase(app_debug, msg);
-            }
-            else
-            {
-                setDebugBase(app_debug, FPSTR("Can't connect to network"));
-            }
-
-            return ret ? function_return_type_complete : function_return_type_failure;
-        }
-
-#endif
-
-        return function_return_type_continue;
-    }
-
-    bool ethernetConnected()
-    {
-#if defined(FIREBASE_ETHERNET_MODULE_IS_AVAILABLE)
-#if defined(ENABLE_ETHERNET_NETWORK)
-        if (net.ethernet.conn_satatus != network_config_data::ethernet_conn_status_waits)
-            net.network_status = FIREBASE_ETHERNET_MODULE_CLASS_IMPL.linkStatus() == LinkON && validIP(FIREBASE_ETHERNET_MODULE_CLASS_IMPL.localIP());
-#else
-        net.network_status = FIREBASE_ETHERNET_MODULE_CLASS_IMPL.linkStatus() == LinkON && validIP(FIREBASE_ETHERNET_MODULE_CLASS_IMPL.localIP());
-#endif
-#endif
-        return net.network_status;
-    }
-
-    function_return_type netConnect(async_data_item_t *sData)
-    {
-        if (!getNetworkStatus())
-        {
-            bool recon = net.reconnect;
-
-            if (net.wifi && net.net_timer.feedCount() == 0)
-                recon = true;
-
-            // Self network connection controls.
-            bool self_connect = net.network_data_type == firebase_network_data_gsm_network || net.network_data_type == firebase_network_data_ethernet_network;
-
-            if (!self_connect && net.net_timer.remaining() == 0)
-                net.net_timer.feed(FIREBASE_NET_RECONNECT_TIMEOUT_SEC);
-
-            if (recon && (self_connect || net.net_timer.remaining() == 0))
-            {
-
-                if (net.network_data_type == firebase_network_data_generic_network)
-                {
-                    if (generic_network_owner_addr > 0 && generic_network_owner_addr != reinterpret_cast<uint32_t>(this))
-                        return function_return_type_continue;
-
-                    if (generic_network_owner_addr == 0)
-                        generic_network_owner_addr = reinterpret_cast<uint32_t>(this);
-
-                    setDebugBase(app_debug, FPSTR("Reconnecting to network..."));
-
-                    if (net.generic.net_con_cb)
-                        net.generic.net_con_cb();
-
-                    generic_network_owner_addr = 0;
-                }
-                else if (net.network_data_type == firebase_network_data_gsm_network)
-                {
-                    if (gsm_network_owner_addr > 0 && gsm_network_owner_addr != reinterpret_cast<uint32_t>(this))
-                        return function_return_type_continue;
-
-                    if (gsm_network_owner_addr == 0)
-                        gsm_network_owner_addr = reinterpret_cast<uint32_t>(this);
-
-                    if (gprsConnect(sData) == function_return_type_continue)
-                        return function_return_type_continue;
-
-                    gsm_network_owner_addr = 0;
-                }
-                else if (net.network_data_type == firebase_network_data_ethernet_network)
-                {
-                    if (ethernet_network_owner_addr > 0 && ethernet_network_owner_addr != reinterpret_cast<uint32_t>(this))
-                        return function_return_type_continue;
-
-                    if (ethernet_network_owner_addr == 0)
-                        ethernet_network_owner_addr = reinterpret_cast<uint32_t>(this);
-
-                    if (ethernetConnect(sData) == function_return_type_continue)
-                        return function_return_type_continue;
-
-                    ethernet_network_owner_addr = 0;
-                }
-                else if (net.network_data_type == firebase_network_data_default_network)
-                {
-
-                    if (wifi_reconnection_ms == 0 || (wifi_reconnection_ms > 0 && millis() - wifi_reconnection_ms > FIREBASE_NET_RECONNECT_TIMEOUT_SEC * 1000))
-                    {
-                        wifi_reconnection_ms = millis();
-
-                        setDebugBase(app_debug, FPSTR("Reconnecting to WiFi network..."));
-
-#if defined(FIREBASE_WIFI_IS_AVAILABLE)
-#if defined(ESP32) || defined(ESP8266)
-
-                        if (net.wifi && net.wifi->credentials.size())
-                            net.wifi->reconnect();
-                        else
-                            WiFi.reconnect();
-#else
-                        if (net.wifi && net.wifi->credentials.size())
-                            net.wifi->reconnect();
-#endif
-#endif
-                    }
-                }
-            }
-        }
-
-        return getNetworkStatus() ? function_return_type_complete : function_return_type_failure;
-    }
-
-    bool getNetworkStatus()
-    {
-        bool net_status = net.network_status;
-
-        // We will not invoke the network status request when device has built-in WiFi or Ethernet and it is connected.
-        if (net.network_data_type == firebase_network_data_gsm_network)
-        {
-            net.network_status = gprsConnected();
-        }
-        else if (net.network_data_type == firebase_network_data_ethernet_network)
-        {
-            net.network_status = ethernetConnected();
-        }
-        // also check the native network before calling external cb
-        else if (net.network_data_type == firebase_network_data_default_network || WIFI_CONNECTED || ethLinkUp())
-            net.network_status = WIFI_CONNECTED || ethLinkUp();
-        else if (net.network_data_type == firebase_network_data_generic_network)
-        {
-            if (!net.generic.net_status_cb)
-                netErrState = 1;
-            else
-                net.generic.net_status_cb(net.network_status);
-        }
-        else
-            net.network_status = false;
-
-        if (net_status && !net.network_status)
-            net.disconnected_ms = millis() - 10;
-
-        return net.network_status;
-    }
-
-    int sMan(slot_options_t &options)
-    {
-        int slot = -1;
-        if (options.auth_used)
-            slot = 0;
-        else
-        {
-            int sse_index = -1, auth_index = -1;
-            for (size_t i = 0; i < sVec.size(); i++)
-            {
-                if (getData(i))
-                {
-                    if (getData(i)->auth_used)
-                        auth_index = i;
-                    else if (getData(i)->sse)
-                        sse_index = i;
-                }
-            }
-
-            if (auth_index > -1)
-                slot = auth_index + 1;
-            else if (sse_index > -1)
-                slot = sse_index;
-
-            // Multiple SSE modes
-            if ((sse_index > -1 && options.sse) || sVec.size() >= FIREBASE_ASYNC_QUEUE_LIMIT)
-                slot = -2;
-
-            if (slot >= (int)sVec.size())
-                slot = -1;
-        }
-
-        return slot;
-    }
-
-    void setContentType(async_data_item_t *sData, const String &type)
-    {
-        sData->request.addContentTypeHeader(type.c_str());
-    }
-
-    void setFileContentLength(async_data_item_t *sData, int headerLen = 0, const String &customHeader = "")
-    {
-        size_t sz = 0;
-
-#if defined(ENABLE_FS)
-        if (sData->request.file_data.cb && sData->request.file_data.filename.length())
-        {
-            sData->request.file_data.cb(sData->request.file_data.file, sData->request.file_data.filename.c_str(), file_mode_open_read);
-            sz = sData->request.file_data.file.size();
-        }
-#endif
-        if (sData->request.file_data.data_size && sData->request.file_data.data)
-            sz = sData->request.file_data.data_size;
-
-        if (sz > 0)
-        {
-            sData->request.file_data.file_size = sData->request.base64 ? 2 + b64ut.getBase64Len(sz) : sz;
-            if (customHeader.length())
-            {
-                sData->request.val[req_hndlr_ns::header] += customHeader;
-                sData->request.val[req_hndlr_ns::header] += ":";
-                sData->request.val[req_hndlr_ns::header] += sData->request.file_data.file_size + headerLen;
-                sData->request.val[req_hndlr_ns::header] += "\r\n";
-            }
-            else
-                setContentLength(sData, sData->request.file_data.file_size);
-
-            closeFile(sData);
-        }
-    }
-
-    uint8_t slotCount() const { return sVec.size(); }
 
     bool processLocked()
     {
@@ -1934,72 +855,62 @@ private:
     }
 
 #if defined(ENABLE_DATABASE)
-    void handleEventTimeout(async_data_item_t *sData)
+    void handleEventTimeout(async_data *sData)
     {
         if (sData->sse && sData->aResult.rtdbResult.eventTimeout())
         {
             if (eventResumeStatus(&sData->aResult.rtdbResult) == event_resume_status_undefined)
             {
-                // In case stream time out.
-                // We have to clear app data (available), reset the last error and set the Stream time out error.
+                // In case Stream was timed out,
+                // we have to clear app data (available), reset the last error and set the Stream time out error.
                 sData->aResult.lastError.reset();
-                clearAppData(sData->aResult.app_data);
+                sData->aResult.data_log.reset();
                 setEventResumeStatus(&sData->aResult.rtdbResult, event_resume_status_resuming);
-                setAsyncError(sData, sData->state, FIREBASE_ERROR_STREAM_TIMEOUT, false, false);
-                returnResult(sData, false);
-                reset(sData, true);
+                // Stream timed out error.
+                sman.setAsyncError(sData, sData->state, FIREBASE_ERROR_STREAM_TIMEOUT, false, false);
+                sman.returnResult(sData, false);
+                sman.reset(sData, true);
             }
         }
     }
 #endif
 
-    bool handleSendTimeout(async_data_item_t *sData)
+    bool handleSendTimeout(async_data *sData)
     {
         if (sData->request.send_timer.remaining() == 0)
         {
-            // In case TCP write error.
-            setAsyncError(sData, sData->state, FIREBASE_ERROR_TCP_SEND, !sData->sse, false);
-            sData->return_type = function_return_type_failure;
+            // TCP write error.
+            sman.setAsyncError(sData, sData->state, FIREBASE_ERROR_TCP_SEND, !sData->sse, false);
+            sData->return_type = ret_failure;
             // This requires by WiFiSSLClient before stating a new connection in case session was reused.
-            reset(sData, true);
+            sman.reset(sData, true);
             return true;
         }
         return false;
     }
 
-    bool handleReadTimeout(async_data_item_t *sData)
+    bool handleReadTimeout(async_data *sData)
     {
         if (!sData->sse && sData->response.read_timer.remaining() == 0)
         {
-            // In case TCP read error.
-            setAsyncError(sData, sData->state, FIREBASE_ERROR_TCP_RECEIVE_TIMEOUT, !sData->sse, false);
-            sData->return_type = function_return_type_failure;
+            // TCP read error.
+            sman.setAsyncError(sData, sData->state, FIREBASE_ERROR_TCP_RECEIVE_TIMEOUT, !sData->sse, false);
+            sData->return_type = ret_failure;
             // This requires by WiFiSSLClient before stating a new connection in case session was reused.
-            reset(sData, true);
+            sman.reset(sData, true);
             return true;
         }
         return false;
     }
 
-    void handleProcessFailure(async_data_item_t *sData)
+    void handleProcessFailure(async_data *sData)
     {
-        if (sData->return_type == function_return_type_failure)
+        if (sData->return_type == ret_failure)
         {
             if (sData->async)
-                returnResult(sData, false);
-            reset(sData, true);
+                sman.returnResult(sData, false);
+            sman.reset(sData, sData->response.httpCode == 0 /* disconnected only when no server response */);
         }
-    }
-
-    String getHost(async_data_item_t *sData, bool fromReq, String *ext = nullptr)
-    {
-#if defined(ENABLE_CLOUD_STORAGE)
-        String url = fromReq ? sData->request.val[req_hndlr_ns::url] : sData->request.file_data.resumable.getLocation();
-#else
-        String url = fromReq ? sData->request.val[req_hndlr_ns::url] : sData->response.val[res_hndlr_ns::location];
-#endif
-        URLUtil uut;
-        return uut.getHost(url, ext);
     }
 
     void stopAsyncImpl(bool all = false, const String &uid = "")
@@ -2014,13 +925,13 @@ private:
             for (int i = size - 1; i >= 0; i--)
             {
                 sys_idle();
-                async_data_item_t *sData = getData(i);
+                async_data *sData = sman.getData(i);
                 if (sData && sData->async && !sData->auth_used && !sData->to_remove)
                 {
-                    // Reset the app data to reset clear the available status when the task was canceled.
-                    sData->aResult.reset(sData->aResult.app_data);
-                    if (getResult(sData))
-                        getResult(sData)->reset(getResult(sData)->app_data);
+                    // Reset the app data to reset and clear the available status when the task was canceled.
+                    sData->aResult.data_log.reset();
+                    if (sman.getResult(sData))
+                        sman.getResult(sData)->data_log.reset();
 
                     if (uid.length())
                     {
@@ -2036,70 +947,23 @@ private:
                 }
             }
         }
-
         inStopAsync = false;
     }
 
-    void stop(async_data_item_t *sData)
-    {
-        if (client && client->connected())
-            setDebugBase(app_debug, FPSTR("Terminating the server connection..."));
-
-        if (client_type == async_request_handler_t::tcp_client_type_sync)
-        {
-            if (client)
-                client->stop();
-        }
-        else
-        {
-#if defined(ENABLE_ASYNC_TCP_CLIENT)
-            if (async_tcp_config && async_tcp_config->tcpStop)
-                async_tcp_config->tcpStop();
-#endif
-        }
-
-        clear(host);
-        port = 0;
-        client_changed = false;
-        network_changed = false;
-    }
-
-    async_data_item_t *createSlot(slot_options_t &options)
-    {
-        if (!options.auth_used)
-            sse_events_filter.remove(0, sse_events_filter.length());
-
-        int slot_index = sMan(options);
-        // Only one SSE mode is allowed
-        if (slot_index == -2)
-            return nullptr;
-        async_data_item_t *sData = addSlot(slot_index);
-        sData->reset();
-        return sData;
-    }
-
-    void newRequest(async_data_item_t *sData, const String &url, const String &path, const String &extras, async_request_handler_t::http_request_method method, const slot_options_t &options, const String &uid)
+    void newRequest(async_data *sData, const String &url, const String &path, const String &extras, reqns::http_request_method method, const slot_options_t &options, const String &uid, const String &etag)
     {
         sData->async = options.async;
-        sData->request.val[req_hndlr_ns::url] = url;
-        sData->request.val[req_hndlr_ns::path] = path;
+        sData->request.val[reqns::url] = url;
+        sData->request.val[reqns::path] = path;
         sData->request.method = method;
         sData->sse = options.sse;
-        sData->request.val[req_hndlr_ns::etag] = reqEtag;
+        sData->request.val[reqns::etag] = etag;
 
-        clear(reqEtag);
         sData->aResult.setUID(uid);
 
-        clear(sData->request.val[req_hndlr_ns::header]);
-        sData->request.addRequestHeaderFirst(method);
-        if (path.length() == 0)
-            sData->request.val[req_hndlr_ns::header] += '/';
-        else if (path[0] != '/')
-            sData->request.val[req_hndlr_ns::header] += '/';
-        sData->request.val[req_hndlr_ns::header] += path;
-        sData->request.val[req_hndlr_ns::header] += extras;
-        sData->request.addRequestHeaderLast();
-        sData->request.addHostHeader(getHost(sData, true).c_str());
+        clear(sData->request.val[reqns::header]);
+        sData->request.addRequestHeader(method, path, extras);
+        sData->request.addHostHeader(sData->request.getHost(true, &sData->response.val[resns::location]).c_str());
 
         sData->auth_used = options.auth_used;
 
@@ -2107,39 +971,25 @@ private:
         {
             sData->request.app_token = options.app_token;
             if (options.app_token && !options.auth_param && (options.app_token->auth_type > auth_unknown_token && options.app_token->auth_type < auth_refresh_token))
-            {
-                sData->request.addAuthHeaderFirst(options.app_token->auth_type);
-                sData->request.val[req_hndlr_ns::header] += FIREBASE_AUTH_PLACEHOLDER;
-                sData->request.addNewLine();
-            }
+                sData->request.addAuthHeader(options.app_token->auth_type);
 
             sData->request.addConnectionHeader(true);
 
-            if (!options.sv && !options.no_etag && method != async_request_handler_t::http_patch && extras.indexOf("orderBy") == -1)
-            {
-                sData->request.val[req_hndlr_ns::header] += FPSTR("X-Firebase-ETag: true");
-                sData->request.addNewLine();
-            }
+            if (!options.sv && !options.no_etag && method != reqns::http_patch && extras.indexOf("orderBy") == -1)
+                sData->request.val[reqns::header] += "X-Firebase-ETag: true\r\n";
 
-            if (sData->request.val[req_hndlr_ns::etag].length() > 0 && (method == async_request_handler_t::http_put || method == async_request_handler_t::http_delete))
-            {
-                sData->request.val[req_hndlr_ns::header] += FPSTR("if-match: ");
-                sData->request.val[req_hndlr_ns::header] += sData->request.val[req_hndlr_ns::etag];
-                sData->request.addNewLine();
-            }
+            if (sData->request.val[reqns::etag].length() > 0 && (method == reqns::http_put || method == reqns::http_delete))
+                sut.printTo(sData->request.val[reqns::header], 100, "if-match: %s\r\n", sData->request.val[reqns::etag].c_str());
 
             if (options.sse)
-            {
-                sData->request.val[req_hndlr_ns::header] += FPSTR("Accept: text/event-stream");
-                sData->request.addNewLine();
-            }
+                sData->request.val[reqns::header] += "Accept: text/event-stream\r\n";
         }
 
-        if (method == async_request_handler_t::http_get || method == async_request_handler_t::http_delete)
+        if (method == reqns::http_get || method == reqns::http_delete)
             sData->request.addNewLine();
     }
 
-    void returnResult(async_data_item_t *sData) { *sData->refResult = sData->aResult; }
+    void returnResult(async_data *sData) { *sData->refResult = sData->aResult; }
 
     void setAuthTs(uint32_t ts) { auth_ts = ts; }
 
@@ -2154,84 +1004,25 @@ private:
         }
     }
 
-    void setContentLength(async_data_item_t *sData, size_t len)
-    {
-        if (sData->request.method == async_request_handler_t::http_post || sData->request.method == async_request_handler_t::http_put || sData->request.method == async_request_handler_t::http_patch)
-        {
-            sData->request.addContentLengthHeader(len);
-            sData->request.addNewLine();
-        }
-    }
-
-    void handleRemove()
-    {
-        for (size_t slot = 0; slot < slotCount(); slot++)
-        {
-            const async_data_item_t *sData = getData(slot);
-            if (sData && sData->to_remove)
-                removeSlot(slot);
-        }
-    }
-
-    void setEvent(async_data_item_t *sData, int code, const String &msg)
-    {
-        setEventBase(app_event, code, msg);
-    }
-
-    void removeSlot(uint8_t slot, bool sse = true)
-    {
-        async_data_item_t *sData = getData(slot);
-
-        if (!sData)
-            return;
-
-        if (sData->sse && !sse)
-            return;
-
-        if (!sData->auth_used && sData->request.ota && sData->request.ul_dl_task_running_addr > 0)
-        {
-            bool *ul_dl_task_running = reinterpret_cast<bool *>(sData->request.ul_dl_task_running_addr);
-            *ul_dl_task_running = false;
-        }
-
-#if defined(ENABLE_DATABASE)
-        clearSSE(&sData->aResult.rtdbResult);
-#endif
-        closeFile(sData);
-        setLastError(sData);
-        // data available from sync and asyn request except for sse
-        returnResult(sData, true);
-        reset(sData, sData->auth_used);
-        if (!sData->auth_used)
-            delete sData;
-        sData = nullptr;
-        sVec.erase(sVec.begin() + slot);
-    }
-
-    size_t slotCount() { return sVec.size(); }
-
-    void exitProcess(bool status)
-    {
-        inProcess = status;
-    }
+    void exitProcess(bool status) { inProcess = status; }
 
     void process(bool async)
     {
-
         if (processLocked())
             return;
 
         if (slotCount())
         {
             size_t slot = 0;
-            async_data_item_t *sData = getData(slot);
+            async_data *sData = sman.getData(slot);
 
             if (!sData)
                 return exitProcess(false);
 
-            updateDebug(app_debug);
-            updateEvent(app_event);
-            sData->aResult.updateData();
+            sman.debug_log.pop_front();
+            sman.event_log.pop_front();
+            sman.getResult()->dataLog().pop_front();
+            sData->aResult.dataLog().pop_front();
 
             if (!sData->auth_used && (sData->request.ota || sData->download || sData->upload) && sData->request.ul_dl_task_running_addr > 0)
             {
@@ -2239,16 +1030,15 @@ private:
                 *ul_dl_task_running = true;
             }
 
-            if (networkConnect(sData) == function_return_type_failure)
+            if (sman.networkConnect(sData) == ret_failure)
             {
-                // In case TCP (network) disconnected error.
-                setAsyncError(sData, sData->state, FIREBASE_ERROR_TCP_DISCONNECTED, !sData->sse, false);
+                // TCP (network) disconnected error.
+                sman.setAsyncError(sData, sData->state, FIREBASE_ERROR_TCP_DISCONNECTED, !sData->sse, false);
                 if (sData->async)
                 {
-                    returnResult(sData, false);
-                    reset(sData, true);
+                    sman.returnResult(sData, false);
+                    sman.reset(sData, true);
                 }
-
                 return exitProcess(false);
             }
 
@@ -2256,46 +1046,62 @@ private:
                 return exitProcess(false);
 
             // Restart connection when authenticate, client or network changed
-            if ((sData->sse && sData->auth_ts != auth_ts) || client_changed || network_changed)
+            if ((sData->sse && sData->auth_ts != auth_ts) || sman.conn.isChanged())
             {
-                stop(sData);
-                sData->state = async_state_send_header;
+                sman.stop();
+                sData->state = astate_send_header;
+            }
+
+            // Resume incomplete async task from previously stopped.
+            if (!sman.conn.async && sData->async && !sData->complete)
+            {
+                sData->state = astate_send_header;
+                sman.conn.async = sData->async;
             }
 
             bool sending = false;
-            if (sData->state == async_state_undefined || sData->state == async_state_send_header || sData->state == async_state_send_payload)
+            if (sData->state == astate_undefined || sData->state == astate_send_header || sData->state == astate_send_payload)
             {
                 sData->response.clear();
                 sData->request.feedTimer(!sData->async && sync_send_timeout_sec > 0 ? sync_send_timeout_sec : -1);
                 sending = true;
                 sData->return_type = send(sData);
 
-                while (sData->state == async_state_send_header || sData->state == async_state_send_payload)
+                while (sData->state == astate_send_header || sData->state == astate_send_payload)
                 {
                     sData->return_type = send(sData);
-                    sData->response.feedTimer(!sData->async && sync_read_timeout_sec > 0 ? sync_read_timeout_sec : -1);
                     handleSendTimeout(sData);
-                    if (sData->async || sData->return_type == function_return_type_failure)
+                    if (sData->async || sData->return_type == ret_failure)
                         break;
                 }
+
+                // The response time-out timer should be initiated here with appropriate timeout
+                // when the request was sucessfully sent (with or without payload).
+                // Without this initialization, the subsequent sData->response.feedTimer may not execute in case
+                // no server response returns because of server is out of reach or network/router is not responding.
+                if (sData->state == astate_read_response)
+                    sData->response.feedTimer(!sData->async && sync_read_timeout_sec > 0 ? sync_read_timeout_sec : -1);
             }
 
             if (sending)
             {
                 handleSendTimeout(sData);
-                if (sData->async && sData->return_type == function_return_type_continue)
+                if (sData->async && sData->return_type == ret_continue)
                     return exitProcess(false);
             }
 
             sys_idle();
 
-            if (sData->state == async_state_read_response)
+            if (sData->state == astate_read_response)
             {
                 // it can be complete response from payload sending
-                if (sData->return_type == function_return_type_complete)
-                    sData->return_type = function_return_type_continue;
+                if (sData->return_type == ret_complete)
+                    sData->return_type = ret_continue;
 
-                if (sData->async && !sData->response.tcpAvailable(client_type, client, async_tcp_config))
+                // We will set complete status when payload was completly uploaded.
+                sData->complete = sData->upload;
+
+                if (sData->async && !sData->response.tcpAvailable())
                 {
                     if (sData->sse)
                     {
@@ -2309,7 +1115,7 @@ private:
                 }
                 else if (!sData->async) // wait for non async
                 {
-                    while (!sData->response.tcpAvailable(client_type, client, async_tcp_config) && networkConnect(sData) == function_return_type_complete)
+                    while (!sData->response.tcpAvailable() && sman.networkConnect(sData) == ret_complete)
                     {
                         sys_idle();
                         if (handleReadTimeout(sData))
@@ -2319,10 +1125,10 @@ private:
             }
 
             // Read until status code > 0, header finished and payload read complete
-            if (sData->state == async_state_read_response)
+            if (sData->state == astate_read_response)
             {
                 sData->error.code = 0;
-                while (sData->return_type == function_return_type_continue && (sData->response.httpCode == 0 || sData->response.flags.header_remaining || sData->response.flags.payload_remaining))
+                while (sData->return_type == ret_continue && (sData->response.httpCode == 0 || sData->response.flags.header_remaining || sData->response.flags.payload_remaining))
                 {
                     sData->response.feedTimer(!sData->async && sync_read_timeout_sec > 0 ? sync_read_timeout_sec : -1);
                     sData->return_type = receive(sData);
@@ -2335,14 +1141,14 @@ private:
                         if (sData->sse)
                         {
 #if defined(ENABLE_DATABASE)
-                            clearAppData(sData->aResult.app_data);
+                            sData->aResult.data_log.reset();
                             clearSSE(&sData->aResult.rtdbResult);
 #endif
                         }
-                        sData->return_type = function_return_type_failure;
+                        sData->return_type = ret_failure;
                     }
 
-                    if (sData->async || allRead || sData->return_type == function_return_type_failure)
+                    if (sData->async || allRead || sData->return_type == ret_failure)
                         break;
                 }
             }
@@ -2353,52 +1159,64 @@ private:
             handleEventTimeout(sData);
 #endif
 
-            if (!sData->sse && sData->return_type == function_return_type_complete && sData->state != async_state_send_payload)
+            if (!sData->sse && sData->return_type == ret_complete && sData->state != astate_send_payload)
+            {
                 sData->to_remove = true;
+                sData->complete = true;
+            }
 
             if (sData->to_remove)
                 removeSlot(slot);
         }
-
         exitProcess(false);
     }
 
-    std::vector<uint32_t> rVec; // AsyncResult vector
+    FirebaseError *_lastError() { return &sman.lastErr; }
 
 public:
     AsyncClientClass()
     {
-        client_type = async_request_handler_t::tcp_client_type_none;
+        this->addr = reinterpret_cast<uint32_t>(this);
+        sman.client_type = tcpc_sync;
     }
 
-    AsyncClientClass(Client &client, network_config_data &net) : client(&client)
+    AsyncClientClass(Client &client, bool reconnect = true)
     {
-        this->net.copy(net);
+        DefaultNetwork defaultNet(reconnect);
+        sman.client = &client;
+        sman.conn.setNetwork(getNetwork(defaultNet));
         this->addr = reinterpret_cast<uint32_t>(this);
-        client_type = async_request_handler_t::tcp_client_type_sync;
+        sman.client_type = tcpc_sync;
+    }
+
+    AsyncClientClass(Client &client, network_config_data &net)
+    {
+        sman.client = &client;
+        sman.conn.setNetwork(net);
+        this->addr = reinterpret_cast<uint32_t>(this);
+        sman.client_type = tcpc_sync;
     }
 
 #if defined(ENABLE_ASYNC_TCP_CLIENT)
-    AsyncClientClass(AsyncTCPConfig &tcpClientConfig, network_config_data &net) : async_tcp_config(&tcpClientConfig)
+    AsyncClientClass(AsyncTCPConfig &tcpClientConfig, network_config_data &net)
     {
-        this->net.copy(net);
+        sman.atcp_config = &tcpClientConfig;
+        conn.setNetwork(net);
         this->addr = reinterpret_cast<uint32_t>(this);
-        client_type = async_request_handler_t::tcp_client_type_async;
+        sman.client_type = tcpc_async;
     }
 #endif
 
     ~AsyncClientClass()
     {
-        stop(nullptr);
-
-        for (size_t i = 0; i < sVec.size(); i++)
+        sman.stop();
+        for (size_t i = 0; i < sman.sVec.size(); i++)
         {
-            reset(getData(i), true);
-            async_data_item_t *sData = getData(i);
+            sman.reset(sman.getData(i), true);
+            async_data *sData = sman.getData(i);
             delete sData;
             sData = nullptr;
         }
-
         addRemoveClientVec(cvec_addr, false);
     }
 
@@ -2412,8 +1230,8 @@ public:
      */
     void setAsyncResult(AsyncResult &result)
     {
-        refResult = &result;
-        result_addr = reinterpret_cast<uint32_t>(refResult);
+        sman.refResult = &result;
+        sman.result_addr = reinterpret_cast<uint32_t>(sman.refResult);
     }
 
     /**
@@ -2424,8 +1242,8 @@ public:
      */
     void unsetAsyncResult()
     {
-        refResult = nullptr;
-        result_addr = 0;
+        sman.refResult = nullptr;
+        sman.result_addr = 0;
     }
 
     /**
@@ -2433,7 +1251,21 @@ public:
      *
      * @return bool Returns true if network is connected.
      */
-    bool networkStatus() { return getNetworkStatus(); }
+    bool networkStatus() { return sman.conn.getNetworkStatus(); }
+
+    /**
+     * Get the network disconnection time.
+     *
+     * @return unsigned long The millisec of network disconnection since device boot.
+     */
+    unsigned long networkLastSeen() { return sman.conn.networkLastSeen(); }
+
+    /**
+     * Return the current network type enum.
+     *
+     * @return firebase_network_type The firebase_network_type enums are firebase_network_default, firebase_network_generic, firebase_network_ethernet and firebase_network_gsm.
+     */
+    firebase_network_type getNetworkType() { return sman.conn.getNetworkType(); }
 
     /**
      * Stop and remove the async/sync task from the queue.
@@ -2461,7 +1293,7 @@ public:
      *
      * @return FirebaseError The FirebaseError object that contains the last error information.
      */
-    FirebaseError lastError() const { return lastErr; }
+    FirebaseError lastError() const { return sman.lastErr; }
 
     /**
      * Get the response ETag.
@@ -2471,13 +1303,13 @@ public:
     String etag() const { return resETag; }
 
     /**
-     * Set the ETag header to the task.
+     * Set the ETag header to the task (DEPRECATED).
      *
      * @param etag The ETag to set to the task.
-     *
-     * ETag of async client which obtained from etag() function will be empty after it assign to the task.
+     * 
+     * The etag can be set via the functions that support etag.
      */
-    void setETag(const String &etag) { reqEtag = etag; }
+    void setEtag(const String &etag) { Serial.println("🔥 AsyncClientClass::setEtag is deprecated."); }
 
     /**
      * Set the sync task's send timeout in seconds.
@@ -2498,21 +1330,27 @@ public:
      *
      * @param timeoutSec The TCP session timeout in seconds.
      */
-    void setSessionTimeout(uint32_t timeoutSec) { session_timeout_sec = timeoutSec; }
+    void setSessionTimeout(uint32_t timeoutSec) { sman.session_timeout_sec = timeoutSec; }
 
     /**
-     * Get the network disconnection time.
+     * Filtering response payload for Relatime Database SSE streaming.
+     * @param filter The event keywords for filtering.
      *
-     * @return unsigned long The millisec of network disconnection since device boot.
-     */
-    unsigned long networkLastSeen() { return this->net.disconnected_ms; }
-
-    /**
-     * Return the current network type enum.
+     * This is optional to allow specific events filtering.
      *
-     * @return firebase_network_data_type The firebase_network_data_type enums are firebase_network_data_default_network, firebase_network_data_generic_network, firebase_network_data_ethernet_network and firebase_network_data_gsm_network.
+     * The following event keywords are supported.
+     * get - To allow the http get response (first put event since stream connected).
+     * put - To allow the put event.
+     * patch - To allow the patch event.
+     * keep-alive - To allow the keep-alive event.
+     * cancel - To allow the cancel event.
+     * auth_revoked - To allow the auth_revoked event.
+     *
+     * To clear all prevousely set filter to allow all Stream events, use AsyncClientClass::setSSEFilters().
+     * 
+     * This will overwrite the value sets by RealtimeDatabase::setSSEFilters.
      */
-    firebase_network_data_type getNetworkType() { return this->net.network_data_type; }
+    void setSSEFilters(const String &sse_events_filter) { sman.sse_events_filter = sse_events_filter; }
 
     /**
      * Set the network interface.
@@ -2525,21 +1363,22 @@ public:
     void setNetwork(Client &client, network_config_data &net)
     {
         // Check client changes.
-        client_changed = reinterpret_cast<uint32_t>(&client) != reinterpret_cast<uint32_t>(this->client);
-        network_changed = true;
+        bool client_changed = reinterpret_cast<uint32_t>(&client) != reinterpret_cast<uint32_t>(sman.client);
 
         // Some changes, stop the current network client.
-        if (client_changed && this->client)
-            this->client->stop();
+        if (client_changed && sman.client)
+            sman.conn.stop();
 
         // Change the network interface.
         // Should not check the type changes, just overwrite
-        this->net.copy(net);
+        sman.conn.setNetwork(net);
 
         // Change the client.
         if (client_changed)
-            this->client = &client;
+        {
+            sman.client = &client;
+            sman.conn.setClientChange();
+        }
     }
 };
-
 #endif

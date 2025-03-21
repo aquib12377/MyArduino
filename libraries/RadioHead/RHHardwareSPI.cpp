@@ -12,6 +12,9 @@
 RHHardwareSPI hardware_spi;
 
 
+// This is very ugly and there should be a better way. Problem is that
+// not all types hardware/platform dependent of SPI classes have the
+// same name, so its hard to abstract it away on a per-instance basis
 #if (RH_PLATFORM == RH_PLATFORM_STM32) // Maple etc
 // Declare an SPI interface to use
 HardwareSPI SPI(1);
@@ -26,8 +29,10 @@ HardwareSPI SPI(1);
 #elif (RH_PLATFORM == RH_PLATFORM_ESP32 && defined(RH_ESP32_USE_HSPI))
  SPIClass SPI_HSPI(HSPI);
  #define SPI SPI_HSPI
+#elif defined(RAK4630) // RAKwireless RAK4630
+ extern SPIClass SPI_LORA(NRF_SPIM2, 45, 43, 44);
+ #define SPI SPI_LORA
 #endif
-
 
 // Arduino Due has default SPI pins on central SPI headers, and not on 10, 11, 12, 13
 // as per other Arduinos
@@ -73,14 +78,14 @@ uint8_t RHHardwareSPI::spiBurstWrite(uint8_t reg, const uint8_t* src, uint8_t le
 
 void RHHardwareSPI::attachInterrupt() 
 {
-#if (RH_PLATFORM == RH_PLATFORM_ARDUINO || RH_PLATFORM == RH_PLATFORM_NRF52)
+#ifdef RH_HAVE_SPI_ATTACH_INTERRUPT
     SPI.attachInterrupt();
 #endif
 }
 
 void RHHardwareSPI::detachInterrupt() 
 {
-#if (RH_PLATFORM == RH_PLATFORM_ARDUINO || RH_PLATFORM == RH_PLATFORM_NRF52)
+#ifdef RH_HAVE_SPI_ATTACH_INTERRUPT
     SPI.detachInterrupt();
 #endif
 }
@@ -102,7 +107,7 @@ void RHHardwareSPI::begin()
    else
        frequency = 1000000;
 
-#if ((RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined (__arm__) && (defined(ARDUINO_SAM_DUE) || defined(ARDUINO_ARCH_SAMD))) || defined(ARDUINO_ARCH_NRF52) || defined(ARDUINO_ARCH_STM32) || defined(ARDUINO_ARCH_STM32L0) || defined(NRF52) || defined (ARDUINO_ARCH_RP2040)
+#if ((RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined (__arm__) && (defined(ARDUINO_SAM_DUE) || defined(ARDUINO_ARCH_SAMD))) || defined(ARDUINO_ARCH_NRF52) || defined(ARDUINO_ARCH_STM32) || defined(ARDUINO_UNOR4_MINIMA)  || defined(ARDUINO_UNOR4_WIFI) || defined(ARDUINO_ARCH_STM32L0) || defined(NRF52) || defined (ARDUINO_ARCH_RP2040)
     // Arduino Due in 1.5.5 has its own BitOrder :-(
     // So too does Arduino Zero
     // So too does rogerclarkmelbourne/Arduino_STM32
@@ -136,11 +141,11 @@ void RHHardwareSPI::begin()
     // Save the settings for use in transactions
    _settings = SPISettings(frequency, bitOrder, dataMode);
    SPI.begin();
-    
+
 #else // SPI_HAS_TRANSACTION
-    
+   
     // Sigh: there are no common symbols for some of these SPI options across all platforms
-#if (RH_PLATFORM == RH_PLATFORM_ARDUINO) || (RH_PLATFORM == RH_PLATFORM_UNO32) || (RH_PLATFORM == RH_PLATFORM_CHIPKIT_CORE || RH_PLATFORM == RH_PLATFORM_NRF52)
+ #if (RH_PLATFORM == RH_PLATFORM_ARDUINO)   || (RH_PLATFORM == RH_PLATFORM_UNO32) || (RH_PLATFORM == RH_PLATFORM_CHIPKIT_CORE || RH_PLATFORM == RH_PLATFORM_NRF52)
     uint8_t dataMode;
     if (_dataMode == DataMode0)
 	dataMode = SPI_MODE0;
@@ -152,27 +157,27 @@ void RHHardwareSPI::begin()
 	dataMode = SPI_MODE3;
     else
 	dataMode = SPI_MODE0;
-#if (RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined(__arm__) && defined(CORE_TEENSY)
+  #if (RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined(__arm__) && defined(CORE_TEENSY)
     // Temporary work-around due to problem where avr_emulation.h does not work properly for the setDataMode() cal
     SPCR &= ~SPI_MODE_MASK;
-#else
- #if ((RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined (__arm__) && defined(ARDUINO_ARCH_SAMD)) || defined(ARDUINO_ARCH_NRF52)
+  #else
+    #if ((RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined (__arm__) && defined(ARDUINO_ARCH_SAMD)) || defined(ARDUINO_ARCH_NRF52)
     // Zero requires begin() before anything else :-)
     SPI.begin();
- #endif
+    #endif
 
     SPI.setDataMode(dataMode);
-#endif
+  #endif
 
-#if ((RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined (__arm__) && (defined(ARDUINO_SAM_DUE) || defined(ARDUINO_ARCH_SAMD))) || defined(ARDUINO_ARCH_NRF52) || defined (ARDUINO_ARCH_STM32) || defined(ARDUINO_ARCH_STM32F4)  || defined(ARDUINO_ARCH_STM32F1)
+  #if ((RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined (__arm__) && (defined(ARDUINO_SAM_DUE) || defined(ARDUINO_ARCH_SAMD))) || defined(ARDUINO_ARCH_NRF52) || defined (ARDUINO_ARCH_STM32) || defined(ARDUINO_ARCH_STM32F4)  || defined(ARDUINO_ARCH_STM32F1)
     // Arduino Due in 1.5.5 has its own BitOrder :-(
     // So too does Arduino Zero
     // So too does rogerclarkmelbourne/Arduino_STM32
     // So too does stm32duino F1, F4
     ::BitOrder bitOrder;
-#else
+  #else
     uint8_t bitOrder;
-#endif
+  #endif
     if (_bitOrder == BitOrderLSBFirst)
 	bitOrder = LSBFIRST;
     else
@@ -183,27 +188,27 @@ void RHHardwareSPI::begin()
     {
 	case Frequency1MHz:
 	default:
-#if F_CPU == 8000000
+  #if F_CPU == 8000000
 	    divider = SPI_CLOCK_DIV8;
-#else
+  #else
 	    divider = SPI_CLOCK_DIV16;
-#endif
+  #endif
 	    break;
 
 	case Frequency2MHz:
-#if F_CPU == 8000000
+  #if F_CPU == 8000000
 	    divider = SPI_CLOCK_DIV4;
-#else
+  #else
 	    divider = SPI_CLOCK_DIV8;
-#endif
+  #endif
 	    break;
 
 	case Frequency4MHz:
-#if F_CPU == 8000000
+  #if F_CPU == 8000000
 	    divider = SPI_CLOCK_DIV2;
-#else
+  #else
 	    divider = SPI_CLOCK_DIV4;
-#endif
+  #endif
 	    break;
 
 	case Frequency8MHz:
@@ -215,12 +220,14 @@ void RHHardwareSPI::begin()
 	    break;
 
     }
+    
     SPI.setClockDivider(divider);
+
     SPI.begin();
     // Teensy requires it to be set _after_ begin()
     SPI.setClockDivider(divider);
 
-#elif (RH_PLATFORM == RH_PLATFORM_STM32) // Maple etc
+ #elif (RH_PLATFORM == RH_PLATFORM_STM32) // Maple etc
     spi_mode dataMode;
     // Hmmm, if we do this as a switch, GCC on maple gets v confused!
     if (_dataMode == DataMode0)
@@ -267,7 +274,7 @@ void RHHardwareSPI::begin()
     }
     SPI.begin(frequency, bitOrder, dataMode);
 
-#elif (RH_PLATFORM == RH_PLATFORM_STM32STD) // STM32F4 discovery
+ #elif (RH_PLATFORM == RH_PLATFORM_STM32STD) // STM32F4 discovery
     uint8_t dataMode;
     if (_dataMode == DataMode0)
 	dataMode = SPI_MODE0;
@@ -313,7 +320,7 @@ void RHHardwareSPI::begin()
     }
     SPI.begin(frequency, bitOrder, dataMode);
 
-#elif (RH_PLATFORM == RH_PLATFORM_STM32F2) // Photon
+ #elif (RH_PLATFORM == RH_PLATFORM_STM32F2) // Photon
     uint8_t dataMode;
     if (_dataMode == DataMode0)
 	dataMode = SPI_MODE0;
@@ -359,7 +366,7 @@ void RHHardwareSPI::begin()
 //      SPI.setClockSpeed(1, MHZ);
       SPI.begin();
 
-#elif (RH_PLATFORM == (RH_PLATFORM_ESP8266) || (RH_PLATFORM == RH_PLATFORM_ESP32)
+ #elif RH_PLATFORM == (RH_PLATFORM_ESP8266) || (RH_PLATFORM == RH_PLATFORM_ESP32)
      // Requires SPI driver for ESP8266 from https://github.com/esp8266/Arduino/tree/master/libraries/SPI
      // Which ppears to be in Arduino Board Manager ESP8266 Community version 2.1.0
      // Contributed by David Skinner
@@ -408,7 +415,7 @@ void RHHardwareSPI::begin()
 	     break;
      }
 
-#elif (RH_PLATFORM == RH_PLATFORM_RASPI) // Raspberry PI
+ #elif (RH_PLATFORM == RH_PLATFORM_RASPI) // Raspberry PI
   uint8_t dataMode;
   if (_dataMode == DataMode0)
     dataMode = BCM2835_SPI_MODE0;
@@ -446,7 +453,7 @@ void RHHardwareSPI::begin()
       break;
   }
   SPI.begin(divider, bitOrder, dataMode);
-#elif (RH_PLATFORM == RH_PLATFORM_MONGOOSE_OS)
+ #elif (RH_PLATFORM == RH_PLATFORM_MONGOOSE_OS)
     uint8_t dataMode   = SPI_MODE0;
     uint32_t frequency = 4000000; //!!! ESP32/NRF902 works ok at 4MHz but not at 8MHz SPI clock.
     uint32_t bitOrder  = MSBFIRST;
@@ -473,9 +480,9 @@ void RHHardwareSPI::begin()
         frequency = 1000000;
 
     SPI.begin(frequency, bitOrder, dataMode);
-#else
- #warning RHHardwareSPI does not support this platform yet. Consider adding it and contributing a patch.
-#endif
+ #else
+  #warning RHHardwareSPI does not support this platform yet. Consider adding it and contributing a patch.
+ #endif
 
 #endif // SPI_HAS_TRANSACTION
 }

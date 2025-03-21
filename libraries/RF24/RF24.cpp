@@ -562,7 +562,18 @@ uint8_t RF24::sprintf_address_register(char* out_buffer, uint8_t reg, uint8_t qt
 /****************************************************************************/
 
 RF24::RF24(rf24_gpio_pin_t _cepin, rf24_gpio_pin_t _cspin, uint32_t _spi_speed)
-    : ce_pin(_cepin), csn_pin(_cspin), spi_speed(_spi_speed), payload_size(32), _is_p_variant(false), _is_p0_rx(false), addr_width(5), dynamic_payloads_enabled(true), csDelay(5)
+    : ce_pin(_cepin),
+      csn_pin(_cspin),
+      spi_speed(_spi_speed),
+      payload_size(32),
+      _is_p_variant(false),
+      _is_p0_rx(false),
+      addr_width(5),
+      dynamic_payloads_enabled(true),
+#if defined FAILURE_HANDLING
+      failureDetected(0),
+#endif
+      csDelay(5)
 {
     _init_obj();
 }
@@ -570,7 +581,18 @@ RF24::RF24(rf24_gpio_pin_t _cepin, rf24_gpio_pin_t _cspin, uint32_t _spi_speed)
 /****************************************************************************/
 
 RF24::RF24(uint32_t _spi_speed)
-    : ce_pin(RF24_PIN_INVALID), csn_pin(RF24_PIN_INVALID), spi_speed(_spi_speed), payload_size(32), _is_p_variant(false), _is_p0_rx(false), addr_width(5), dynamic_payloads_enabled(true), csDelay(5)
+    : ce_pin(RF24_PIN_INVALID),
+      csn_pin(RF24_PIN_INVALID),
+      spi_speed(_spi_speed),
+      payload_size(32),
+      _is_p_variant(false),
+      _is_p0_rx(false),
+      addr_width(5),
+      dynamic_payloads_enabled(true),
+#if defined FAILURE_HANDLING
+      failureDetected(0),
+#endif
+      csDelay(5)
 {
     _init_obj();
 }
@@ -1387,16 +1409,17 @@ bool RF24::rxFifoFull()
 
 /****************************************************************************/
 
-uint8_t RF24::isFifo(bool about_tx)
+rf24_fifo_state_e RF24::isFifo(bool about_tx)
 {
-    return static_cast<uint8_t>((read_register(FIFO_STATUS) >> (4 * about_tx)) & 3);
+    uint8_t state = (read_register(FIFO_STATUS) >> (4 * about_tx)) & 3;
+    return static_cast<rf24_fifo_state_e>(state);
 }
 
 /****************************************************************************/
 
 bool RF24::isFifo(bool about_tx, bool check_empty)
 {
-    return static_cast<bool>(isFifo(about_tx) & _BV(!check_empty));
+    return static_cast<bool>(static_cast<uint8_t>(isFifo(about_tx)) & _BV(!check_empty));
 }
 
 /****************************************************************************/
@@ -1493,23 +1516,18 @@ uint8_t RF24::getDynamicPayloadSize(void)
 
 bool RF24::available(void)
 {
-    uint8_t pipe = RF24_NO_FETCH_PIPE;
-    return available(&pipe);
+    return (read_register(FIFO_STATUS) & 1) == 0;
 }
 
 /****************************************************************************/
 
 bool RF24::available(uint8_t* pipe_num)
 {
-    if (read_register(FIFO_STATUS) & 1) { // if RX FIFO is empty
-        return 0;
-    }
-
-    // If the caller wants the pipe number, include that
-    if (*pipe_num != RF24_NO_FETCH_PIPE)
+    if (available()) { // if RX FIFO is not empty
         *pipe_num = (get_status() >> RX_P_NO) & 0x07;
-
-    return 1;
+        return 1;
+    }
+    return 0;
 }
 
 /****************************************************************************/
@@ -1761,8 +1779,7 @@ bool RF24::writeAckPayload(uint8_t pipe, const void* buf, uint8_t len)
 
 bool RF24::isAckPayloadAvailable(void)
 {
-    uint8_t pipe = RF24_NO_FETCH_PIPE;
-    return available(&pipe);
+    return available();
 }
 
 /****************************************************************************/

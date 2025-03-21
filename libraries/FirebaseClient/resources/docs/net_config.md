@@ -124,9 +124,29 @@ class GSMNetwork
 
 ## Constructors
 
-1. ### 🔹 GSMNetwork(TinyGsm *modem, const String &pin, const String &apn, const String &user, const String &password)
+1. ### 🔹 GSMNetwork(TinyGsm *modem)
 
-    This required two places of the GSM module macro definitions, one in your sketch and another in `/src/Config.h` or in your own defined config at `src/UserConfig.h` or adding `TINY_GSM_MODEM_XXXXXXX` in compiler build flags.
+    The GSM network reconnection will be ignored.
+
+    This required two places of the GSM module macro definitions, one in your sketch and another in `/src/FirebaseConfig.h` or in your own defined config at `src/UserConfig.h` or adding `TINY_GSM_MODEM_XXXXXXX` in compiler build flags.
+    
+    The TinyGsm modem should be defined at the same usage scope of `GSMNetwork` and `AsyncClientClass`.
+
+    See [GSMNetwork example](/examples/App/NetworkInterfaces/Async/Callback/GSMNetwork/) for using TinyGSM with this library.
+
+    ```cpp
+    GSMNetwork(TinyGsm *modem, const String &pin, const String &apn, const String &user, const String &password)
+    ```
+
+    **Params:**
+
+    - `modem` - The pointer to TinyGsm modem object. Modem should be initialized and/or set the mode before transfering the data.
+
+2. ### 🔹 GSMNetwork(TinyGsm *modem, const String &pin, const String &apn, const String &user, const String &password)
+
+    This will handle the GSM network reconnection.
+
+    This required two places of the GSM module macro definitions, one in your sketch and another in `/src/FirebaseConfig.h` or in your own defined config at `src/UserConfig.h` or adding `TINY_GSM_MODEM_XXXXXXX` in compiler build flags.
     
     The TinyGsm modem should be defined at the same usage scope of `GSMNetwork` and `AsyncClientClass`.
 
@@ -184,7 +204,20 @@ class EthernetNetwork
 
 ## Constructors
 
-1. ### 🔹 EthernetNetwork(uint8_t macAddress[6], int csPin, int resetPin)
+1. ### 🔹 EthernetNetwork()
+
+    By default the external Ethernet module can be used with the library when the macro `ENABLE_ETHERNET_NETWORK` was defined and Ethernet library was included in the user sketch.
+    
+    The user defined Ethernet class and header other than `Ethernet.h` and `Ethernet` can be used, see [Library Build Options](https://github.com/mobizt/FirebaseClient?tab=readme-ov-file#library-build-options) for how to.
+
+    The Ethernet client initialization will be ignored.
+
+    ```cpp
+    EthernetNetwork()
+    ```
+
+
+2. ### 🔹 EthernetNetwork(uint8_t macAddress[6], int csPin, int resetPin)
 
     By default the external Ethernet module can be used with the library when the macro `ENABLE_ETHERNET_NETWORK` was defined and Ethernet library was included in the user sketch.
     
@@ -201,7 +234,7 @@ class EthernetNetwork
     - `resetPin` - The Ethernet module reset pin. Assign -1 if not used.
     - `staticIP` - (Optional) The pointer to Firebase_StaticIP object that holds the static ip configuration.
 
-2. ### 🔹 EthernetNetwork(uint8_t macAddress[6], int csPin, int resetPin, const Firebase_StaticIP &staticIP)
+3. ### 🔹 EthernetNetwork(uint8_t macAddress[6], int csPin, int resetPin, const Firebase_StaticIP &staticIP)
 
     By default the external Ethernet module can be used with the library when the macro `ENABLE_ETHERNET_NETWORK` was defined and Ethernet library was included in the user sketch.
     
@@ -261,7 +294,7 @@ class DefaultEthernetNetwork
 
     This eth should be defined at the same usage scope of AsyncClientCalss.
 
-    To use ESP8266 native lwIP Ethernet, the one of following macros, `ENABLE_ESP8266_ENC28J60_ETH`, `ENABLE_ESP8266_W5500_ETH` and `ENABLE_ESP8266_W5100_ETH` should be defined in src/Config.h or in your own defined config at src/UserConfig.h or adding `ENABLE_ESP8266_ENC28J60_ETH`, `ENABLE_ESP8266_W5500_ETH` and `ENABLE_ESP8266_W5100_ETH` in the compiler build flags.
+    To use ESP8266 native lwIP Ethernet, the one of following macros, `ENABLE_ESP8266_ENC28J60_ETH`, `ENABLE_ESP8266_W5500_ETH` and `ENABLE_ESP8266_W5100_ETH` should be defined in src/FirebaseConfig.h or in your own defined config at src/UserConfig.h or adding `ENABLE_ESP8266_ENC28J60_ETH`, `ENABLE_ESP8266_W5500_ETH` and `ENABLE_ESP8266_W5100_ETH` in the compiler build flags.
     
     Use `Firebase_SPI_ETH_Module::enc28j60`, `Firebase_SPI_ETH_Module::w5100` and `Firebase_SPI_ETH_Module::w5500` to assign the pointer to `ENC28J60lwIP`, `Wiznet5100lwIP` and `Wiznet5500lwIP` classes objects respectively.
     
@@ -286,6 +319,55 @@ class DefaultEthernetNetwork
 
     ```cpp
     DefaultEthernetNetwork(Firebase_SPI_ETH_Module &eth)
+    ```
+
+## Functions
+
+1. ### 🔹 void clear()
+    
+    Clear the internal network data.
+
+    ```cpp
+    void clear()
+    ```
+
+2. ### 🔹 network_config_data &get()
+    
+    Get the reference to the internal `network_config_data`.
+
+    ```cpp
+    network_config_data &get()
+    ```
+
+    **Returns:**
+
+    - `network_config_data &` - The reference to internal `network_config_data`.
+
+<br>
+
+
+# DefaultPPPtNetwork
+
+## Description
+
+The default Ethernet class for ESP32 with PPP supports.
+
+
+```cpp
+class DefaultPPPtNetwork
+```
+
+
+## Constructors
+
+    1. ### 🔹 DefaultPPPtNetwork()
+
+    The default PPP network class for ESP32 with native PPP ptotocols supports.
+    
+    See [ESP32 DefaultPPPNetwork example](/examples/App/NetworkInterfaces/Async/Callback/DefaultNetworks/DefaultPPPNetwork/ESP32/) for using ESP32 with its native PPP library.
+
+    ```cpp
+    DefaultPPPtNetwork()
     ```
 
 ## Functions

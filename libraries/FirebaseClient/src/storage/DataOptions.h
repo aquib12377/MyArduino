@@ -1,8 +1,8 @@
 /**
- * Created June 12, 2024
+ * 2025-02-13
  *
  * The MIT License (MIT)
- * Copyright (c) 2024 K. Suwatchai (Mobizt)
+ * Copyright (c) 2025 K. Suwatchai (Mobizt)
  *
  *
  * Permission is hereby granted, free of charge, to any person returning a copy of
@@ -22,28 +22,27 @@
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef FIREBASE_STORAGE_DATA_OPTIONS_H
-#define FIREBASE_STORAGE_DATA_OPTIONS_H
+#ifndef STORAGE_DATA_OPTIONS_H
+#define STORAGE_DATA_OPTIONS_H
 
 #include <Arduino.h>
-#include "./Config.h"
-#include "./core/JSON.h"
-#include "./core/ObjectWriter.h"
+#include "./FirebaseConfig.h"
+#include "./core/Utils/JSON.h"
+#include "./core/Utils/ObjectWriter.h"
 #include "./core/AsyncClient/AsyncClient.h"
 
 #if defined(ENABLE_STORAGE)
-
 namespace FirebaseStorage
 {
     enum firebase_storage_request_type
     {
-        firebase_storage_request_type_undefined,
-        firebase_storage_request_type_upload,
-        firebase_storage_request_type_download,
-        firebase_storage_request_type_get_meta,
-        firebase_storage_request_type_delete,
-        firebase_storage_request_type_list,
-        firebase_storage_request_type_download_ota
+        fs_undefined,
+        fs_upload,
+        fs_download,
+        fs_get_meta,
+        fs_delete,
+        fs_list,
+        fs_download_ota
     };
 
     class Parent
@@ -57,38 +56,22 @@ namespace FirebaseStorage
         Parent() {}
         explicit Parent(const String &bucketId, const String &object = "", const String &accessToken = "")
         {
-            this->object = object;
-            this->bucketId = bucketId;
-
-            if (this->bucketId.length() && this->bucketId.indexOf("://") > -1)
-                this->bucketId.remove(0, this->bucketId.indexOf("://") + 3);
-
-            if (this->bucketId.length())
-            {
-                if (this->bucketId.indexOf("://") > -1)
-                    this->bucketId.remove(0, this->bucketId.indexOf("://") + 3);
-
-                if (this->bucketId.length() && this->bucketId[this->bucketId.length() - 1] == '/')
-                    this->bucketId.remove(this->bucketId.length() - 1, 1);
-            }
-
-            if (this->object.length() && this->object[0] == '/')
-                this->object.remove(0, 1);
-
+            URLUtil uut;
+            this->bucketId = uut.getHost(bucketId);
+            this->object = object.length() && object[0] == '/' ? object.substring(1, object.length() - 1) : object;
             this->accessToken = accessToken;
         }
         String getObject() const { return object; }
         String getBucketId() const { return bucketId; }
-        String getAccessToken() const { return accessToken; }
+        const char *getAccessToken() const { return accessToken.c_str(); }
     };
 
     class DataOptions
     {
-
     public:
         String payload, extras;
         FirebaseStorage::Parent parent;
-        firebase_storage_request_type requestType = firebase_storage_request_type_undefined;
+        firebase_storage_request_type requestType = fs_undefined;
         unsigned long requestTime = 0;
 
         void copy(const DataOptions &rhs)
@@ -100,24 +83,21 @@ namespace FirebaseStorage
     private:
     };
 
-    struct async_request_data_t
+    struct req_data
     {
     public:
         AsyncClientClass *aClient = nullptr;
-        String path;
-        String uid;
-        String mime;
-        async_request_handler_t::http_request_method method = async_request_handler_t::http_undefined;
+        String path, uid, mime;
+        reqns::http_request_method method = reqns::http_undefined;
         slot_options_t opt;
         DataOptions *options = nullptr;
         file_config_data *file = nullptr;
         AsyncResult *aResult = nullptr;
         AsyncResultCallback cb = NULL;
-        async_request_data_t() {}
-        explicit async_request_data_t(AsyncClientClass *aClient, const String &path, async_request_handler_t::http_request_method method, slot_options_t opt, DataOptions *options, file_config_data *file, AsyncResult *aResult, AsyncResultCallback cb, const String &uid = "")
+        req_data() {}
+        explicit req_data(AsyncClientClass *aClient, reqns::http_request_method method, slot_options_t opt, DataOptions *options, file_config_data *file, AsyncResult *aResult, AsyncResultCallback cb, const String &uid = "")
         {
             this->aClient = aClient;
-            this->path = path;
             this->method = method;
             this->opt = opt;
             this->options = options;
@@ -127,9 +107,6 @@ namespace FirebaseStorage
             this->uid = uid;
         }
     };
-
 }
-
 #endif
-
 #endif

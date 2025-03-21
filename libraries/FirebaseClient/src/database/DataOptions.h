@@ -1,8 +1,8 @@
 /**
- * Created March 13, 2024
+ * 2025-01-30
  *
  * The MIT License (MIT)
- * Copyright (c) 2024 K. Suwatchai (Mobizt)
+ * Copyright (c) 2025 K. Suwatchai (Mobizt)
  *
  *
  * Permission is hereby granted, free of charge, to any person returning a copy of
@@ -22,25 +22,26 @@
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef DATABASE_DATAOPTIONS_H
-#define DATABASE_DATAOPTIONS_H
+#ifndef DATABASE_DATA_OPTIONS_H
+#define DATABASE_DATA_OPTIONS_H
 
 #include <Arduino.h>
-#include "./Config.h"
+#include "./FirebaseConfig.h"
 #include "./database/DatabaseFilter.h"
+#include "./core/Utils/StringUtil.h"
 
 #if defined(ENABLE_DATABASE)
-
 class DatabaseOptions
 {
     friend class RealtimeDatabase;
 
+private:
+    StringUtil sut;
+
 public:
     uint32_t readTimeout = 0;
     String writeSizeLimit;
-    bool shallow = false;
-    bool silent = false;
-    bool classicRequest = false;
+    bool shallow = false, silent = false;
     DatabaseFilter filter;
 
     void copy(const DatabaseOptions &rhs)
@@ -48,28 +49,20 @@ public:
         this->readTimeout = rhs.readTimeout;
         this->writeSizeLimit = rhs.writeSizeLimit;
         this->shallow = rhs.shallow;
-        this->silent = rhs.silent;
-        this->classicRequest = rhs.classicRequest;
         this->filter.copy(rhs.filter);
-        this->ota = rhs.ota;
-        this->base64 = rhs.base64;
     }
 
     void clear()
     {
         readTimeout = 0;
-        writeSizeLimit.remove(0, writeSizeLimit.length());
+        sut.clear(writeSizeLimit);
         shallow = false;
         silent = false;
-        classicRequest = false;
         filter.clear();
     }
 
 private:
-    bool base64 = false;
-    bool ota = false;
+    bool base64 = false, ota = false;
 };
-
 #endif
-
 #endif

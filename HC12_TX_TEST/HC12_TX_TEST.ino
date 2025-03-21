@@ -6,6 +6,7 @@ const int btnLeft    = 5;    // Button2: Left
 const int btnRight   = 2;    // Button3: Right
 const int btnServo   = 12;   // Button4: Servo sweep
 const int btnDP      = A0;   // Extra button: Toggle command (D/P)
+const int btnLight   = A1;   // Extra button: Toggle command (D/P)
 
 // Variables for servo sweep command
 int servoAngle = 0;
@@ -13,7 +14,9 @@ int servoStep  = 5;  // Angle increment for servo sweep
 
 // Variables for DP button toggle
 bool sendD = true;          // Toggle flag: true = send 'D', false = send 'P'
+bool sendL = true;          // Toggle flag: true = send 'D', false = send 'P'
 bool lastBtnDPState = HIGH; // Last read state (using INPUT_PULLUP, HIGH means not pressed)
+bool lastBtnLightState = HIGH; // Last read state (using INPUT_PULLUP, HIGH means not pressed)
 
 void setup() {
   // Initialize hardware serial (HC‑12 is on pins 0/1)
@@ -25,6 +28,7 @@ void setup() {
   pinMode(btnRight,   INPUT_PULLUP);
   pinMode(btnServo,   INPUT_PULLUP);
   pinMode(btnDP,      INPUT_PULLUP);
+  pinMode(btnLight,      INPUT_PULLUP);
 }
 
 void loop() {
@@ -76,9 +80,22 @@ void loop() {
       Serial.println("P");  // Second (or even) press sends "P"
     }
     sendD = !sendD;  // Toggle for next press
-    delay(10);       // Short debounce delay
+    delay(1000);       // Short debounce delay
   }
   lastBtnDPState = currentDPState;
+
+  bool currentLightState = digitalRead(btnLight);
+  // Detect a new button press (transition from HIGH to LOW)
+  if (lastBtnLightState == HIGH && currentLightState == LOW) {
+    if (sendL) {
+      Serial.println("O");  // First (or odd) press sends "D"
+    } else {
+      Serial.println("C");  // Second (or even) press sends "P"
+    }
+    sendL = !sendL;  // Toggle for next press
+    delay(1000);       // Short debounce delay
+  }
+  lastBtnLightState = currentLightState;
   
   delay(1);  // General loop delay (helps with debounce and prevents flooding)
 }

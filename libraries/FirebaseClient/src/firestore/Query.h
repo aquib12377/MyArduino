@@ -1,8 +1,8 @@
 /**
- * Created June 12, 2024
+ * 2025-02-08
  *
  * The MIT License (MIT)
- * Copyright (c) 2024 K. Suwatchai (Mobizt)
+ * Copyright (c) 2025 K. Suwatchai (Mobizt)
  *
  *
  * Permission is hereby granted, free of charge, to any person returning a copy of
@@ -26,16 +26,14 @@
 #define FIRESTORE_QUERY_H
 
 #include <Arduino.h>
-#include "./Config.h"
+#include "./FirebaseConfig.h"
 
 #if defined(ENABLE_FIRESTORE) && defined(ENABLE_FIRESTORE_QUERY)
 
 #include "./firestore/Values.h"
-
 namespace FirestoreQuery
 {
     class Filter;
-
     namespace CompositFilterOperator
     {
         /**
@@ -48,7 +46,7 @@ namespace FirestoreQuery
             OR                    // Documents are required to satisfy at least one of the combined filters.
         };
 
-        const struct firebase::key_str_30 _OPERATOR_TYPE[OPERATOR_TYPE::OR + 1] PROGMEM = {"OPERATOR_UNSPECIFIED", "AND", "OR"};
+        const struct firebase_ns::key_str_30 _OPERATOR_TYPE[OPERATOR_TYPE::OR + 1] PROGMEM = {"OPERATOR_UNSPECIFIED", "AND", "OR"};
     }
 
     namespace UnaryFilterOperator
@@ -66,7 +64,7 @@ namespace FirestoreQuery
 
         };
 
-        const struct firebase::key_str_30 _OPERATOR_TYPE[OPERATOR_TYPE::IS_NOT_NULL + 1] PROGMEM = {"OPERATOR_UNSPECIFIED", "IS_NAN", "IS_NULL", "IS_NOT_NAN", "IS_NOT_NULL"};
+        const struct firebase_ns::key_str_30 _OPERATOR_TYPE[OPERATOR_TYPE::IS_NOT_NULL + 1] PROGMEM = {"OPERATOR_UNSPECIFIED", "IS_NAN", "IS_NULL", "IS_NOT_NAN", "IS_NOT_NULL"};
 
     }
 
@@ -90,7 +88,7 @@ namespace FirestoreQuery
             NOT_IN                 // The value of the field is not in the given array.
         };
 
-        const struct firebase::key_str_30 _OPERATOR_TYPE[OPERATOR_TYPE::NOT_IN + 1] PROGMEM = {"OPERATOR_UNSPECIFIED", "LESS_THAN", "LESS_THAN_OR_EQUAL", "GREATER_THAN", "GREATER_THAN_OR_EQUAL", "EQUAL", "NOT_EQUAL", "ARRAY_CONTAINS", "IN", "ARRAY_CONTAINS_ANY", "NOT_IN"};
+        const struct firebase_ns::key_str_30 _OPERATOR_TYPE[OPERATOR_TYPE::NOT_IN + 1] PROGMEM = {"OPERATOR_UNSPECIFIED", "LESS_THAN", "LESS_THAN_OR_EQUAL", "GREATER_THAN", "GREATER_THAN_OR_EQUAL", "EQUAL", "NOT_EQUAL", "ARRAY_CONTAINS", "IN", "ARRAY_CONTAINS_ANY", "NOT_IN"};
 
     }
 
@@ -105,7 +103,7 @@ namespace FirestoreQuery
             ASCENDING,             // Ascending.
             DESCENDING             // Descending.
         };
-        const struct firebase::key_str_30 _Direction[Direction::DESCENDING + 1] PROGMEM = {"DIRECTION_UNSPECIFIED", "ASCENDING", "DESCENDING"};
+        const struct firebase_ns::key_str_30 _Direction[Direction::DESCENDING + 1] PROGMEM = {"DIRECTION_UNSPECIFIED", "ASCENDING", "DESCENDING"};
     }
 
     /**
@@ -113,7 +111,6 @@ namespace FirestoreQuery
      */
     class FieldReference : public BaseO1
     {
-
     public:
         // A reference to a field in a document.
         explicit FieldReference(const String &value) { fieldPath(value); }
@@ -163,7 +160,6 @@ namespace FirestoreQuery
      */
     class CollectionSelector : public BaseO4
     {
-
     public:
         CollectionSelector() {}
         explicit CollectionSelector(const String &collectionId, bool allDescendants) { CollectionSelector::collectionId(collectionId).allDescendants(allDescendants); }
@@ -201,7 +197,6 @@ namespace FirestoreQuery
      */
     class StructuredQuery : public BaseO12
     {
-    private:
     public:
         StructuredQuery();
 
@@ -254,7 +249,6 @@ namespace FirestoreQuery
      */
     class CompositeFilter : public BaseO4
     {
-
     public:
         CompositeFilter();
         // The operator for combining multiple filters.
@@ -273,7 +267,6 @@ namespace FirestoreQuery
      */
     class FieldFilter : public BaseO4
     {
-    private:
     public:
         FieldFilter();
 
@@ -320,7 +313,5 @@ namespace FirestoreQuery
     };
 
 }
-
 #endif
-
 #endif

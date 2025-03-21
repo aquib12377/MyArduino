@@ -1,7 +1,7 @@
 #include <Adafruit_NeoPixel.h>
 
 #define LED_PIN     2   // Pin where the data line is connected
-#define LED_COUNT   32  // Number of LEDs in the strip
+#define LED_COUNT   120  // Number of LEDs in the strip
 
 Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 
@@ -13,9 +13,8 @@ void setup() {
 
 void loop() {
       
-      turnOfAllLeds();
-    colorWipe(strip.Color(255, 132, 62), 10 ); // Blue
-    delay(10000);
+    colorWipe(strip.Color(100, 0, 100), 10 ); // Blue
+    delay(5000);
 }
 
 // Fill the LEDs one by one with a color

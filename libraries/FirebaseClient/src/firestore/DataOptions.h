@@ -1,8 +1,8 @@
 /**
- * Created June 22, 2024
+ * 2025-02-11
  *
  * The MIT License (MIT)
- * Copyright (c) 2024 K. Suwatchai (Mobizt)
+ * Copyright (c) 2025 K. Suwatchai (Mobizt)
  *
  *
  * Permission is hereby granted, free of charge, to any person returning a copy of
@@ -22,14 +22,14 @@
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef FIRESTORE_DATAOPTIONS_H
-#define FIRESTORE_DATAOPTIONS_H
+#ifndef FIRESTORE_DATA_OPTIONS_H
+#define FIRESTORE_DATA_OPTIONS_H
 
 #include <Arduino.h>
-#include "./Config.h"
-#include "./core/JSON.h"
-#include "./core/ObjectWriter.h"
-#include "./core/URL.h"
+#include "./FirebaseConfig.h"
+#include "./core/Utils/JSON.h"
+#include "./core/Utils/ObjectWriter.h"
+#include "./core/Utils/URL.h"
 
 #if defined(ENABLE_FIRESTORE)
 #include "./firestore/Values.h"
@@ -42,30 +42,27 @@ using namespace FirestoreQuery;
 
 enum firebase_firestore_request_type
 {
-    firebase_firestore_request_type_undefined,
-    firebase_firestore_request_type_rollback = 200,
-    firebase_firestore_request_type_begin_transaction,
-    firebase_firestore_request_type_commit_document,
-    firebase_firestore_request_type_batch_write_doc,
-    firebase_firestore_request_type_run_query,
-    firebase_firestore_request_type_list_collection,
-    firebase_firestore_request_type_export_docs,
-    firebase_firestore_request_type_import_docs,
-    firebase_firestore_request_type_create_doc,
-    firebase_firestore_request_type_batch_get_doc,
-    firebase_firestore_request_type_create_composite_index,
-    firebase_firestore_request_type_create_field_index,
-    firebase_firestore_request_type_manage_database,
-
-    firebase_firestore_request_type_get_doc = 300,
-    firebase_firestore_request_type_list_doc,
-    firebase_firestore_request_type_list_index,
-    firebase_firestore_request_type_get_index,
-
-    firebase_firestore_request_type_patch_doc = 400,
-
-    firebase_firestore_request_type_delete_doc = 500,
-    firebase_firestore_request_type_delete_index
+    cf_undefined,
+    cf_rollback = 200,
+    cf_begin_transaction,
+    cf_commit_document,
+    cf_batch_write_doc,
+    cf_run_query,
+    cf_list_collection,
+    cf_export_docs,
+    cf_import_docs,
+    cf_create_doc,
+    cf_batch_get_doc,
+    cf_create_composite_index,
+    cf_create_field_index,
+    cf_manage_database,
+    cf_get_doc = 300,
+    cf_list_doc,
+    cf_list_index,
+    cf_get_index,
+    cf_patch_doc = 400,
+    cf_delete_doc = 500,
+    cf_delete_index
 };
 
 /**
@@ -99,10 +96,7 @@ public:
      *
      * @param fieldPaths The list of field paths in the mask. See Document.fields (https://firebase.google.com/docs/firestore/reference/rest/v1/projects.databases.documents#Document.FIELDS.fields) for a field path syntax reference.
      */
-    explicit DocumentMask(const String &fieldPaths = "")
-    {
-        setFieldPaths(fieldPaths);
-    }
+    explicit DocumentMask(const String &fieldPaths = "") { setFieldPaths(fieldPaths); }
 
     /**
      * A set of field paths on a document.
@@ -152,6 +146,7 @@ namespace FieldTransform
     private:
         String buf;
         ObjectWriter owriter;
+        StringUtil sut;
 
     public:
         /**
@@ -161,7 +156,7 @@ namespace FieldTransform
         template <typename T>
         explicit Increment(T value) { owriter.setPair(buf, FPSTR("increment"), value.val()); }
         const char *c_str() const { return buf.c_str(); }
-        void clear() { buf.remove(0, buf.length()); }
+        void clear() { sut.clear(buf); }
     };
 
     /**
@@ -174,6 +169,7 @@ namespace FieldTransform
     private:
         String buf;
         ObjectWriter owriter;
+        StringUtil sut;
 
     public:
         /**
@@ -183,7 +179,7 @@ namespace FieldTransform
         template <typename T>
         explicit Maximum(T value) { owriter.setPair(buf, FPSTR("maximum"), value.c_str()); }
         const char *c_str() const { return buf.c_str(); }
-        void clear() { buf.remove(0, buf.length()); }
+        void clear() { sut.clear(buf); }
     };
 
     /**
@@ -218,6 +214,7 @@ namespace FieldTransform
     private:
         String buf;
         ObjectWriter owriter;
+        StringUtil sut;
 
     public:
         /**
@@ -227,7 +224,7 @@ namespace FieldTransform
          */
         explicit AppendMissingElements(const T &arrayValue) { owriter.setPair(buf, FPSTR("appendMissingElements"), arrayValue.c_str()); }
         const char *c_str() const { return buf.c_str(); }
-        void clear() { buf.remove(0, buf.length()); }
+        void clear() { sut.clear(buf); }
     };
 
     /**
@@ -281,6 +278,8 @@ namespace FieldTransform
         String buf;
         JSONUtil jut;
         ObjectWriter owriter;
+        StringUtil sut;
+
         template <typename T>
         void set(const String &fieldPath, T v)
         {
@@ -316,7 +315,7 @@ namespace FieldTransform
         explicit FieldTransform(const String &fieldPath, RemoveAllFromArray<Values::ArrayValue> arrayvalue) { set(fieldPath, arrayvalue); }
         const char *c_str() const { return buf.c_str(); }
         size_t printTo(Print &p) const override { return p.print(buf.c_str()); }
-        void clear() { buf.remove(0, buf.length()); }
+        void clear() { sut.clear(buf); }
     };
 
 };
@@ -331,29 +330,16 @@ class Precondition : public BaseO4
 private:
     ObjectWriter owriter;
     JSONUtil jut;
+    StringUtil sut;
 
-    String getQuery(const String &mask)
+    const char *getQuery(const String &mask)
     {
-        buf[1].remove(0, buf[1].length());
+        sut.clear(buf[1]);
         if (buf[2].length())
-        {
-            buf[1] = FPSTR("?");
-            buf[1] += mask;
-            buf[1] += FPSTR(".exists=");
-            buf[1] += buf[2];
-        }
-
+            sut.printTo(buf[1], mask.length() + buf[2].length(), "?%s.exists=%s", mask.c_str(), buf[2].c_str());
         if (buf[3].length())
-        {
-            if (buf[1].length())
-                buf[1] += '&';
-            else
-                buf[1] = FPSTR("?");
-            buf[1] += mask;
-            buf[1] += FPSTR(".updateTime=");
-            buf[1] += jut.toString(buf[3]);
-        }
-        return buf[1];
+            sut.printTo(buf[1], mask.length() + jut.toString(buf[3]).length(), "%s%s.updateTime=%s", buf[1].length() ? "&" : "?", mask.c_str(), jut.toString(buf[3]).c_str());
+        return buf[1].c_str();
     }
 
     Precondition &setObject()
@@ -422,11 +408,12 @@ private:
     Values::MapValue mv;
     ObjectWriter owriter;
     JSONUtil jut;
+    StringUtil sut;
 
     Document &getBuf()
     {
         buf[2] = mv.c_str();
-        buf[3].remove(0, buf[3].length());
+        sut.clear(buf[3]);
         if (buf[1].length())
             jut.addObject(buf[3], FPSTR("name"), owriter.makeResourcePath(buf[1]), true, true);
         else
@@ -548,18 +535,18 @@ namespace Firestore
 
     enum firestore_database_mode
     {
-        firestore_database_mode_create,
-        firestore_database_mode_get,
-        firestore_database_mode_list,
-        firestore_database_mode_patch,
-        firestore_database_mode_delete
+        cf_mode_create,
+        cf_mode_get,
+        cf_mode_list,
+        cf_mode_patch,
+        cf_mode_delete
     };
 
-    const struct firebase::key_str_30 _ConcurrencyMode[ConcurrencyMode::OPTIMISTIC_WITH_ENTITY_GROUPS + 1] PROGMEM = {"CONCURRENCY_MODE_UNSPECIFIED", "OPTIMISTIC", "PESSIMISTIC", "OPTIMISTIC_WITH_ENTITY_GROUPS"};
-    const struct firebase::key_str_40 _AppEngineIntegrationMode[AppEngineIntegrationMode::_DISABLED + 1] PROGMEM = {"APP_ENGINE_INTEGRATION_MODE_UNSPECIFIED", "ENABLED", "DISABLED"};
-    const struct firebase::key_str_40 _DeleteProtectionState[DeleteProtectionState::DELETE_PROTECTION_ENABLED + 1] PROGMEM = {"DELETE_PROTECTION_STATE_UNSPECIFIED", "DELETE_PROTECTION_DISABLED", "DELETE_PROTECTION_ENABLED"};
-    const struct firebase::key_str_50 _PointInTimeRecoveryEnablement[PointInTimeRecoveryEnablement::POINT_IN_TIME_RECOVERY_DISABLED + 1] PROGMEM = {"POINT_IN_TIME_RECOVERY_ENABLEMENT_UNSPECIFIED", "POINT_IN_TIME_RECOVERY_ENABLED", "POINT_IN_TIME_RECOVERY_DISABLED"};
-    const struct firebase::key_str_30 _DatabaseType[DatabaseType::DATASTORE_MODE + 1] PROGMEM = {"DATABASE_TYPE_UNSPECIFIED", "FIRESTORE_NATIVE", "DATASTORE_MODE"};
+    const struct firebase_ns::key_str_30 _ConcurrencyMode[ConcurrencyMode::OPTIMISTIC_WITH_ENTITY_GROUPS + 1] PROGMEM = {"CONCURRENCY_MODE_UNSPECIFIED", "OPTIMISTIC", "PESSIMISTIC", "OPTIMISTIC_WITH_ENTITY_GROUPS"};
+    const struct firebase_ns::key_str_40 _AppEngineIntegrationMode[AppEngineIntegrationMode::_DISABLED + 1] PROGMEM = {"APP_ENGINE_INTEGRATION_MODE_UNSPECIFIED", "ENABLED", "DISABLED"};
+    const struct firebase_ns::key_str_40 _DeleteProtectionState[DeleteProtectionState::DELETE_PROTECTION_ENABLED + 1] PROGMEM = {"DELETE_PROTECTION_STATE_UNSPECIFIED", "DELETE_PROTECTION_DISABLED", "DELETE_PROTECTION_ENABLED"};
+    const struct firebase_ns::key_str_50 _PointInTimeRecoveryEnablement[PointInTimeRecoveryEnablement::POINT_IN_TIME_RECOVERY_DISABLED + 1] PROGMEM = {"POINT_IN_TIME_RECOVERY_ENABLEMENT_UNSPECIFIED", "POINT_IN_TIME_RECOVERY_ENABLED", "POINT_IN_TIME_RECOVERY_DISABLED"};
+    const struct firebase_ns::key_str_30 _DatabaseType[DatabaseType::DATASTORE_MODE + 1] PROGMEM = {"DATABASE_TYPE_UNSPECIFIED", "FIRESTORE_NATIVE", "DATASTORE_MODE"};
 
     /**
      * A Cloud Firestore Database.
@@ -861,7 +848,7 @@ public:
 };
 
 /**
- * This class used in Documents.get function represents the query parameters
+ * This class used in Documents::get function represents the query parameters
  */
 class GetDocumentOptions : public BaseO1
 {
@@ -883,7 +870,7 @@ public:
 };
 
 /**
- * This class used in Documents.batchGet function represents the JSON representation of request body
+ * This class used in Documents::batchGet function represents the JSON representation of request body
  */
 class BatchGetDocumentOptions : public BaseO4
 {
@@ -896,7 +883,7 @@ public:
     // This value represents the item to add to an array.
     // The names of the documents to retrieve.
     // The item or value will be added to the array or list.
-    BatchGetDocumentOptions &documents(const String &value) { return wr.append<BatchGetDocumentOptions &, String>(*this, owriter.makeResourcePath(value, true), buf, bufSize, 1, FPSTR(__func__)); }
+    BatchGetDocumentOptions &documents(const String &value) { return wr.append<BatchGetDocumentOptions &, String>(*this, owriter.makeResourcePath(value), buf, bufSize, 1, FPSTR(__func__)); }
 
     // The fields to return. If not set, returns all fields.
     BatchGetDocumentOptions &mask(const DocumentMask &value) { return wr.set<BatchGetDocumentOptions &, DocumentMask>(*this, value, buf, bufSize, 2, FPSTR(__func__)); }
@@ -950,7 +937,7 @@ public:
 };
 
 /**
- * This class used in Documents.runQuery function represents the JSON representation of the request body.
+ * This class used in Documents::runQuery function represents the JSON representation of the request body.
  */
 class QueryOptions : public BaseO4
 {
@@ -983,7 +970,7 @@ public:
 // Ref https://firebase.google.com/docs/firestore/reference/rest/v1/projects.databases.documents/list
 
 /**
- * This class used in Documents.list function represents the query parametes.
+ * This class used in Documents::list function represents the query parametes.
  */
 class ListDocumentsOptions : public BaseO6
 {
@@ -1079,7 +1066,7 @@ public:
 // Ref https://firebase.google.com/docs/firestore/reference/rest/v1/projects.databases.documents/listCollectionIds
 
 /**
- * This class used in Documents.listCollectionIds function represents the JSON representation of the request body.
+ * This class used in Documents::listCollectionIds function represents the JSON representation of the request body.
  */
 class ListCollectionIdsOptions : public BaseO4
 {
@@ -1126,7 +1113,7 @@ namespace DatabaseIndex
             ARRAY_CONTAINS // The field's array values are indexed so as to support membership using ARRAY_CONTAINS queries.
         };
 
-        const struct firebase::key_str_30 _Mode[ARRAY_CONTAINS + 1] PROGMEM = {"MODE_UNSPECIFIED", "ASCENDING", "DESCENDING", "ARRAY_CONTAINS"};
+        const struct firebase_ns::key_str_30 _Mode[ARRAY_CONTAINS + 1] PROGMEM = {"MODE_UNSPECIFIED", "ASCENDING", "DESCENDING", "ARRAY_CONTAINS"};
     }
 
     /**
@@ -1202,10 +1189,10 @@ namespace CollectionGroupsIndex
         CONTAINS                  // The index supports array containment queries.
     };
 
-    const struct firebase::key_str_30 _QueryScope[QueryScope::COLLECTION_RECURSIVE + 1] PROGMEM = {"QUERY_SCOPE_UNSPECIFIED", "COLLECTION", "COLLECTION_GROUP", "COLLECTION_RECURSIVE"};
-    const struct firebase::key_str_20 _ApiScope[ApiScope::DATASTORE_MODE_API + 1] PROGMEM = {"ANY_API", "DATASTORE_MODE_API"};
-    const struct firebase::key_str_30 _Order[Order::DESCENDING + 1] PROGMEM = {"ORDER_UNSPECIFIED", "ASCENDING", "DESCENDING"};
-    const struct firebase::key_str_30 _ArrayConfig[ArrayConfig::CONTAINS + 1] PROGMEM = {"ARRAY_CONFIG_UNSPECIFIED", "CONTAINS"};
+    const struct firebase_ns::key_str_30 _QueryScope[QueryScope::COLLECTION_RECURSIVE + 1] PROGMEM = {"QUERY_SCOPE_UNSPECIFIED", "COLLECTION", "COLLECTION_GROUP", "COLLECTION_RECURSIVE"};
+    const struct firebase_ns::key_str_20 _ApiScope[ApiScope::DATASTORE_MODE_API + 1] PROGMEM = {"ANY_API", "DATASTORE_MODE_API"};
+    const struct firebase_ns::key_str_30 _Order[Order::DESCENDING + 1] PROGMEM = {"ORDER_UNSPECIFIED", "ASCENDING", "DESCENDING"};
+    const struct firebase_ns::key_str_30 _ArrayConfig[ArrayConfig::CONTAINS + 1] PROGMEM = {"ARRAY_CONFIG_UNSPECIFIED", "CONTAINS"};
 
     // Ref https://firebase.google.com/docs/firestore/reference/rest/Shared.Types/FieldOperationMetadata#VectorConfig
 
@@ -1311,8 +1298,8 @@ namespace Firestore
             }
         }
         void setDocPath(const String &docPath) { documentPath = docPath; }
-        String getDatabaseId() const { return databaseId.c_str(); }
-        String getProjectId() const { return projectId.c_str(); }
+        const char *getDatabaseId() const { return databaseId.c_str(); }
+        const char *getProjectId() const { return projectId.c_str(); }
         void setDatabaseIdParam(bool value) { databaseIdParam = value; }
         bool isDatabaseIdParam() { return databaseIdParam; }
     };
@@ -1327,7 +1314,7 @@ namespace Firestore
         String documentId;
         String extras;
         String payload;
-        firebase_firestore_request_type requestType = firebase_firestore_request_type_undefined;
+        firebase_firestore_request_type requestType = cf_undefined;
         unsigned long requestTime = 0;
 
         void copy(const DataOptions &rhs)
@@ -1343,7 +1330,5 @@ namespace Firestore
     };
 
 }
-
 #endif
-
 #endif

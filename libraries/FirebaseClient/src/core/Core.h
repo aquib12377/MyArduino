@@ -1,5 +1,5 @@
-#ifndef CORE_CORE_H_
-#define CORE_CORE_H_
+#ifndef CORE_CORE_H
+#define CORE_CORE_H
 
 #include <Arduino.h>
 
@@ -7,7 +7,7 @@
 #undef FIREBASE_CLIENT_VERSION
 #endif
 
-#define FIREBASE_CLIENT_VERSION "1.4.9"
+#define FIREBASE_CLIENT_VERSION "2.0.0"
 
 static void sys_idle()
 {

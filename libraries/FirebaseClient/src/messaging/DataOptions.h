@@ -1,8 +1,8 @@
 /**
- * Created June 12, 2024
+ * 2025-02-08
  *
  * The MIT License (MIT)
- * Copyright (c) 2024 K. Suwatchai (Mobizt)
+ * Copyright (c) 2025 K. Suwatchai (Mobizt)
  *
  *
  * Permission is hereby granted, free of charge, to any person returning a copy of
@@ -26,20 +26,18 @@
 #define MESSAGING_DATA_OPTIONS_H
 
 #include <Arduino.h>
-#include "./Config.h"
-#include "./core/JSON.h"
-#include "./core/ObjectWriter.h"
+#include "./FirebaseConfig.h"
+#include "./core/Utils/JSON.h"
+#include "./core/Utils/ObjectWriter.h"
 
 // https://firebase.google.com/docs/reference/fcm/rest/v1/projects.messages
-
 #if defined(ENABLE_MESSAGING)
-
 namespace Messages
 {
     enum firebase_cloud_messaging_request_type
     {
-        firebase_cloud_messaging_request_type_undefined,
-        firebase_cloud_messaging_request_type_send
+        fcm_undefined,
+        fcm_send
     };
 
     // Priority of a message to send to Android devices. Note this priority is an FCM concept that controls when the message is delivered. See FCM guides. Additionally, you can determine notification display priority on targeted Android devices using AndroidNotification.NotificationPriority.
@@ -69,9 +67,9 @@ namespace Messages
         SECRET                  //	Do not reveal any part of this notification on a secure lockscreen.
     };
 
-    const struct firebase::key_str_30 _NotificationPriority[NotificationPriority::PRIORITY_MAX + 1] PROGMEM = {"PRIORITY_UNSPECIFIED", "PRIORITY_MIN", "PRIORITY_LOW", "PRIORITY_DEFAULT", "PRIORITY_HIGH", "PRIORITY_MAX"};
-    const struct firebase::key_str_30 _Visibility[Visibility::SECRET + 1] PROGMEM = {"VISIBILITY_UNSPECIFIED", "PRIVATE", "PUBLIC", "SECRET"};
-    const struct firebase::key_str_30 _AndroidMessagePriority[AndroidMessagePriority::_HIGH + 1] PROGMEM = {"NORMAL", "HIGH"};
+    const struct firebase_ns::key_str_30 _NotificationPriority[NotificationPriority::PRIORITY_MAX + 1] PROGMEM = {"PRIORITY_UNSPECIFIED", "PRIORITY_MIN", "PRIORITY_LOW", "PRIORITY_DEFAULT", "PRIORITY_HIGH", "PRIORITY_MAX"};
+    const struct firebase_ns::key_str_30 _Visibility[Visibility::SECRET + 1] PROGMEM = {"VISIBILITY_UNSPECIFIED", "PRIVATE", "PUBLIC", "SECRET"};
+    const struct firebase_ns::key_str_30 _AndroidMessagePriority[AndroidMessagePriority::_HIGH + 1] PROGMEM = {"NORMAL", "HIGH"};
 
     // Basic notification template to use across all platforms.
     struct Notification : public BaseO4
@@ -108,7 +106,7 @@ namespace Messages
         // This means that a value of 1.0 corresponds to a solid color, whereas a value of 0.0 corresponds to a completely transparent color.
         Color &alpha(float value) { return wr.set<Color &, float>(*this, UnityRange().val(value), buf, bufSize, 4, FPSTR(__func__)); }
     };
-    
+
     /**
      * Settings to control notification LED.
      */
@@ -132,7 +130,6 @@ namespace Messages
      */
     struct AndroidNotification : public BaseO26
     {
-
     public:
         // The notification's title. If present, it will override google.firebase.fcm.v1.Notification.title.
         AndroidNotification &title(const String &value) { return wr.set<AndroidNotification &, String>(*this, value, buf, bufSize, 1, FPSTR(__func__)); }
@@ -236,7 +233,6 @@ namespace Messages
      */
     struct WebpushFcmOptions : public BaseO4
     {
-
     public:
         // The link to open when the user clicks on the notification. For all URL values, HTTPS is required.
         WebpushFcmOptions &link(const String &value) { return wr.set<WebpushFcmOptions &, String>(*this, value, buf, bufSize, 1, FPSTR(__func__)); }
@@ -250,7 +246,6 @@ namespace Messages
      */
     struct FcmOptions : public BaseO1
     {
-
     public:
         // Label associated with the message's analytics data.
         FcmOptions &analytics_label(const String &value) { return wr.add<FcmOptions &, String>(*this, value, buf, FPSTR(__func__)); }
@@ -282,7 +277,6 @@ namespace Messages
      */
     struct ApnsFcmOptions : public BaseO4
     {
-
     public:
         // Label associated with the message's analytics data.
         ApnsFcmOptions &analytics_label(const object_t &value) { return wr.set<ApnsFcmOptions &, object_t>(*this, value, buf, bufSize, 1, FPSTR(__func__)); }
@@ -296,7 +290,6 @@ namespace Messages
      */
     struct ApnsConfig : public BaseO4
     {
-
     public:
         // HTTP request headers defined in Apple Push Notification Service. Refer to APNs request headers for supported headers such as apns-expiration and apns-priority.
         // The backend sets a default value for apns-expiration of 30 days and a default value for apns-priority of 10 if not explicitly set.
@@ -315,7 +308,6 @@ namespace Messages
      */
     struct AndroidConfig : public BaseO10
     {
-
     public:
         // An identifier of a group of messages that can be collapsed, so that only the last message gets sent when delivery can be resumed. A maximum of 4 different collapse keys is allowed at any given time.
         AndroidConfig &collapse_key(const String &value) { return wr.set<AndroidConfig &, String>(*this, value, buf, bufSize, 1, FPSTR(__func__)); }
@@ -349,7 +341,6 @@ namespace Messages
      */
     struct Message : public BaseO8
     {
-
     public:
         // Input only. Arbitrary key/value payload, which must be UTF-8 encoded. The key should not be a reserved word ("from", "message_type", or any word starting with "google" or "gcm"). When sending payloads containing only data fields to iOS devices, only normal priority ("apns-priority": "5") is allowed in ApnsConfig.
         // An object containing a list of "key": value pairs. Example: { "name": "wrench", "mass": "1.3kg", "count": "3" }.
@@ -392,10 +383,7 @@ namespace Messages
 
     public:
         Parent() {}
-        explicit Parent(const String &projectId)
-        {
-            this->projectId = projectId;
-        }
+        explicit Parent(const String &projectId) { this->projectId = projectId; }
         String getProjectId() const { return projectId; }
     };
 
@@ -406,7 +394,7 @@ namespace Messages
     public:
         String payload, extras;
         Messages::Parent parent;
-        firebase_cloud_messaging_request_type requestType = firebase_cloud_messaging_request_type_undefined;
+        firebase_cloud_messaging_request_type requestType = fcm_undefined;
         unsigned long requestTime = 0;
 
         void copy(const DataOptions &rhs)
@@ -418,19 +406,18 @@ namespace Messages
     private:
     };
 
-    struct async_request_data_t
+    struct req_data
     {
     public:
         AsyncClientClass *aClient = nullptr;
-        String path;
-        String uid;
-        async_request_handler_t::http_request_method method = async_request_handler_t::http_undefined;
+        String path, uid;
+        reqns::http_request_method method = reqns::http_undefined;
         slot_options_t opt;
         DataOptions *options = nullptr;
         AsyncResult *aResult = nullptr;
         AsyncResultCallback cb = NULL;
-        async_request_data_t() {}
-        explicit async_request_data_t(AsyncClientClass *aClient, const String &path, async_request_handler_t::http_request_method method, slot_options_t opt, DataOptions *options, AsyncResult *aResult, AsyncResultCallback cb, const String &uid = "")
+        req_data() {}
+        explicit req_data(AsyncClientClass *aClient, const String &path, reqns::http_request_method method, slot_options_t opt, DataOptions *options, AsyncResult *aResult, AsyncResultCallback cb, const String &uid = "")
         {
             this->aClient = aClient;
             this->path = path;
@@ -444,7 +431,5 @@ namespace Messages
     };
 
 }
-
 #endif
-
 #endif

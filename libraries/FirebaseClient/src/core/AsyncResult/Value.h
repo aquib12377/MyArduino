@@ -1,31 +1,9 @@
-/**
- * Created November 7, 2024
- *
- * The MIT License (MIT)
- * Copyright (c) 2024 K. Suwatchai (Mobizt)
- *
- *
- * Permission is hereby granted, free of charge, to any person returning a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- * the Software, and to permit persons to whom the Software is furnished to do so,
- * subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
-#ifndef VALUE_CONVERTER_H
-#define VALUE_CONVERTER_H
+#ifndef CORE_VALUE_H
+#define CORE_VALUE_H
+
 #include <Arduino.h>
 #include <string>
+#include "./core/Utils/StringUtil.h"
 
 enum realtime_database_data_type
 {
@@ -65,17 +43,16 @@ private:
 
 public:
     number_t() {}
-    template <typename T1 = int, typename T = int>
-    explicit number_t(T1 v, T d) : buf(String(v, d)) {}
+    template <typename T1 = int>
+    explicit number_t(T1 v, int d) : buf(String(v, d)) {}
     template <typename T = int>
-    explicit number_t(T o) : buf(sut.num2Str(o)) {}
+    explicit number_t(T o) : buf(sut.numString(o)) {}
     const char *c_str() const { return buf.c_str(); }
     size_t printTo(Print &p) const override { return p.print(buf.c_str()); }
 };
 
 struct string_t : public Printable
 {
-
 public:
     string_t() {}
     template <typename T = const char *>
@@ -85,7 +62,7 @@ public:
         if (std::is_same<T, bool>::value)
             buf += v ? FPSTR("true") : FPSTR("false");
         else if (v_number<T>::value)
-            buf += sut.num2Str(v);
+            buf += sut.numString(v);
         else
             buf += v;
         aq();
@@ -122,7 +99,7 @@ public:
 
     const char *c_str() const { return buf.c_str(); }
     size_t printTo(Print &p) const override { return p.print(buf.c_str()); }
-    void clear() { buf.remove(0, buf.length()); }
+    void clear() { sut.clear(buf); }
 
 private:
     String buf;
@@ -152,7 +129,7 @@ private:
     void aq(bool clear = false)
     {
         if (clear)
-            buf.remove(0, buf.length());
+            sut.clear(buf);
         buf += '"';
     }
 };
@@ -171,7 +148,7 @@ public:
         if (std::is_same<T, bool>::value)
             buf += o ? FPSTR("true") : FPSTR("false");
         else if (v_number<T>::value)
-            buf += sut.num2Str(o);
+            buf += sut.numString(o);
         else
             buf += o;
     }
@@ -179,7 +156,7 @@ public:
     explicit object_t(number_t o) : buf(o.c_str()) {}
     explicit object_t(string_t o) : buf(o.c_str()) {}
     size_t printTo(Print &p) const override { return p.print(buf.c_str()); }
-    void clear() { buf.remove(0, buf.length()); }
+    void clear() { sut.clear(buf); }
     void initObject() { buf = FPSTR("{}"); };
     void initArray() { buf = FPSTR("[]"); };
 
@@ -256,17 +233,15 @@ public:
     template <typename T = const char *>
     auto getVal(String &buf, T value) -> typename std::enable_if<(v_number<T>::value || v_string<T>::value || std::is_same<T, bool>::value) && !std::is_same<T, object_t>::value && !std::is_same<T, string_t>::value && !std::is_same<T, boolean_t>::value && !std::is_same<T, number_t>::value, void>::type
     {
-        buf.remove(0, buf.length());
+        sut.clear(buf);
         if (std::is_same<T, bool>::value)
-        {
             buf = value ? "true" : "false";
-        }
         else
         {
             if (v_string<T>::value)
                 buf += '\"';
 
-            buf += sut.num2Str(value);
+            buf += sut.numString(value);
 
             if (v_string<T>::value)
                 buf += '\"';
@@ -396,7 +371,6 @@ private:
     String buf;
     StringUtil sut;
     bool trim = false;
-
     IVal iVal = {0};
     FVal fVal;
 
@@ -436,5 +410,4 @@ private:
             fVal.setd(0);
     }
 };
-
 #endif

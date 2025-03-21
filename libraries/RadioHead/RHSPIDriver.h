@@ -41,6 +41,7 @@ public:
     /// Constructor
     /// \param[in] slaveSelectPin The controler pin to use to select the desired SPI device. This pin will be driven LOW
     /// during SPI communications with the SPI device that uis iused by this Driver.
+    /// If slaveSelectPin is 0xff, then the pin will not be initialised or activated by this class.
     /// \param[in] spi Reference to the SPI interface to use. The default is to use a default built-in Hardware interface.
     RHSPIDriver(uint8_t slaveSelectPin = SS, RHGenericSPI& spi = hardware_spi);
     
@@ -90,6 +91,16 @@ public:
     void spiUsingInterrupt(uint8_t interruptNumber);
 
     protected:
+
+    /// Signal the start of an SPI transaction that must not be interrupted by other SPI actions
+    /// In subclasses that support transactions this will ensure that other SPI transactions
+    /// are blocked until this one is completed by endTransaction().
+    /// Selects the slave with selectSlave()
+    virtual void beginTransaction();
+
+    /// Signal the end of an SPI transaction
+    /// Deelects the slave with deselectSlave()
+    virtual void endTransaction();
 
     // Override this if you need an unusual way of selecting the slave before SPI transactions
     // The default uses digitalWrite(_slaveSelectPin, LOW)

@@ -1,8 +1,8 @@
 /**
- * Created October 29, 2024
+ * 2025-02-08
  *
  * The MIT License (MIT)
- * Copyright (c) 2024 K. Suwatchai (Mobizt)
+ * Copyright (c) 2025 K. Suwatchai (Mobizt)
  *
  *
  * Permission is hereby granted, free of charge, to any person returning a copy of
@@ -22,15 +22,15 @@
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef GOOGLE_CLOUD_STORAGE_DATA_OPTIONS_H
-#define GOOGLE_CLOUD_STORAGE_DATA_OPTIONS_H
+#ifndef CLOUD_STORAGE_DATA_OPTIONS_H
+#define CLOUD_STORAGE_DATA_OPTIONS_H
 
 #include <Arduino.h>
-#include "./Config.h"
-#include "./core/JSON.h"
-#include "./core/ObjectWriter.h"
+#include "./FirebaseConfig.h"
+#include "./core/Utils/JSON.h"
+#include "./core/Utils/ObjectWriter.h"
 #include "./core/AsyncClient/AsyncClient.h"
-#include "./core/URL.h"
+#include "./core/Utils/URL.h"
 
 #if defined(ENABLE_CLOUD_STORAGE)
 
@@ -38,20 +38,20 @@ namespace GoogleCloudStorage
 {
     enum google_cloud_storage_request_type
     {
-        google_cloud_storage_request_type_undefined,
-        google_cloud_storage_request_type_uploads,
-        google_cloud_storage_request_type_upload_simple,
-        google_cloud_storage_request_type_upload_multipart,
-        google_cloud_storage_request_type_upload_resumable_init,
-        google_cloud_storage_request_type_upload_resumable_run,
-        google_cloud_storage_request_type_download,
-        google_cloud_storage_request_type_patch,
-        google_cloud_storage_request_type_get_meta,
-        google_cloud_storage_request_type_set_meta,
-        google_cloud_storage_request_type_update_meta,
-        google_cloud_storage_request_type_delete,
-        google_cloud_storage_request_type_list,
-        google_cloud_storage_request_type_download_ota
+        cs_undefined,
+        cs_uploads,
+        cs_upload_simple,
+        cs_upload_multipart,
+        cs_upload_resumable_init,
+        cs_upload_resumable_run,
+        cs_download,
+        cs_patch,
+        cs_get_meta,
+        cs_set_meta,
+        cs_update_meta,
+        cs_delete,
+        cs_list,
+        cs_download_ota
     };
 
     enum upload_type
@@ -79,7 +79,6 @@ namespace GoogleCloudStorage
 
     struct BaseOptions : public BaseO8
     {
-
     protected:
         ObjectWriter owriter;
         URLUtil uut;
@@ -103,38 +102,37 @@ namespace GoogleCloudStorage
     public:
         BaseOptions &generation(uint64_t value)
         {
-            buf[1] = "generation=" + sut.num2Str(value);
+            buf[1] = "generation=" + sut.numString(value);
             return setBuf();
         }
 
         BaseOptions &ifGenerationMatch(uint64_t value)
         {
-            buf[2] = "ifGenerationMatch=" + sut.num2Str(value);
+            buf[2] = "ifGenerationMatch=" + sut.numString(value);
             return setBuf();
         }
 
         BaseOptions &ifGenerationNotMatch(uint64_t value)
         {
-            buf[3] = "ifGenerationNotMatch=" + sut.num2Str(value);
+            buf[3] = "ifGenerationNotMatch=" + sut.numString(value);
             return setBuf();
         }
 
         BaseOptions &ifMetagenerationMatch(uint64_t value)
         {
-            buf[4] = "ifMetagenerationMatch=" + sut.num2Str(value);
+            buf[4] = "ifMetagenerationMatch=" + sut.numString(value);
             return setBuf();
         }
 
         BaseOptions &ifMetagenerationNotMatch(uint64_t value)
         {
-            buf[5] = "ifMetagenerationNotMatch=" + sut.num2Str(value);
+            buf[5] = "ifMetagenerationNotMatch=" + sut.numString(value);
             return setBuf();
         }
     };
 
     struct GetOptions : public BaseOptions
     {
-
     public:
         BaseOptions &projection(PROJECTION_OPTIONS value)
         {
@@ -156,7 +154,6 @@ namespace GoogleCloudStorage
 
     struct InsertOptions : public BaseO10
     {
-
     private:
         ObjectWriter owriter;
         StringUtil sut;
@@ -185,25 +182,25 @@ namespace GoogleCloudStorage
 
         InsertOptions &ifGenerationMatch(uint64_t value)
         {
-            buf[2] = "ifGenerationMatch=" + sut.num2Str(value);
+            buf[2] = "ifGenerationMatch=" + sut.numString(value);
             return setBuf();
         }
 
         InsertOptions &ifGenerationNotMatch(uint64_t value)
         {
-            buf[3] = "ifGenerationNotMatch=" + sut.num2Str(value);
+            buf[3] = "ifGenerationNotMatch=" + sut.numString(value);
             return setBuf();
         }
 
         InsertOptions &ifMetagenerationMatch(uint64_t value)
         {
-            buf[4] = "ifMetagenerationMatch=" + sut.num2Str(value);
+            buf[4] = "ifMetagenerationMatch=" + sut.numString(value);
             return setBuf();
         }
 
         InsertOptions &ifMetagenerationNotMatch(uint64_t value)
         {
-            buf[5] = "ifMetagenerationNotMatch=" + sut.num2Str(value);
+            buf[5] = "ifMetagenerationNotMatch=" + sut.numString(value);
             return setBuf();
         }
 
@@ -244,7 +241,6 @@ namespace GoogleCloudStorage
 
     struct ListOptions : public BaseO10
     {
-
     private:
         ObjectWriter owriter;
         URLUtil uut;
@@ -388,11 +384,10 @@ namespace GoogleCloudStorage
 
     class DataOptions
     {
-
     public:
         String payload, extras;
-        GoogleCloudStorage::Parent parent;
-        google_cloud_storage_request_type requestType = google_cloud_storage_request_type_undefined;
+        Parent parent;
+        google_cloud_storage_request_type requestType = cs_undefined;
         unsigned long requestTime = 0;
         void copy(const DataOptions &rhs)
         {
@@ -403,29 +398,27 @@ namespace GoogleCloudStorage
     private:
     };
 
-    struct uploadOptions
+    struct UploadOptions
     {
         String mime;
-        GoogleCloudStorage::upload_type uploadType;
-        GoogleCloudStorage::InsertOptions insertOptions;
-        GoogleCloudStorage::InsertProperties insertProps;
+        upload_type uploadType;
+        InsertOptions insertOptions;
+        InsertProperties insertProps;
     };
 
-    struct async_request_data_t
+    struct req_data
     {
     public:
         AsyncClientClass *aClient = nullptr;
-        String path;
-        String uid;
-        String mime;
-        async_request_handler_t::http_request_method method = async_request_handler_t::http_undefined;
+        String path, uid, mime;
+        reqns::http_request_method method = reqns::http_undefined;
         slot_options_t opt;
         DataOptions *options = nullptr;
         file_config_data *file = nullptr;
         AsyncResult *aResult = nullptr;
         AsyncResultCallback cb = NULL;
-        async_request_data_t() {}
-        async_request_data_t(AsyncClientClass *aClient, const String &path, async_request_handler_t::http_request_method method, slot_options_t opt, DataOptions *options, file_config_data *file, AsyncResult *aResult, AsyncResultCallback cb, const String &uid = "")
+        req_data() {}
+        req_data(AsyncClientClass *aClient, const String &path, reqns::http_request_method method, slot_options_t opt, DataOptions *options, file_config_data *file, AsyncResult *aResult, AsyncResultCallback cb, const String &uid = "")
         {
             this->aClient = aClient;
             this->path = path;
@@ -439,7 +432,5 @@ namespace GoogleCloudStorage
         }
     };
 }
-
 #endif
-
 #endif

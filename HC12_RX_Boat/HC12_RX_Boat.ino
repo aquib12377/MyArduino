@@ -20,6 +20,7 @@ Servo myServo;
 // Relay control pins (for DP commands)
 const int relayPin1 = 11;
 const int relayPin2 = 12;
+const int relayPin3 = A0;
 
 void setup() {
   Serial.begin(9600);  // For debugging via Serial Monitor
@@ -39,7 +40,10 @@ void setup() {
   // Set relay pins as outputs and initialize them to LOW
   pinMode(relayPin1, OUTPUT);
   pinMode(relayPin2, OUTPUT);
+  pinMode(relayPin3, OUTPUT);
   digitalWrite(relayPin1, HIGH);
+  digitalWrite(relayPin2, HIGH);
+  digitalWrite(relayPin3, HIGH);
 }
 
 // --- Motor control helper functions ---
@@ -112,10 +116,29 @@ void loop() {
           case 'D':
             Serial.println("Activating DP: Relay1 HIGH, Relay2 LOW");
             digitalWrite(relayPin1, HIGH);
+            digitalWrite(relayPin2, LOW);
+            delay(2000);
+            digitalWrite(relayPin1, HIGH);
+            digitalWrite(relayPin2, HIGH);
             break;
           case 'P':
             Serial.println("Activating DP: Relay1 LOW, Relay2 HIGH");
             digitalWrite(relayPin1, LOW);
+            digitalWrite(relayPin2, HIGH);
+            delay(2000);
+            digitalWrite(relayPin1, HIGH);
+            digitalWrite(relayPin2, HIGH);
+            break;
+
+          case 'O':
+            Serial.println("Activating DP: Relay1 HIGH, Relay2 LOW");
+            digitalWrite(relayPin3, HIGH);
+            delay(500);
+            break;
+          case 'C':
+            Serial.println("Activating DP: Relay1 LOW, Relay2 HIGH");
+            digitalWrite(relayPin3, LOW);
+            delay(500);
             break;
           default:
             Serial.println("Unknown command");

@@ -1,8 +1,8 @@
 /**
- * Created April 3, 2024
+ * 2025-02-08
  *
  * The MIT License (MIT)
- * Copyright (c) 2024 K. Suwatchai (Mobizt)
+ * Copyright (c) 2025 K. Suwatchai (Mobizt)
  *
  *
  * Permission is hereby granted, free of charge, to any person returning a copy of
@@ -22,15 +22,15 @@
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef IAM_POLICY_H
-#define IAM_POLICY_H
+#ifndef FUNCTIONS_POLICY_H
+#define FUNCTIONS_POLICY_H
 
 #include <Arduino.h>
-#include "./Config.h"
-#include "./core/JSON.h"
-#include "./core/ObjectWriter.h"
+#include "./FirebaseConfig.h"
+#include "./core/Utils/JSON.h"
+#include "./core/Utils/ObjectWriter.h"
 #include "./core/AsyncClient/AsyncClient.h"
-#include "./core/URL.h"
+#include "./core/Utils/URL.h"
 
 // https://cloud.google.com/functions/docs/reference/rest/Shared.Types/Policy
 
@@ -47,7 +47,7 @@ namespace IAMPolicy
         DATA_READ             //	Data reads. Example: CloudSQL Users list
     };
 
-    const struct firebase::key_str_30 _LogType[LogType::DATA_READ + 1] PROGMEM = {"LOG_TYPE_UNSPECIFIED", "ADMIN_READ", "DATA_WRITE", "DATA_READ"};
+    const struct firebase_ns::key_str_30 _LogType[LogType::DATA_READ + 1] PROGMEM = {"LOG_TYPE_UNSPECIFIED", "ADMIN_READ", "DATA_WRITE", "DATA_READ"};
     
     /**
      * Represents a textual expression in the Common Expression Language (CEL) syntax. CEL is a C-like expression language. The syntax and semantics of CEL are documented at https://github.com/google/cel-spec.
@@ -163,7 +163,5 @@ namespace IAMPolicy
         Policy &etag(const String &value) { return wr.set<Policy &, String>(*this, value, buf, bufSize, 4, FPSTR(__func__)); }
     };
 }
-
 #endif
-
 #endif

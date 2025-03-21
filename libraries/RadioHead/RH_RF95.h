@@ -310,7 +310,7 @@
 ///
 /// \par Packet Format
 ///
-/// All messages sent and received by this RH_RF95 Driver conform to this packet format:
+/// All messages sent and received by this RH_RF95 Driver conform to this packet format, which is compatible with RH_SX126x:
 ///
 /// - LoRa mode:
 /// - 8 symbol PREAMBLE
@@ -850,6 +850,10 @@ public:
     uint8_t getDeviceVersion();
     
 protected:
+
+    /// Do whatever is necesary to establish the interrupt handler. Subclasses may have different needs 
+    bool setupInterruptHandler();
+    
     /// This is a low level function to handle the interrupts for one instance of RH_RF95.
     /// Called automatically by isr*()
     /// Should not need to be called by user code.
@@ -917,13 +921,13 @@ private:
     
 };
 
-/// @example rf95_client.pde
-/// @example rf95_client.pde
-/// @example rf95_server.pde
-/// @example rf95_encrypted_client.pde
-/// @example rf95_encrypted_server.pde
-/// @example rf95_reliable_datagram_client.pde
-/// @example rf95_reliable_datagram_server.pde
+/// @example rf95_client.ino
+/// @example rf95_client.ino
+/// @example rf95_server.ino
+/// @example rf95_encrypted_client.ino
+/// @example rf95_encrypted_server.ino
+/// @example rf95_reliable_datagram_client.ino
+/// @example rf95_reliable_datagram_server.ino
 
 #endif
 

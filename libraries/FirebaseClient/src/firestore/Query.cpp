@@ -1,9 +1,9 @@
 
 /**
- * Created April 3, 2024
+ * 2025-02-08
  *
  * The MIT License (MIT)
- * Copyright (c) 2024 K. Suwatchai (Mobizt)
+ * Copyright (c) 2025 K. Suwatchai (Mobizt)
  *
  *
  * Permission is hereby granted, free of charge, to any person returning a copy of
@@ -23,19 +23,17 @@
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef FIRESTORE_FILTER_CPP
-#define FIRESTORE_FILTER_CPP
+#ifndef FIRESTORE_QUERY_CPP
+#define FIRESTORE_QUERY_CPP
 
 #include <Arduino.h>
-#include "./Config.h"
+#include "./FirebaseConfig.h"
 
 #if defined(ENABLE_FIRESTORE) && defined(ENABLE_FIRESTORE_QUERY)
 
 #include "./firestore/Query.h"
-
 namespace FirestoreQuery
 {
-
     StructuredQuery::StructuredQuery() {}
     StructuredQuery &StructuredQuery::select(const Projection &value) { return wr.set<StructuredQuery &, Projection>(*this, value, buf, bufSize, 1, FPSTR(__func__)); }
     StructuredQuery &StructuredQuery::from(const CollectionSelector &value) { return wr.append<StructuredQuery &, CollectionSelector>(*this, value, buf, bufSize, 2, FPSTR(__func__)); }
@@ -74,9 +72,6 @@ namespace FirestoreQuery
     Filter::Filter(const CompositeFilter &value) { wr.add<Filter &, CompositeFilter>(*this, value, buf, "compositeFilter"); }
     Filter::Filter(const FieldFilter &value) { wr.add<Filter &, FieldFilter>(*this, value, buf, "fieldFilter"); }
     Filter::Filter(const UnaryFilter &value) { wr.add<Filter &, UnaryFilter>(*this, value, buf, "unaryFilter"); }
-
 }
-
 #endif
-
 #endif

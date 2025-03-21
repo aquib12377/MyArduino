@@ -1,8 +1,8 @@
 /**
- * Created October 29, 2024
+ * 2025-02-08
  *
  * The MIT License (MIT)
- * Copyright (c) 2024 K. Suwatchai (Mobizt)
+ * Copyright (c) 2025 K. Suwatchai (Mobizt)
  *
  *
  * Permission is hereby granted, free of charge, to any person returning a copy of
@@ -22,39 +22,37 @@
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef CLOUD_FUNCTIONS_DATA_OPTIONS_H
-#define CLOUD_FUNCTIONS_DATA_OPTIONS_H
+#ifndef FUNCTIONS_DATA_OPTIONS_H
+#define FUNCTIONS_DATA_OPTIONS_H
 
 #include <Arduino.h>
-#include "./Config.h"
-#include "./core/JSON.h"
-#include "./core/ObjectWriter.h"
+#include "./FirebaseConfig.h"
+#include "./core/Utils/JSON.h"
+#include "./core/Utils/ObjectWriter.h"
 #include "./core/AsyncClient/AsyncClient.h"
-#include "./core/URL.h"
+#include "./core/Utils/URL.h"
 #include "./functions/Policy.h"
 
 // https://cloud.google.com/functions/docs/reference/rest/v2/projects.locations.functions
-
 #if defined(ENABLE_FUNCTIONS)
-
 namespace GoogleCloudFunctions
 {
     enum google_cloud_functions_request_type
     {
-        google_cloud_functions_request_type_undefined,
-        google_cloud_functions_request_type_create,
-        google_cloud_functions_request_type_delete,
-        google_cloud_functions_request_type_call,
-        google_cloud_functions_request_type_deploy,
-        google_cloud_functions_request_type_download,
-        google_cloud_functions_request_type_list,
-        google_cloud_functions_request_type_get,
-        google_cloud_functions_request_type_patch,
-        google_cloud_functions_request_type_gen_downloadUrl,
-        google_cloud_functions_request_type_gen_uploadUrl,
-        google_cloud_functions_request_type_get_iam_policy,
-        google_cloud_functions_request_type_set_iam_policy,
-        google_cloud_functions_request_type_test_iam_permission
+        fn_undefined,
+        fn_create,
+        fn_delete,
+        fn_call,
+        fn_deploy,
+        fn_download,
+        fn_list,
+        fn_get,
+        fn_patch,
+        fn_gen_downloadUrl,
+        fn_gen_uploadUrl,
+        fn_get_iam_policy,
+        fn_set_iam_policy,
+        fn_test_iam_permission
     };
 
     // Severity of the state message.
@@ -119,12 +117,12 @@ namespace GoogleCloudFunctions
         SECURE_OPTIONAL             //	Both HTTP and HTTPS requests with URLs that match the handler succeed without redirects. The application can examine the request to determine which protocol was used and respond accordingly.
     };
 
-    const struct firebase::key_str_30 _DockerRegistry[DockerRegistry::ARTIFACT_REGISTRY + 1] PROGMEM = {"DOCKER_REGISTRY_UNSPECIFIED", "CONTAINER_REGISTRY", "RETRY_POLICY_RETRY"};
-    const struct firebase::key_str_50 _VpcConnectorEgressSettings[VpcConnectorEgressSettings::ALL_TRAFFIC + 1] PROGMEM = {"VPC_CONNECTOR_EGRESS_SETTINGS_UNSPECIFIED", "PRIVATE_RANGES_ONLY", "ALL_TRAFFIC"};
-    const struct firebase::key_str_30 _IngressSettings[IngressSettings::ALLOW_INTERNAL_AND_GCLB + 1] PROGMEM = {"INGRESS_SETTINGS_UNSPECIFIED", "ALLOW_ALL", "ALLOW_INTERNAL_ONLY", "ALLOW_INTERNAL_AND_GCLB"};
-    const struct firebase::key_str_30 _SecurityLevel[SecurityLevel::SECURE_OPTIONAL + 1] PROGMEM = {"SECURITY_LEVEL_UNSPECIFIED", "SECURE_ALWAYS", "SECURE_OPTIONAL"};
-    const struct firebase::key_str_30 _RetryPolicy[RetryPolicy::RETRY_POLICY_RETRY + 1] PROGMEM = {"RETRY_POLICY_UNSPECIFIED", "RETRY_POLICY_DO_NOT_RETRY", "RETRY_POLICY_RETRY"};
-    const struct firebase::key_str_30 _Environment[Environment::GEN_2 + 1] PROGMEM = {"ENVIRONMENT_UNSPECIFIED", "GEN_1", "GEN_2"};
+    const struct firebase_ns::key_str_30 _DockerRegistry[DockerRegistry::ARTIFACT_REGISTRY + 1] PROGMEM = {"DOCKER_REGISTRY_UNSPECIFIED", "CONTAINER_REGISTRY", "RETRY_POLICY_RETRY"};
+    const struct firebase_ns::key_str_50 _VpcConnectorEgressSettings[VpcConnectorEgressSettings::ALL_TRAFFIC + 1] PROGMEM = {"VPC_CONNECTOR_EGRESS_SETTINGS_UNSPECIFIED", "PRIVATE_RANGES_ONLY", "ALL_TRAFFIC"};
+    const struct firebase_ns::key_str_30 _IngressSettings[IngressSettings::ALLOW_INTERNAL_AND_GCLB + 1] PROGMEM = {"INGRESS_SETTINGS_UNSPECIFIED", "ALLOW_ALL", "ALLOW_INTERNAL_ONLY", "ALLOW_INTERNAL_AND_GCLB"};
+    const struct firebase_ns::key_str_30 _SecurityLevel[SecurityLevel::SECURE_OPTIONAL + 1] PROGMEM = {"SECURITY_LEVEL_UNSPECIFIED", "SECURE_ALWAYS", "SECURE_OPTIONAL"};
+    const struct firebase_ns::key_str_30 _RetryPolicy[RetryPolicy::RETRY_POLICY_RETRY + 1] PROGMEM = {"RETRY_POLICY_UNSPECIFIED", "RETRY_POLICY_DO_NOT_RETRY", "RETRY_POLICY_RETRY"};
+    const struct firebase_ns::key_str_30 _Environment[Environment::GEN_2 + 1] PROGMEM = {"ENVIRONMENT_UNSPECIFIED", "GEN_1", "GEN_2"};
 
     /**
      * Location of the source in a Google Cloud Source Repository.
@@ -347,7 +345,6 @@ namespace GoogleCloudFunctions
      */
     struct EventFilter : public BaseO4
     {
-
     public:
         // Required. The name of a CloudEvents attribute.
         EventFilter &attribute(const String &value) { return wr.set<EventFilter &, String>(*this, value, buf, bufSize, 1, FPSTR(__func__)); }
@@ -442,7 +439,6 @@ namespace GoogleCloudFunctions
      */
     struct ListOptions : public BaseO6
     {
-
     protected:
         ObjectWriter owriter;
         StringUtil sut;
@@ -466,7 +462,7 @@ namespace GoogleCloudFunctions
         // Maximum number of functions to return per call. The largest allowed pageSize is 1,000, if the pageSize is omitted or specified as greater than 1,000 then it will be replaced as 1,000. The size of the list response can be less than specified when used with filters.
         ListOptions &pageSize(uint64_t value)
         {
-            buf[1] = "pageSize=" + sut.num2Str(value);
+            buf[1] = "pageSize=" + sut.numString(value);
             return setBuf();
         }
 
@@ -497,7 +493,6 @@ namespace GoogleCloudFunctions
      */
     struct GetPolicyOptions : public BaseO1
     {
-
     protected:
         ObjectWriter owriter;
 
@@ -518,7 +513,6 @@ namespace GoogleCloudFunctions
      */
     struct SetPolicyOptions : public BaseO4
     {
-
     public:
         // REQUIRED: The complete policy to be applied to the resource. The size of the policy is limited to a few 10s of KB. An empty policy is a valid policy but certain Google Cloud services (such as Projects) might reject them.
         SetPolicyOptions &policy(const IAMPolicy::Policy &value) { return wr.set<SetPolicyOptions &, IAMPolicy::Policy>(*this, value, buf, bufSize, 1, FPSTR(__func__)); }
@@ -534,7 +528,6 @@ namespace GoogleCloudFunctions
      */
     struct Permissions : public BaseO2
     {
-
     public:
         Permissions &permissions(const String &value) { return wr.set<Permissions &, String>(*this, value, buf, bufSize, 1, FPSTR(__func__)); }
         // Obsoleted, use permissions instead.
@@ -562,11 +555,10 @@ namespace GoogleCloudFunctions
 
     class DataOptions
     {
-
     public:
         String payload, extras;
         GoogleCloudFunctions::Parent parent;
-        google_cloud_functions_request_type requestType = google_cloud_functions_request_type_undefined;
+        google_cloud_functions_request_type requestType = fn_undefined;
         unsigned long requestTime = 0;
         void copy(const DataOptions &rhs)
         {
@@ -577,24 +569,21 @@ namespace GoogleCloudFunctions
     private:
     };
 
-    struct async_request_data_t
+    struct req_data
     {
     public:
         AsyncClientClass *aClient = nullptr;
-        String path;
-        String uid;
-        String mime;
-        async_request_handler_t::http_request_method method = async_request_handler_t::http_undefined;
+        String path, uid, mime;
+        reqns::http_request_method method = reqns::http_undefined;
         slot_options_t opt;
         DataOptions *options = nullptr;
         file_config_data *file = nullptr;
         AsyncResult *aResult = nullptr;
         AsyncResultCallback cb = NULL;
-        async_request_data_t() {}
-        explicit async_request_data_t(AsyncClientClass *aClient, const String &path, async_request_handler_t::http_request_method method, slot_options_t opt, DataOptions *options, file_config_data *file, AsyncResult *aResult, AsyncResultCallback cb, const String &uid = "")
+        req_data() {}
+        explicit req_data(AsyncClientClass *aClient, reqns::http_request_method method, slot_options_t opt, DataOptions *options, file_config_data *file, AsyncResult *aResult, AsyncResultCallback cb, const String &uid = "")
         {
             this->aClient = aClient;
-            this->path = path;
             this->method = method;
             this->opt = opt;
             this->options = options;
@@ -605,7 +594,5 @@ namespace GoogleCloudFunctions
         }
     };
 }
-
 #endif
-
 #endif
