@@ -28,7 +28,7 @@
  * @note      Most source code references come from the https://github.com/boschsensortec/BMA423-Sensor-API
  *            Simplification for Arduino
  */
-#pragma once
+
 
 #include "REG/BMA423Constants.h"
 #include "SensorCommon.tpp"
@@ -351,7 +351,7 @@ public:
         return 0;
     }
 
-    bool setRemapAxes(SensorRemap remap)
+    bool setReampAxes(SensorRemap remap)
     {
         //Top
         // No.1 REG: 0x3e -> 0x88   REG: 0x3f -> 0x0
@@ -515,7 +515,7 @@ public:
         return  writeRegister(interrupt_address_array[int_line],  &data, 1) != DEV_WIRE_ERR;
     }
 
-    bool configFeatureInterrupt(uint16_t  feature_interrupt_mask, bool enable)
+    bool configreFeatureInterrupt(uint16_t  feature_interrupt_mask, bool enable)
     {
         return  interruptMap(int_line,  feature_interrupt_mask, enable);
     }
@@ -776,7 +776,7 @@ private:
         uint8_t val;
         val = readRegister(BMA4_INTERNAL_STAT);
         if (val == BMA4_ASIC_INITIALIZED) {
-            log_d("No need configure!");
+            LOG("%s No need configure!\n", __func__);
             readIrqStatus();    //clear irq status
             return true;
         }
@@ -800,9 +800,9 @@ private:
         delay(150);
         val = readRegister(BMA4_INTERNAL_STAT);
         if (val == BMA4_ASIC_INITIALIZED) {
-            log_d("BMA configure SUCCESS!");
+            LOG("%s SUCCESS!\n", __func__);
         } else {
-            log_d("BMA configure FAILED!");
+            LOG("%s FAILED!\n", __func__);
         }
         return val == BMA4_ASIC_INITIALIZED;
     }
@@ -823,7 +823,7 @@ private:
             return configure();
         }
 
-        log_d("ChipID:0x%x should be 0x%x", id, BMA423_CHIP_ID);
+        LOG("ChipID:0x%x should be 0x%x\n", id, BMA423_CHIP_ID);
         return false;
 
     }

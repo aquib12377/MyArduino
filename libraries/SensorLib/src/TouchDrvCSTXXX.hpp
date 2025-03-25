@@ -28,120 +28,15 @@
  * @date      last 2023-10-05
  *
  */
-#pragma once
-
 #include "REG/CSTxxxConstants.h"
 #include "touch/TouchClassCST226.h"
 #include "touch/TouchClassCST816.h"
-#include "touch/TouchDrvCST92xx.h"
 #include "SensorCommon.tpp"
-
-enum TouchDrvType {
-    TouchDrv_UNKOWN,
-    TouchDrv_CST8XX,
-    TouchDrv_CST226,
-    TouchDrv_CST92XX,
-};
-
-#if defined(ARDUINO)
-template<typename CST_TouchClass>
-CST_TouchClass *newTouchClassArduino(PLATFORM_WIRE_TYPE &wire,
-                                     uint8_t address,
-                                     int sda,
-                                     int scl,
-                                     int rst,
-                                     int irq,
-                                     gpio_write_fptr_t set_level_ptr,
-                                     gpio_read_fptr_t get_level_ptr,
-                                     gpio_mode_fptr_t set_mode_ptr
-                                    )
-{
-    CST_TouchClass *ptr = new CST_TouchClass();
-    ptr->setGpioCallback(set_mode_ptr, set_level_ptr, get_level_ptr);
-    ptr->setPins(rst, irq);
-    if (!ptr->begin(wire, address, sda, scl)) {
-        delete ptr;
-        ptr = NULL;
-    }
-    return ptr;
-}
-
-#elif defined(ESP_PLATFORM)
-
-#if ((ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5,0,0)) && defined(CONFIG_SENSORLIB_ESP_IDF_NEW_API))
-
-template<typename CST_TouchClass>
-CST_TouchClass *newTouchClassIDF(i2c_master_bus_handle_t i2c_dev_bus_handle,
-                                 uint8_t addr,
-                                 int rst,
-                                 int irq,
-                                 gpio_write_fptr_t set_level_ptr,
-                                 gpio_read_fptr_t get_level_ptr,
-                                 gpio_mode_fptr_t set_mode_ptr)
-{
-    CST_TouchClass *ptr = new CST_TouchClass();
-    ptr->setGpioCallback(set_mode_ptr, set_level_ptr, get_level_ptr);
-    ptr->setPins(rst, irq);
-    if (!ptr->begin(i2c_dev_bus_handle, addr)) {
-        delete ptr;
-        ptr = NULL;
-    }
-    return ptr;
-}
-
-#else   /*ESP_IDF_VERSION*/
-
-template<typename CST_TouchClass>
-CST_TouchClass *newTouchClassIDF(i2c_port_t port_num,
-                                 uint8_t addr,
-                                 int sda,
-                                 int scl,
-                                 int rst,
-                                 int irq,
-                                 gpio_write_fptr_t set_level_ptr,
-                                 gpio_read_fptr_t get_level_ptr,
-                                 gpio_mode_fptr_t set_mode_ptr)
-{
-    CST_TouchClass *ptr = new CST_TouchClass();
-    ptr->setGpioCallback(set_mode_ptr, set_level_ptr, get_level_ptr);
-    ptr->setPins(rst, irq);
-    if (!ptr->begin(port_num, addr, sda, scl)) {
-        delete ptr;
-        ptr = NULL;
-    }
-    return ptr;
-}
-
-#endif  /*ESP_IDF_VERSION*/
-#endif /*ESP_PLATFORM*/
-
-template<typename CST_TouchClass>
-CST_TouchClass *newTouchClassCallFunction(uint8_t address,
-        iic_fptr_t readRegCallback,
-        iic_fptr_t writeRegCallback,
-        int rst,
-        int irq,
-        gpio_write_fptr_t set_level_ptr,
-        gpio_read_fptr_t get_level_ptr,
-        gpio_mode_fptr_t set_mode_ptr)
-{
-    CST_TouchClass *ptr = new CST_TouchClass();
-    ptr->setGpioCallback(set_mode_ptr, set_level_ptr, get_level_ptr);
-    ptr->setPins(rst, irq);
-    if (!ptr->begin(address, readRegCallback, writeRegCallback)) {
-        delete ptr;
-        ptr = NULL;
-    }
-    return ptr;
-}
-
-
-
 
 class TouchDrvCSTXXX : public TouchDrvInterface
 {
 public:
-    TouchDrvCSTXXX(): drv(NULL), __touch_type(TouchDrv_UNKOWN)
+    TouchDrvCSTXXX(): drv(NULL)
     {
     }
 
@@ -153,145 +48,81 @@ public:
         }
     }
 
-    void setTouchDrvModel(TouchDrvType model)
-    {
-        __touch_type = model;
-    }
-
 #if defined(ARDUINO)
     bool begin(PLATFORM_WIRE_TYPE &wire,
                uint8_t address,
                int sda,
-               int scl)
+               int scl
+              )
     {
-        if (__touch_type == TouchDrv_UNKOWN) {
-            drv = newTouchClassArduino<TouchClassCST816>(wire, address, sda, scl, __rst, __irq,
-                    __set_gpio_level, __get_gpio_level,
-                    __set_gpio_mode);
-            if (drv) {
-                __touch_type = TouchDrv_CST8XX;
-                return true;
-            }
-            drv = newTouchClassArduino<TouchClassCST226>(wire, address, sda, scl, __rst, __irq,
-                    __set_gpio_level, __get_gpio_level,
-                    __set_gpio_mode);
-            if (drv) {
-                __touch_type = TouchDrv_CST226;
-                return true;
-            }
-            drv = newTouchClassArduino<TouchDrvCST92xx>(wire, address, sda, scl, __rst, __irq,
-                    __set_gpio_level, __get_gpio_level,
-                    __set_gpio_mode);
-            if (drv) {
-                __touch_type = TouchDrv_CST92XX;
-                return true;
-            }
-        } else if (__touch_type == TouchDrv_CST8XX) {
-            drv = newTouchClassArduino<TouchClassCST816>(wire, address, sda, scl, __rst, __irq,
-                    __set_gpio_level, __get_gpio_level,
-                    __set_gpio_mode);
-        } else if (__touch_type == TouchDrv_CST226) {
-            drv = newTouchClassArduino<TouchClassCST226>(wire, address, sda, scl, __rst, __irq,
-                    __set_gpio_level, __get_gpio_level,
-                    __set_gpio_mode);
-        } else if (__touch_type == TouchDrv_CST92XX) {
-            drv = newTouchClassArduino<TouchDrvCST92xx>(wire, address, sda, scl, __rst, __irq,
-                    __set_gpio_level, __get_gpio_level,
-                    __set_gpio_mode);
-        }
         if (!drv) {
-            __touch_type = TouchDrv_UNKOWN;
-            return false;
+            drv = new TouchClassCST816();
+            drv->setGpioCallback(__set_gpio_mode, __set_gpio_level, __get_gpio_level);
+            drv->setPins(__rst, __irq);
+            if (!drv->begin(wire, address, sda, scl)) {
+                delete drv;
+                drv = NULL;
+            }
         }
+
+        if (!drv) {
+            drv = new TouchClassCST226();
+            drv->setGpioCallback(__set_gpio_mode, __set_gpio_level, __get_gpio_level);
+            drv->setPins(__rst, __irq);
+            if (!drv->begin(wire, address, sda, scl)) {
+                delete drv;
+                drv = NULL;
+            }
+        }
+
         return drv != NULL;
     }
 #elif defined(ESP_PLATFORM)
 #if ((ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5,0,0)) && defined(CONFIG_SENSORLIB_ESP_IDF_NEW_API))
     bool begin(i2c_master_bus_handle_t i2c_dev_bus_handle, uint8_t addr)
     {
-        if (__touch_type == TouchDrv_UNKOWN) {
-            drv = newTouchClassIDF<TouchClassCST816>(i2c_dev_bus_handle, addr, __rst, __irq,
-                    __set_gpio_level, __get_gpio_level,
-                    __set_gpio_mode);
-            if (drv) {
-                __touch_type = TouchDrv_CST8XX;
-                return true;
-            }
-            drv = newTouchClassIDF<TouchClassCST226>(i2c_dev_bus_handle, addr, __rst, __irq,
-                    __set_gpio_level, __get_gpio_level,
-                    __set_gpio_mode);
-            if (drv) {
-                __touch_type = TouchDrv_CST226;
-                return true;
-            }
-            drv = newTouchClassIDF<TouchDrvCST92xx>(i2c_dev_bus_handle, addr, __rst, __irq,
-                                                    __set_gpio_level, __get_gpio_level,
-                                                    __set_gpio_mode);
-            if (drv) {
-                __touch_type = TouchDrv_CST92XX;
-                return true;
-            }
-        } else if (__touch_type == TouchDrv_CST8XX) {
-            drv = newTouchClassIDF<TouchClassCST816>(i2c_dev_bus_handle, addr, __rst, __irq,
-                    __set_gpio_level, __get_gpio_level,
-                    __set_gpio_mode);
-        } else if (__touch_type == TouchDrv_CST226) {
-            drv = newTouchClassIDF<TouchClassCST226>(i2c_dev_bus_handle, addr, __rst, __irq,
-                    __set_gpio_level, __get_gpio_level,
-                    __set_gpio_mode);
-        } else if (__touch_type == TouchDrv_CST92XX) {
-            drv = newTouchClassIDF<TouchDrvCST92xx>(i2c_dev_bus_handle, addr, __rst, __irq,
-                                                    __set_gpio_level, __get_gpio_level,
-                                                    __set_gpio_mode);
-        }
         if (!drv) {
-            __touch_type = TouchDrv_UNKOWN;
-            return false;
+            drv = new TouchClassCST816();
+            drv->setGpioCallback(__set_gpio_mode, __set_gpio_level, __get_gpio_level);
+            drv->setPins(__rst, __irq);
+            if (!drv->begin(i2c_dev_bus_handle, addr)) {
+                delete drv;
+                drv = NULL;
+            }
+        }
+
+        if (!drv) {
+            drv = new TouchClassCST226();
+            drv->setGpioCallback(__set_gpio_mode, __set_gpio_level, __get_gpio_level);
+            drv->setPins(__rst, __irq);
+            if (!drv->begin(i2c_dev_bus_handle, addr)) {
+                delete drv;
+                drv = NULL;
+            }
         }
         return drv != NULL;
     }
 #else
     bool begin(i2c_port_t port_num, uint8_t addr, int sda, int scl)
     {
-
-        if (__touch_type == TouchDrv_UNKOWN) {
-            drv = newTouchClassIDF<TouchClassCST816>(port_num, addr, sda, scl, __rst, __irq,
-                    __set_gpio_level, __get_gpio_level,
-                    __set_gpio_mode);
-            if (drv) {
-                __touch_type = TouchDrv_CST8XX;
-                return true;
-            }
-            drv = newTouchClassIDF<TouchClassCST226>(port_num, addr, sda, scl, __rst, __irq,
-                    __set_gpio_level, __get_gpio_level,
-                    __set_gpio_mode);
-            if (drv) {
-                __touch_type = TouchDrv_CST226;
-                return true;
-            }
-            drv = newTouchClassIDF<TouchDrvCST92xx>(port_num, addr, sda, scl, __rst, __irq,
-                                                    __set_gpio_level, __get_gpio_level,
-                                                    __set_gpio_mode);
-            if (drv) {
-                __touch_type = TouchDrv_CST92XX;
-                return true;
-            }
-        } else if (__touch_type == TouchDrv_CST8XX) {
-            drv = newTouchClassIDF<TouchClassCST816>(port_num, addr, sda, scl, __rst, __irq,
-                    __set_gpio_level, __get_gpio_level,
-                    __set_gpio_mode);
-        } else if (__touch_type == TouchDrv_CST226) {
-            drv = newTouchClassIDF<TouchClassCST226>(port_num, addr, sda, scl, __rst, __irq,
-                    __set_gpio_level, __get_gpio_level,
-                    __set_gpio_mode);
-        } else if (__touch_type == TouchDrv_CST92XX) {
-            drv = newTouchClassIDF<TouchDrvCST92xx>(port_num, addr, sda, scl, __rst, __irq,
-                                                    __set_gpio_level, __get_gpio_level,
-                                                    __set_gpio_mode);
-        }
         if (!drv) {
-            __touch_type = TouchDrv_UNKOWN;
-            return false;
+            drv = new TouchClassCST816();
+            drv->setGpioCallback(__set_gpio_mode, __set_gpio_level, __get_gpio_level);
+            drv->setPins(__rst, __irq);
+            if (!drv->begin(port_num, addr, sda, scl)) {
+                delete drv;
+                drv = NULL;
+            }
+        }
+
+        if (!drv) {
+            drv = new TouchClassCST226();
+            drv->setGpioCallback(__set_gpio_mode, __set_gpio_level, __get_gpio_level);
+            drv->setPins(__rst, __irq);
+            if (!drv->begin(port_num, addr, sda, scl)) {
+                delete drv;
+                drv = NULL;
+            }
         }
         return drv != NULL;
     }
@@ -299,9 +130,9 @@ public:
 #endif//ARDUINO
 
 
-    void setGpioCallback(gpio_mode_fptr_t mode_cb,
-                         gpio_write_fptr_t write_cb,
-                         gpio_read_fptr_t read_cb)
+    void setGpioCallback(gpio_mode_fprt_t mode_cb,
+                         gpio_write_fprt_t write_cb,
+                         gpio_read_fprt_t read_cb)
     {
         __set_gpio_level = write_cb;
         __get_gpio_level = read_cb;
@@ -310,45 +141,26 @@ public:
 
     bool begin(uint8_t address, iic_fptr_t readRegCallback, iic_fptr_t writeRegCallback)
     {
-        if (__touch_type == TouchDrv_UNKOWN) {
-            drv = newTouchClassCallFunction<TouchClassCST816>(address, readRegCallback, writeRegCallback, __rst, __irq,
-                    __set_gpio_level, __get_gpio_level,
-                    __set_gpio_mode);
-            if (drv) {
-                __touch_type = TouchDrv_CST8XX;
-                return true;
-            }
-            drv = newTouchClassCallFunction<TouchClassCST226>(address, readRegCallback, writeRegCallback, __rst, __irq,
-                    __set_gpio_level, __get_gpio_level,
-                    __set_gpio_mode);
-            if (drv) {
-                __touch_type = TouchDrv_CST226;
-                return true;
-            }
-            drv = newTouchClassCallFunction<TouchDrvCST92xx>(address, readRegCallback, writeRegCallback, __rst, __irq,
-                    __set_gpio_level, __get_gpio_level,
-                    __set_gpio_mode);
-            if (drv) {
-                __touch_type = TouchDrv_CST92XX;
-                return true;
-            }
-        } else if (__touch_type == TouchDrv_CST8XX) {
-            drv = newTouchClassCallFunction<TouchClassCST816>(address, readRegCallback, writeRegCallback, __rst, __irq,
-                    __set_gpio_level, __get_gpio_level,
-                    __set_gpio_mode);
-        } else if (__touch_type == TouchDrv_CST226) {
-            drv = newTouchClassCallFunction<TouchClassCST226>(address, readRegCallback, writeRegCallback, __rst, __irq,
-                    __set_gpio_level, __get_gpio_level,
-                    __set_gpio_mode);
-        } else if (__touch_type == TouchDrv_CST92XX) {
-            drv = newTouchClassCallFunction<TouchDrvCST92xx>(address, readRegCallback, writeRegCallback, __rst, __irq,
-                    __set_gpio_level, __get_gpio_level,
-                    __set_gpio_mode);
-        }
         if (!drv) {
-            __touch_type = TouchDrv_UNKOWN;
-            return false;
+            drv = new TouchClassCST816();
+            drv->setGpioCallback(__set_gpio_mode, __set_gpio_level, __get_gpio_level);
+            drv->setPins(__rst, __irq);
+            if (!drv->begin(address, readRegCallback, writeRegCallback)) {
+                delete drv;
+                drv = NULL;
+            }
         }
+
+        if (!drv) {
+            drv = new TouchClassCST226();
+            drv->setGpioCallback(__set_gpio_mode, __set_gpio_level, __get_gpio_level);
+            drv->setPins(__rst, __irq);
+            if (!drv->begin(address, readRegCallback, writeRegCallback)) {
+                delete drv;
+                drv = NULL;
+            }
+        }
+
         return drv != NULL;
     }
 
@@ -471,11 +283,10 @@ public:
     }
 
 private:
-    gpio_write_fptr_t   __set_gpio_level        = NULL;
-    gpio_read_fptr_t    __get_gpio_level        = NULL;
-    gpio_mode_fptr_t    __set_gpio_mode         = NULL;
+    gpio_write_fprt_t   __set_gpio_level        = NULL;
+    gpio_read_fprt_t    __get_gpio_level        = NULL;
+    gpio_mode_fprt_t    __set_gpio_mode         = NULL;
     TouchDrvInterface *drv = NULL;
-    TouchDrvType        __touch_type;
 };
 
 

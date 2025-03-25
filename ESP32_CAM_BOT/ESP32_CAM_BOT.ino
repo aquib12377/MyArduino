@@ -144,55 +144,115 @@
 
   // Updated HTML without the Backward button
   static const char PROGMEM INDEX_HTML[] = R"rawliteral(
-  <html>
-    <head>
-      <title>ESP32-CAM Boat Controller</title>
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <style>
-        body { font-family: Arial; text-align: center; margin:0px auto; padding-top: 30px;}
-        table { margin-left: auto; margin-right: auto; }
-        td { padding: 8px; }
-        .button {
-          background-color: #2f4468;
-          border: none;
-          color: white;
-          padding: 10px 20px;
-          text-align: center;
-          text-decoration: none;
-          display: inline-block;
-          font-size: 18px;
-          margin: 6px 3px;
-          cursor: pointer;
-          -webkit-touch-callout: none;
-          -webkit-user-select: none;
-          -khtml-user-select: none;
-          -moz-user-select: none;
-          -ms-user-select: none;
-          user-select: none;
-          -webkit-tap-highlight-color: rgba(0,0,0,0);
-        }
-        img {  width: auto ;
-          max-width: 100% ;
-          height: auto ; 
-        }
-      </style>
-    </head>
-    <body>
-      <h1>Rescue Boat Controller</h1>
-      <img src="" id="photo" >
-      <script>
-        function toggleCheckbox(x) {
-          var xhr = new XMLHttpRequest();
-          xhr.open("GET", "/action?go=" + x, true);
-          xhr.send();
-        }
-        window.onload = function() {
-          document.getElementById("photo").src = window.location.href.slice(0, -1) + ":81/stream";
-        };
-      </script>
-    </body>
-  </html>
-  )rawliteral";
+<html>
+  <head>
+    <title>ESP32-CAM Boat Controller</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      body { font-family: Arial; text-align: center; margin:0; padding-top: 30px; background: #f0f0f0; }
+      table { margin: 0 auto; }
+      td { padding: 8px; }
+      .button {
+        background-color: #2f4468;
+        border: none;
+        color: white;
+        padding: 10px 20px;
+        font-size: 18px;
+        margin: 6px 3px;
+        cursor: pointer;
+        user-select: none;
+      }
+      img { width: auto; max-width: 100%; height: auto; }
+      .sliderContainer { margin-top: 20px; }
+      input[type=range] { width: 80%; }
+      .label { font-size: 20px; }
+      h2 { margin-top: 30px; }
+    </style>
+  </head>
+  <body>
+    <h1>Rescue Boat Controller</h1>
+    <img src="" id="photo">
+    <table>
+      <tr>
+        <td colspan="3" align="center">
+          <button class="button" 
+                  onmousedown="toggleCheckbox('forward');" 
+                  ontouchstart="toggleCheckbox('forward');" 
+                  onmouseup="toggleCheckbox('stop');" 
+                  ontouchend="toggleCheckbox('stop');">
+            Forward
+          </button>
+        </td>
+      </tr>
+      <tr>
+        <td align="center">
+          <button class="button" 
+                  onmousedown="toggleCheckbox('left');" 
+                  ontouchstart="toggleCheckbox('left');" 
+                  onmouseup="toggleCheckbox('stop');" 
+                  ontouchend="toggleCheckbox('stop');">
+            Left
+          </button>
+        </td>
+        <td align="center">
+          <button class="button" 
+                  onmousedown="toggleCheckbox('stop');" 
+                  ontouchstart="toggleCheckbox('stop');">
+            Stop
+          </button>
+        </td>
+        <td align="center">
+          <button class="button" 
+                  onmousedown="toggleCheckbox('right');" 
+                  ontouchstart="toggleCheckbox('right');" 
+                  onmouseup="toggleCheckbox('stop');" 
+                  ontouchend="toggleCheckbox('stop');">
+            Right
+          </button>
+        </td>
+      </tr>
+    </table>
+    <table>
+      <tr>
+        <td>
+          <button class="button" 
+                  onmousedown="toggleCheckbox('drop');" 
+                  ontouchstart="toggleCheckbox('drop');" 
+                  onmouseup="toggleCheckbox('rope_stop');" 
+                  ontouchend="toggleCheckbox('rope_stop');">
+            Drop Rope
+          </button>
+        </td>
+        <td>
+          <button class="button" 
+                  onmousedown="toggleCheckbox('retract');" 
+                  ontouchstart="toggleCheckbox('retract');" 
+                  onmouseup="toggleCheckbox('rope_stop');" 
+                  ontouchend="toggleCheckbox('rope_stop');">
+            Retract Rope
+          </button>
+        </td>
+      </tr>
+    </table>
+    <script>
+      function toggleCheckbox(x) {
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", "/action?go=" + x, true);
+        xhr.send();
+      }
+      function setServo(angle) {
+        document.getElementById("servoValue").innerText = angle + "°";
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", "/servo?angle=" + angle, true);
+        xhr.send();
+      }
+      window.onload = function() {
+        document.getElementById("photo").src = window.location.href.slice(0, -1) + ":81/stream";
+      };
+    </script>
+  </body>
+</html>
+)rawliteral";
 
   // Handler for serving the index page
   static esp_err_t index_handler(httpd_req_t *req){

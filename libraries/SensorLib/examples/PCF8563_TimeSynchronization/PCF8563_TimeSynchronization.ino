@@ -30,7 +30,6 @@
 #include <Wire.h>
 #include <SPI.h>
 #include <Arduino.h>
-#if defined(ARDUINO_ARCH_ESP32)
 #include <time.h>
 #include <WiFi.h>
 #include <sntp.h>
@@ -146,16 +145,6 @@ void loop()
 
     }
 }
-#else
-void setup()
-{
-    Serial.begin(115200);
-}
 
-void loop()
-{
-    Serial.println("Examples only ESP32"); delay(1000);
-}
-#endif
 
 

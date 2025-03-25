@@ -142,7 +142,7 @@ void setup()
   if (!pox.begin()) {
     Serial.println("FAILED");
     // Halt if sensor init fails
-    while (1) { delay(1); }
+    //while (1) { delay(1); }
   } else {
     Serial.println("SUCCESS");
   }

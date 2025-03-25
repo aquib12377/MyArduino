@@ -27,7 +27,7 @@
  * @date      2022-10-16
  *
  */
-#pragma once
+
 
 #include "REG/QMC6310Constants.h"
 #include "SensorCommon.tpp"
@@ -93,7 +93,7 @@ public:
     };
 
 #if defined(ARDUINO)
-    SensorQMC6310(PLATFORM_WIRE_TYPE &w, int sda = DEFAULT_SDA, int scl = DEFAULT_SCL, uint8_t addr = QMC6310_SLAVE_ADDRESS)
+    SensorQMC6310(PLATFORM_WIRE_TYPE &w, int sda = SDA, int scl = SCL, uint8_t addr = QMC6310_SLAVE_ADDRESS)
     {
         __wire = &w;
         __sda = sda;
@@ -106,8 +106,8 @@ public:
     {
 #if defined(ARDUINO)
         __wire = &Wire;
-        __sda = DEFAULT_SDA;
-        __scl = DEFAULT_SCL;
+        __sda = SDA;
+        __scl = SCL;
 #endif
         __addr = QMC6310_SLAVE_ADDRESS;
     }
@@ -348,8 +348,23 @@ public:
         uint8_t buffer[2];
         readRegister(QMC6310_REG_CMD1, buffer, 2);
         for (int i = 0; i < 2; ++i) {
-            log_d("CMD%d: 0x%02x", i + 1, buffer[i]);
+#if defined(ARDUINO)
+            Serial.printf("CMD%d: 0x%02x", i + 1, buffer[i]);
+#else
+            printf("CTRL%d: 0x%02x", i + 1, buffer[i]);
+#endif
+#if defined(ARDUINO)
+            Serial.print("\t\t BIN:");
+            Serial.println(buffer[i], BIN);
+#else
+            LOG("\n");
+#endif
         }
+#if defined(ARDUINO)
+        Serial.println();
+#else
+        printf("\n");
+#endif
     }
 
 private:

@@ -26,7 +26,6 @@
  * @author    Lewis He (lewishe@outlook.com)
  * @date      2023-09-09
  */
-#pragma once
 
 #define LTR553_SLAVE_ADDRESS            (0x23)
 

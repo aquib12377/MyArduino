@@ -25,7 +25,7 @@
  * @file      BHI260AP_Orientation.ino
  * @author    Lewis He (lewishe@outlook.com)
  * @date      2023-10-07
- * @note      Changed from Boschsensortec API https://github.com/boschsensortec/BHY2_SensorAPI
+ *
  */
 #include <Wire.h>
 #include <SPI.h>
@@ -46,7 +46,7 @@
 #define BHI260AP_RST          47
 #endif
 
-void orientation_process_callback(uint8_t sensor_id, uint8_t *data_ptr, uint32_t len, uint64_t *timestamp);
+void orientation_process_callback(uint8_t sensor_id, uint8_t *data_ptr, uint32_t len);
 
 SensorBHI260AP bhy;
 
@@ -58,11 +58,6 @@ void setup()
 
     // Set the reset pin and interrupt pin, if any
     bhy.setPins(BHI260AP_RST, BHI260AP_IRQ);
-
-    Serial.println("Initializing Sensors...");
-
-    /*Set the default firmware, only 6 axes, no other functions*/
-    bhy.setFirmware(bhy2_firmware_image, sizeof(bhy2_firmware_image));
 
 #ifdef BHY2_USE_I2C
     // Using I2C interface
@@ -111,7 +106,7 @@ void loop()
 }
 
 
-void orientation_process_callback(uint8_t  sensor_id, uint8_t *data_ptr, uint32_t len, uint64_t *timestamp)
+void orientation_process_callback(uint8_t  sensor_id, uint8_t *data_ptr, uint32_t len)
 {
     char report[256];
     uint8_t direction = *data_ptr;

@@ -72,7 +72,7 @@ httpd_handle_t stream_httpd = NULL;
 static const char PROGMEM INDEX_HTML[] = R"rawliteral(
 <html>
   <head>
-    <title>ESP32-CAM Boat Controller</title>
+    <title>Live Stream Bot Controller</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
       body { font-family: Arial; text-align: center; margin:0; padding-top: 30px; background: #f0f0f0; }
@@ -96,7 +96,7 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
     </style>
   </head>
   <body>
-    <h1>Rescue Boat Controller</h1>
+    <h1>Live Stream Bot Controller</h1>
     <img src="" id="photo">
     <table>
       <tr>
@@ -137,34 +137,19 @@ static const char PROGMEM INDEX_HTML[] = R"rawliteral(
           </button>
         </td>
       </tr>
-    </table>
-    <div class="sliderContainer">
-      <div class="label">Camera Angle: <span id="servoValue">90°</span></div>
-      <input type="range" id="servoSlider" min="0" max="180" value="90" oninput="setServo(this.value)">
-    </div>
-    <h2>Rope Control</h2>
-    <table>
       <tr>
-        <td>
+        <td colspan="3" align="center">
           <button class="button" 
-                  onmousedown="toggleCheckbox('drop');" 
-                  ontouchstart="toggleCheckbox('drop');" 
-                  onmouseup="toggleCheckbox('rope_stop');" 
-                  ontouchend="toggleCheckbox('rope_stop');">
-            Drop Rope
-          </button>
-        </td>
-        <td>
-          <button class="button" 
-                  onmousedown="toggleCheckbox('retract');" 
-                  ontouchstart="toggleCheckbox('retract');" 
-                  onmouseup="toggleCheckbox('rope_stop');" 
-                  ontouchend="toggleCheckbox('rope_stop');">
-            Retract Rope
+                  onmousedown="toggleCheckbox('backward');" 
+                  ontouchstart="toggleCheckbox('backward');" 
+                  onmouseup="toggleCheckbox('stop');" 
+                  ontouchend="toggleCheckbox('stop');">
+            Backward
           </button>
         </td>
       </tr>
     </table>
+    
     <script>
       function toggleCheckbox(x) {
         var xhr = new XMLHttpRequest();
@@ -288,6 +273,14 @@ static esp_err_t cmd_handler(httpd_req_t *req){
     digitalWrite(MOTOR_2_PIN_1, HIGH);
     digitalWrite(MOTOR_2_PIN_2, LOW);
   }
+  else if(!strcmp(variable, "backward")) {
+    Serial.println("backward");
+    digitalWrite(MOTOR_1_PIN_1, LOW);
+    digitalWrite(MOTOR_1_PIN_2, HIGH);
+    digitalWrite(MOTOR_2_PIN_1, LOW);
+    digitalWrite(MOTOR_2_PIN_2, HIGH);
+  }
+  
   else if(!strcmp(variable, "left")) {
     Serial.println("Left");
     digitalWrite(MOTOR_1_PIN_1, LOW);

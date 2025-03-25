@@ -27,7 +27,8 @@
  * @date      2023-09-07
  *
  */
-#pragma once
+
+
 #include "REG/PCF85063Constants.h"
 #include "SensorCommon.tpp"
 #include "SensorRTC.h"
@@ -41,15 +42,11 @@ class SensorPCF85063 :
     friend class RTCCommon<SensorPCF85063>;
 public:
 
-    enum ClockHz {
-        CLK_32768HZ = 0,
-        CLK_16384HZ,
-        CLK_8192HZ,
-        CLK_4096HZ,
-        CLK_2048HZ,
-        CLK_1024HZ,
+    enum {
+        CLK_32_768KHZ,
+        CLK_1024KHZ,
+        CLK_32HZ,
         CLK_1HZ,
-        CLK_LOW,
     };
 
 
@@ -340,15 +337,6 @@ public:
                  week);
     }
 
-    void setClockOutput(ClockHz hz)
-    {
-        int val = readRegister(PCF85063_CTRL2_REG);
-        if (val == DEV_WIRE_ERR)return;
-        val &= 0xF8;
-        val |= hz;
-        writeRegister(PCF85063_CTRL2_REG, val);
-    }
-
 private:
 
     bool initImpl()
@@ -372,7 +360,7 @@ private:
             clrRegisterBit(PCF85063_CTRL1_REG, 1);
         }
 
-        //Turn on RTC
+        //Trun on RTC
         start();
 
         return isRunning();

@@ -27,7 +27,6 @@
  * @date      2023-09-10
  *
  */
-#pragma once
 
 #if defined(ARDUINO)
 #include <Arduino.h>

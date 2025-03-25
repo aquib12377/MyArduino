@@ -27,7 +27,7 @@
  * @date      2022-12-09
  *
  */
-#pragma once
+
 
 #include "REG/PCF8563Constants.h"
 #include "SensorCommon.tpp"
@@ -41,12 +41,11 @@ class SensorPCF8563 :
     friend class RTCCommon<SensorPCF8563>;
 public:
 
-    enum ClockHz {
+    enum {
         CLK_32_768KHZ,
         CLK_1024KHZ,
         CLK_32HZ,
         CLK_1HZ,
-        CLK_DISABLE,
     };
 
 
@@ -289,14 +288,18 @@ public:
         writeRegister(PCF8563_TIMER1_REG, 0x00);
     }
 
-    void setClockOutput(ClockHz freq)
+    void enableCLK(uint8_t freq)
     {
-        if (freq == CLK_DISABLE) {
-            clrRegisterBit(PCF8563_SQW_REG, 7);
-        } else {
-            writeRegister(PCF8563_SQW_REG,  freq | PCF8563_CLK_ENABLE);
-        }
+        if (freq > CLK_1HZ) return;
+        writeRegister(PCF8563_SQW_REG,  freq | PCF8563_CLK_ENABLE);
     }
+
+    void disableCLK()
+    {
+        clrRegisterBit(PCF8563_SQW_REG, 7);
+    }
+
+
 
 private:
 

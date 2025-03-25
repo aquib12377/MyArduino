@@ -27,8 +27,6 @@
  * @date      2023-09-09
  *
  */
-#pragma once
-
 #include "REG/LTR533Constants.h"
 #include "SensorCommon.tpp"
 
@@ -207,7 +205,7 @@ public:
 
     void setLightSensorGain(LightSensorGain gain)
     {
-        writeRegister(LTR553_REG_ALS_CONTR, 0xE3, gain<<2);
+        writeRegister(LTR553_REG_ALS_CONTR, 0xE3, gain);
     }
 
     int getLightSensor(uint8_t ch)
@@ -275,8 +273,7 @@ public:
         if (saturated) {
             *saturated = buffer[1] & 0x80;
         }
-        int high = buffer[1] & 0x07;
-        return (high << 8) | buffer[0];
+        return buffer[0] | (buffer[1] & 0x03);
     }
 
     void setPsLedPulsePeriod(PsLedPeriod period)
@@ -289,7 +286,7 @@ public:
         writeRegister(LTR553_REG_PS_LED, 0xE7, duty);
     }
 
-    void setPsLedCurrent(PsLedCurrent cur)
+    void setPsLedCurrnet(PsLedCurrent cur)
     {
         writeRegister(LTR553_REG_PS_LED, 0xF8, cur);
     }

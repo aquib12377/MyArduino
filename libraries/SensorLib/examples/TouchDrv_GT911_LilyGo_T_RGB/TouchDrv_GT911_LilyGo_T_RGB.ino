@@ -92,13 +92,9 @@ void setup()
     while (!Serial);
     Serial.println("Start!");
 
-#if defined(ARDUINO_ARCH_RP2040)
+#ifdef ARDUINO_ARCH_RP2040
     Wire.setSCL(SENSOR_SCL);
     Wire.setSDA(SENSOR_SDA);
-    Wire.begin();
-#elif defined(NRF52840_XXAA) || defined(NRF52832_XXAA)
-    Wire.setPins(SENSOR_SDA, SENSOR_SCL);
-    Wire.begin();
 #else
     Wire.begin(SENSOR_SDA, SENSOR_SCL);
 #endif

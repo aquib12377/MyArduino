@@ -51,8 +51,6 @@
 #include <string.h>
 #endif
 
-#include "SensorLib_Version.h"
-
 #ifdef ARDUINO_ARCH_MBED
 // Not supported at the moment
 #error The Arduino RP2040 MBED board package is not supported when PIO is used. Use the community package by Earle Philhower.
@@ -62,31 +60,22 @@
 #if defined(ARDUINO_ARCH_RP2040)
 #define PLATFORM_SPI_TYPE               SPIClassRP2040
 #define PLATFORM_WIRE_TYPE              TwoWire
-#define SPI_DATA_ORDER                  SPI_MSB_FIRST
-#define DEFAULT_SDA                     (0xFF)
-#define DEFAULT_SCL                     (0xFF)
-#define DEFAULT_SPISETTING              SPISettings()
-#elif defined(ARDUINO_ARCH_STM32)
-#define PLATFORM_SPI_TYPE               SPIClass
-#define PLATFORM_WIRE_TYPE              TwoWire
-#define SPI_DATA_ORDER                  MSBFIRST
-#define DEFAULT_SDA                     (0xFF)
-#define DEFAULT_SCL                     (0xFF)
-#define DEFAULT_SPISETTING              SPISettings()
-#elif defined(ARDUINO_ARCH_NRF52)
-#define PLATFORM_SPI_TYPE               SPIClass
-#define PLATFORM_WIRE_TYPE              TwoWire
-#define SPI_DATA_ORDER                  MSBFIRST
-#define DEFAULT_SDA                     (0xFF)
-#define DEFAULT_SCL                     (0xFF)
-#define DEFAULT_SPISETTING              SPISettings()
+#define SPI_DATA_ORDER  SPI_MSB_FIRST
+#define DEFAULT_SDA     (0xFF)
+#define DEFAULT_SCL     (0xFF)
+#define DEFAULT_SPISETTING  SPISettings()
+#elif defined(NRF52840_XXAA) || defined(NRF52832_XXAA)
+#define SPI_DATA_ORDER  MSBFIRST
+#define DEFAULT_SDA     (0xFF)
+#define DEFAULT_SCL     (0xFF)
+#define DEFAULT_SPISETTING  SPISettings()
 #else
 #define PLATFORM_SPI_TYPE               SPIClass
 #define PLATFORM_WIRE_TYPE              TwoWire
-#define SPI_DATA_ORDER                  SPI_MSBFIRST
-#define DEFAULT_SDA                     (SDA)
-#define DEFAULT_SCL                     (SCL)
-#define DEFAULT_SPISETTING              SPISettings(__freq, __dataOrder, __dataMode);
+#define SPI_DATA_ORDER  SPI_MSBFIRST
+#define DEFAULT_SDA     (SDA)
+#define DEFAULT_SCL     (SCL)
+#define DEFAULT_SPISETTING  SPISettings(__freq, __dataOrder, __dataMode);
 #endif
 
 #elif defined(ESP_PLATFORM)
@@ -96,10 +85,6 @@
 #define SENSORLIB_I2C_MASTER_TIMEOUT_MS       1000
 #define SENSORLIB_I2C_MASTER_SEEED            400000
 
-#endif
-
-#ifndef I2C_BUFFER_LENGTH
-#define I2C_BUFFER_LENGTH               (32)
 #endif
 
 enum SensorLibInterface {
@@ -157,8 +142,8 @@ typedef struct __SensorLibPins {
 #define LOG(fmt, ...) LOG_PORT.printf("[%s] " fmt "\n", __func__, ##__VA_ARGS__)
 #define LOG_BIN(x)    LOG_PORT.println(x,BIN);
 #else
-#define LOG(fmt, ...) printf("[%s] " fmt "\n", __func__, ##__VA_ARGS__)
-#define LOG_BIN(x)    printf("[%s] 0x%X\n", __func__, x)
+#define LOG(fmt, ...)
+#define LOG_BIN(x)
 #endif
 
 #ifndef lowByte
@@ -189,59 +174,31 @@ typedef struct __SensorLibPins {
 #define bitWrite(value, bit, bitvalue) ((bitvalue) ? bitSet(value, bit) : bitClear(value, bit))
 #endif
 
-#ifndef isBitSet
-#define isBitSet(value, bit)    (((value) & (1UL << (bit))) == (1UL << (bit)))
-#endif
-
 #define SENSORLIB_ATTR_NOT_IMPLEMENTED    __attribute__((error("Not implemented")))
 
 #define SENSORLIB_COUNT(x)      (sizeof(x)/sizeof(*x))
 
-#if !defined(ARDUINO_ARCH_ESP32) && defined(LOG_PORT) && defined(ARDUINO)
-
-#define LOG_FILE_LINE_INFO __FILE__, __LINE__
-
+#ifdef ARDUINO
+#ifndef ESP32
 #ifndef log_e
-#define log_e(fmt, ...)     LOG_PORT.printf("[E][%s:%d] " fmt "\n", LOG_FILE_LINE_INFO, ##__VA_ARGS__)
-#endif  /*log_e*/
-
+#define log_e(...)          Serial.printf(__VA_ARGS__)
+#endif
 #ifndef log_i
-#define log_i(fmt, ...)     LOG_PORT.printf("[I][%s:%d] " fmt "\n", LOG_FILE_LINE_INFO, ##__VA_ARGS__)
-#endif  /*log_i*/
-
+#define log_i(...)          Serial.printf(__VA_ARGS__)
+#endif
 #ifndef log_d
-#define log_d(fmt, ...)     LOG_PORT.printf("[D][%s:%d] " fmt "\n", LOG_FILE_LINE_INFO, ##__VA_ARGS__)
-#endif  /*log_d*/
-
-
+#define log_d(...)          Serial.printf(__VA_ARGS__)
+#endif
+#endif
 #elif defined(ESP_PLATFORM)
-
-#ifndef log_e
 #define log_e(...)          printf(__VA_ARGS__)
-#endif
-
-#ifndef log_i
 #define log_i(...)          printf(__VA_ARGS__)
-#endif
-
-#ifndef log_d
 #define log_d(...)          printf(__VA_ARGS__)
-#endif
 #else
-
-#ifndef log_e
 #define log_e(...)
-#endif
-
-#ifndef log_i
 #define log_i(...)
-#endif
-
-#ifndef log_d
 #define log_d(...)
 #endif
-
-#endif /*ARDUINO*/
 
 #if !defined(ARDUINO)  && defined(ESP_PLATFORM)
 
@@ -272,6 +229,3 @@ typedef struct __SensorLibPins {
 #include "platform/esp_arduino.h"
 
 #endif
-
-
-#include "DevicesPins.h"

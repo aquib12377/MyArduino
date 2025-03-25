@@ -114,12 +114,6 @@ uint8_t TouchClassCST816::getPoint(int16_t *x_array, int16_t *y_array, uint8_t g
     // }
 
     uint8_t point = buffer[2] & 0x0F;
-
-    // CST816 only supports single touch
-    if (point > 1) {
-        return 0;
-    }
-
 #ifdef LOG_PORT
     LOG_PORT.print("RAW:");
     for (int i = 0; i < 13; ++i) {
@@ -190,7 +184,7 @@ const char *TouchClassCST816::getModelName()
     default:
         break;
     }
-    return "UNKNOW";
+    return "UNKONW";
 }
 
 void TouchClassCST816::sleep()
@@ -273,9 +267,9 @@ void TouchClassCST816::enableAutoSleep()
     }
 }
 
-void TouchClassCST816::setGpioCallback(gpio_mode_fptr_t mode_cb,
-                                       gpio_write_fptr_t write_cb,
-                                       gpio_read_fptr_t read_cb)
+void TouchClassCST816::setGpioCallback(gpio_mode_fprt_t mode_cb,
+                                       gpio_write_fprt_t write_cb,
+                                       gpio_read_fprt_t read_cb)
 {
     SensorCommon::setGpioModeCallback(mode_cb);
     SensorCommon::setGpioWriteCallback(write_cb);
@@ -289,17 +283,13 @@ bool TouchClassCST816::initImpl()
         this->setGpioMode(__rst, OUTPUT);
     }
 
-    if (__irq != SENSOR_PIN_NONE) {
-        this->setGpioMode(__irq, INPUT);
-    }
-
     reset();
 
     int chip_id =   readRegister(CST8xx_REG_CHIP_ID);
-    log_i("Chip ID:0x%x", chip_id);
+    log_i("Chip ID:0x%x\n", chip_id);
 
     int version =   readRegister(CST8xx_REG_FW_VERSION);
-    log_i("Version :0x%x", version);
+    log_i("Version :0x%x\n", version);
 
     // CST716  : 0x20
     // CST816S : 0xB4
@@ -311,14 +301,12 @@ bool TouchClassCST816::initImpl()
             chip_id != CST820_CHIP_ID &&
             chip_id != CST816D_CHIP_ID &&
             (chip_id != CST716_CHIP_ID || version == 0)) {
-        log_e("Chip ID does not match, should be CST816S:0X%02X , CST816T:0X%02X , CST816D:0X%02X , CST820:0X%02X , CST716:0X%02X",
-              CST816S_CHIP_ID, CST816T_CHIP_ID, CST816D_CHIP_ID, CST820_CHIP_ID, CST716_CHIP_ID);
         return false;
     }
 
     __chipID = chip_id;
 
-    log_i("Touch type:%s", getModelName());
+    log_i("Touch type:%s\n", getModelName());
 
     return true;
 }

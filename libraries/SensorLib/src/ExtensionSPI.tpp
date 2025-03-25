@@ -27,7 +27,6 @@
  * @date      2024-01-19
  *
  */
-#pragma once
 
 #include "SensorLib.h"
 

@@ -25,7 +25,7 @@
  * @file      BHI260AP_6DoF.ino
  * @author    Lewis He (lewishe@outlook.com)
  * @date      2023-09-06
- * @note      Changed from Boschsensortec API https://github.com/boschsensortec/BHY2_SensorAPI
+ *
  */
 #include <Wire.h>
 #include <SPI.h>
@@ -48,7 +48,7 @@
 
 
 SensorBHI260AP bhy;
-void accel_process_callback(uint8_t sensor_id, uint8_t *data_ptr, uint32_t len, uint64_t *timestamp)
+void accel_process_callback(uint8_t sensor_id, uint8_t *data_ptr, uint32_t len)
 {
     struct bhy2_data_xyz data;
     float scaling_factor = get_sensor_default_scaling(sensor_id);
@@ -63,7 +63,7 @@ void accel_process_callback(uint8_t sensor_id, uint8_t *data_ptr, uint32_t len, 
 }
 
 
-void gyro_process_callback(uint8_t sensor_id, uint8_t *data_ptr, uint32_t len, uint64_t *timestamp)
+void gyro_process_callback(uint8_t sensor_id, uint8_t *data_ptr, uint32_t len)
 {
     struct bhy2_data_xyz data;
     float scaling_factor = get_sensor_default_scaling(sensor_id);
@@ -85,17 +85,12 @@ void setup()
     // Set the reset pin and interrupt pin, if any
     bhy.setPins(BHI260AP_RST, BHI260AP_IRQ);
 
-    Serial.println("Initializing Sensors...");
-
-    /*Set the default firmware, only 6 axes, no other functions*/
-    bhy.setFirmware(bhy2_firmware_image, sizeof(bhy2_firmware_image));
-
 #ifdef BHY2_USE_I2C
     // Using I2C interface
     // BHI260AP_SLAVE_ADDRESS_L = 0x28
     // BHI260AP_SLAVE_ADDRESS_H = 0x29
     if (!bhy.init(Wire, BHI260AP_SDA, BHI260AP_SCL, BHI260AP_SLAVE_ADDRESS_L)) {
-        Serial.print("Failed to initialize sensor - error code:");
+        Serial.print("Failed to init BHI260AP - ");
         Serial.println(bhy.getError());
         while (1) {
             delay(1000);
@@ -104,7 +99,7 @@ void setup()
 #else
     // Using SPI interface
     if (!bhy.init(SPI, BHI260AP_CS, BHI260AP_MOSI, BHI260AP_MISO, BHI260AP_SCK)) {
-        Serial.print("Failed to initialize sensor - error code:");
+        Serial.print("Failed to init BHI260AP - ");
         Serial.println(bhy.getError());
         while (1) {
             delay(1000);
@@ -112,7 +107,7 @@ void setup()
     }
 #endif
 
-    Serial.println("Initializing the sensor successfully!");
+    Serial.println("Init BHI260AP Sensor success!");
 
     // Output all available sensors to Serial
     bhy.printSensors(Serial);
