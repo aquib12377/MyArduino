@@ -32,20 +32,20 @@
 #include <Arduino.h>
 #include "TouchDrvGT911.hpp"
 
-#ifndef SENSOR_SDA
-#define SENSOR_SDA  2
+#ifndef TOUCH_SDA
+#define TOUCH_SDA  2
 #endif
 
-#ifndef SENSOR_SCL
-#define SENSOR_SCL  3
+#ifndef TOUCH_SCL
+#define TOUCH_SCL  3
 #endif
 
-#ifndef SENSOR_IRQ
-#define SENSOR_IRQ  1
+#ifndef TOUCH_IRQ
+#define TOUCH_IRQ  1
 #endif
 
-#ifndef SENSOR_RST
-#define SENSOR_RST  10
+#ifndef TOUCH_RST
+#define TOUCH_RST  10
 #endif
 
 TouchDrvGT911 touch;
@@ -58,63 +58,67 @@ void setup()
     Serial.begin(115200);
     while (!Serial);
 
-    Wire.begin(SENSOR_SDA, SENSOR_SCL);
-    /*
-    * The touch reset pin uses hardware pull-up,
-    * and the function of setting the I2C device address cannot be used.
-    * Use scanning to obtain the touch device address.
-    * * */
-    uint8_t touchAddress = 0;
-    Wire.beginTransmission(0x14);
-    if (Wire.endTransmission() == 0) {
-        touchAddress = 0x14;
-    }
-    Wire.beginTransmission(0x5D);
-    if (Wire.endTransmission() == 0) {
-        touchAddress = 0x5D;
-    }
-    if (touchAddress == 0) {
+    // If the reset pin and interrupt pin can be controlled by GPIO, the device address can be set arbitrarily
+    // If the interrupt and reset pins are not connected, you can pass in the -1 parameter and the library will automatically determine the address.
+    touch.setPins(TOUCH_RST, TOUCH_IRQ);
+    if (!touch.begin(Wire, GT911_SLAVE_ADDRESS_L, TOUCH_SDA, TOUCH_SCL)) {
         while (1) {
             Serial.println("Failed to find GT911 - check your wiring!");
             delay(1000);
         }
     }
-
-    touch.setPins(SENSOR_RST, SENSOR_IRQ);
-
-    if (!touch.begin(Wire,  touchAddress, SENSOR_SDA, SENSOR_SCL )) {
-        while (1) {
-            Serial.println("Failed to find GT911 - check your wiring!");
-            delay(1000);
-        }
-    }
-
-    //Set to trigger on falling edge
-    touch.setInterruptMode(FALLING);
 
     Serial.println("Init GT911 Sensor success!");
 
+    // Set the center button to trigger the callback , Only for specific devices, e.g LilyGo-EPD47 S3 GT911
+    touch.setHomeButtonCallback([](void *user_data) {
+        Serial.println("Home button pressed!");
+    }, NULL);
+
+
+    /*
+    *   GT911 Interrupt mode ,It is not recommended to modify any touch settings
+    *   Please do not modify the touch interrupt mode without a touch screen configuration file, 
+    *   otherwise the touch screen may become unusable.
+    * * */
+    // Low level when idle, converts to high level when touched
+    // touch.setInterruptMode(HIGH_LEVEL_QUERY);
+
+    // Keep low level when idle, and trigger on the falling edge after touching, trigger once at a frequency of 100HZ, and keep high level for 10ms
+    // touch.setInterruptMode(RISING);
+
+    // Keep high level when idle, and switch to low level when touched
+    // touch.setInterruptMode(LOW_LEVEL_QUERY);
+
+    // Maintains high level when idle, and is triggered by the falling edge after being touched. The frequency is 100HZ and is triggered once. Maintains 10ms in the low level interval
+    // touch.setInterruptMode(FALLING);
+
 }
+
 
 void loop()
 {
     if (touch.isPressed()) {
         uint8_t touched = touch.getPoint(x, y, touch.getSupportTouchPoint());
-        for (int i = 0; i < touched; ++i) {
-            Serial.print("X[");
-            Serial.print(i);
-            Serial.print("]:");
-            Serial.print(x[i]);
-            Serial.print(" ");
-            Serial.print(" Y[");
-            Serial.print(i);
-            Serial.print("]:");
-            Serial.print(y[i]);
-            Serial.print(" ");
+        if (touched > 0) {
+            Serial.print(millis());
+            Serial.print("ms ");
+            for (int i = 0; i < touched; ++i) {
+                Serial.print("X[");
+                Serial.print(i);
+                Serial.print("]:");
+                Serial.print(x[i]);
+                Serial.print(" ");
+                Serial.print(" Y[");
+                Serial.print(i);
+                Serial.print("]:");
+                Serial.print(y[i]);
+                Serial.print(" ");
+            }
+            Serial.println();
         }
-        Serial.println();
     }
-    delay(5);
+    delay(100);
 }
 
 

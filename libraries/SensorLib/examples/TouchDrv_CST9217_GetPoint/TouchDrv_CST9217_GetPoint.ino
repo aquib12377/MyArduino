@@ -34,20 +34,20 @@
 #include "SensorWireHelper.h"
 
 
-#ifndef SENSOR_SDA
-#define SENSOR_SDA  8
+#ifndef TOUCH_SDA
+#define TOUCH_SDA  8
 #endif
 
-#ifndef SENSOR_SCL
-#define SENSOR_SCL  10
+#ifndef TOUCH_SCL
+#define TOUCH_SCL  10
 #endif
 
-#ifndef SENSOR_IRQ
-#define SENSOR_IRQ  5
+#ifndef TOUCH_IRQ
+#define TOUCH_IRQ  5
 #endif
 
-#ifndef SENSOR_RST
-#define SENSOR_RST  -1
+#ifndef TOUCH_RST
+#define TOUCH_RST  -1
 #endif
 
 TouchDrvCST92xx touch;
@@ -60,24 +60,26 @@ void setup()
     Serial.begin(115200);
     while (!Serial);
 
-#if SENSOR_RST != -1
-    pinMode(SENSOR_RST, OUTPUT);
-    digitalWrite(SENSOR_RST, LOW);
+#if TOUCH_RST != -1
+    pinMode(TOUCH_RST, OUTPUT);
+    digitalWrite(TOUCH_RST, LOW);
     delay(30);
-    digitalWrite(SENSOR_RST, HIGH);
+    digitalWrite(TOUCH_RST, HIGH);
     delay(50);
     delay(1000);
 #endif
 
-#if defined(ARDUINO_ARCH_RP2040)
-    Wire.setSCL(SENSOR_SCL);
-    Wire.setSDA(SENSOR_SDA);
+#if (defined(ARDUINO_ARCH_RP2040) || defined(ARDUINO_ARCH_STM32)) && !defined(ARDUINO_ARCH_MBED)
+    Wire.setSCL(TOUCH_SCL);
+    Wire.setSDA(TOUCH_SDA);
     Wire.begin();
-#elif defined(NRF52840_XXAA) || defined(NRF52832_XXAA)
-    Wire.setPins(SENSOR_SDA, SENSOR_SCL);
+#elif defined(ARDUINO_ARCH_NRF52)
+    Wire.setPins(TOUCH_SDA, TOUCH_SCL);
     Wire.begin();
+#elif defined(ARDUINO_ARCH_ESP32)
+    Wire.begin(TOUCH_SDA, TOUCH_SCL);
 #else
-    Wire.begin(SENSOR_SDA, SENSOR_SCL);
+    Wire.begin();
 #endif
 
     // Scan I2C devices
@@ -86,14 +88,14 @@ void setup()
 
     // uint8_t touchAddress = 0x1A;        // Other device addresses are determined by the touch firmware and are generally 0X5A by default.
     uint8_t touchAddress = 0x5A;     // The device address is determined according to the actual situation. Not all device addresses are 0X5A. There can also be other customized device addresses.
-    
+
 
     // Set to skip register check, used when the touch device address conflicts with other I2C device addresses [0x5A]
     // touch.jumpCheck();
 
 
-    touch.setPins(SENSOR_RST, SENSOR_IRQ);
-    bool result = touch.begin(Wire, touchAddress, SENSOR_SDA, SENSOR_SCL);
+    touch.setPins(TOUCH_RST, TOUCH_IRQ);
+    bool result = touch.begin(Wire, touchAddress, TOUCH_SDA, TOUCH_SCL);
     if (result == false) {
         Serial.println("touch is not online..."); while (1)delay(1000);
     }
@@ -111,11 +113,14 @@ void setup()
     // CST9217 sleep current = 3.4 uA
     touch.sleep();
 
-    int i = 10;
-    while (i--) {
-        Serial.printf("Wake up after %d seconds\n", i);
-        delay(1000);
-    }
+    // int i = 10;
+    // while (i--) {
+    //     Serial.print("Wake up after ");
+    //     Serial.print(i);
+    //     Serial.println(" seconds");
+    //     delay(1000);
+    // }
+
 
     // Wakeup touch
     touch.reset();
@@ -130,7 +135,7 @@ void setup()
     // touch.setMirrorXY(true, true);
 
     //Register touch plane interrupt pin
-    attachInterrupt(SENSOR_IRQ, []() {
+    attachInterrupt(TOUCH_IRQ, []() {
         isPressed = true;
     }, FALLING);
 }

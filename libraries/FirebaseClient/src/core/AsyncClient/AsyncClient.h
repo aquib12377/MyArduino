@@ -6,10 +6,15 @@
 #include "./core/Utils/OTA.h"
 #include "./core/Utils/StringUtil.h"
 #include "./core/AsyncClient/SlotManager.h"
+#if defined(ENABLE_DATABASE)
+#define PUBLIC_DATABASE_RESULT_IMPL_BASE : public RTDBResultImpl
+#else
+#define PUBLIC_DATABASE_RESULT_IMPL_BASE
+#endif
 
 using namespace firebase_ns;
 
-class AsyncClientClass : public RTDBResultImpl
+class AsyncClientClass PUBLIC_DATABASE_RESULT_IMPL_BASE
 {
     friend class AppBase;
     friend class RealtimeDatabase;
@@ -413,8 +418,8 @@ private:
             // Hadles redirection (stop and connect).
             String ext;
             String _host = sData->request.getHost(false, &sData->response.val[resns::location], &ext);
-            conn.stop();
-            if (conn.connect(_host.c_str(), sData->request.port) > ret_failure)
+            sman.stop();
+            if (sman.connect(sData, _host.c_str(), sData->request.port) > ret_failure)
             {
                 uut.relocate(sData->request.val[reqns::header], _host, ext);
                 sut.clear(sData->request.val[reqns::payload]);
@@ -970,8 +975,8 @@ private:
         if (!options.auth_used)
         {
             sData->request.app_token = options.app_token;
-            if (options.app_token && !options.auth_param && (options.app_token->auth_type > auth_unknown_token && options.app_token->auth_type < auth_refresh_token))
-                sData->request.addAuthHeader(options.app_token->auth_type);
+            if (options.app_token && !options.auth_param && (options.user_auth->getAuthTokenType() > auth_unknown_token && options.user_auth->getAuthTokenType() < auth_refresh_token))
+                sData->request.addAuthHeader(options.user_auth->getAuthTokenType());
 
             sData->request.addConnectionHeader(true);
 
@@ -1306,7 +1311,7 @@ public:
      * Set the ETag header to the task (DEPRECATED).
      *
      * @param etag The ETag to set to the task.
-     * 
+     *
      * The etag can be set via the functions that support etag.
      */
     void setEtag(const String &etag) { Serial.println("🔥 AsyncClientClass::setEtag is deprecated."); }
@@ -1328,7 +1333,7 @@ public:
     /**
      * Set the TCP session timeout in seconds.
      *
-     * @param timeoutSec The TCP session timeout in seconds.
+     * @param timeoutSec The TCP session timeout in seconds (> 150 seconds).
      */
     void setSessionTimeout(uint32_t timeoutSec) { sman.session_timeout_sec = timeoutSec; }
 
@@ -1347,7 +1352,7 @@ public:
      * auth_revoked - To allow the auth_revoked event.
      *
      * To clear all prevousely set filter to allow all Stream events, use AsyncClientClass::setSSEFilters().
-     * 
+     *
      * This will overwrite the value sets by RealtimeDatabase::setSSEFilters.
      */
     void setSSEFilters(const String &sse_events_filter) { sman.sse_events_filter = sse_events_filter; }

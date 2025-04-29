@@ -53,7 +53,13 @@ void setup()
 
     pinMode(SENSOR_IRQ, INPUT);
 
-    if (!accel.begin(Wire, BMA423_SLAVE_ADDRESS, SENSOR_SDA, SENSOR_SCL)) {
+    Serial.println("BMA423 Sensor Temperature");
+
+    /*
+    * BMA423_I2C_ADDR_PRIMARY   = 0x18
+    * BMA423_I2C_ADDR_SECONDARY = 0x19
+    * * */
+    if (!accel.begin(Wire, BMA423_I2C_ADDR_SECONDARY, SENSOR_SDA, SENSOR_SCL)) {
         Serial.println("Failed to find BMA423 - check your wiring!");
         while (1) {
             delay(1000);
@@ -68,8 +74,9 @@ void loop()
     Serial.print("getTemperature:");
     Serial.print(accel.getTemperature(SensorBMA423::TEMP_DEG));
     Serial.print("*C ");
-    Serial.print(accel.getTemperature(SensorBMA423::TEMP_FAHREN));
+    Serial.print(accel.getTemperature(SensorBMA423::TEMP_FAHRENHEIT));
     Serial.print("*F");
+    Serial.println();
     delay(1000);
 }
 

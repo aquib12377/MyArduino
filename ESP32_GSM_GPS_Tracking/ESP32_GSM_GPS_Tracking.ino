@@ -2,11 +2,11 @@
 
 //sender phone number with country code.
 //not gsm module phone number
-const String PHONE = "+919324419285";
+const String PHONE = "+919004873494";
 
 //GSM Module RX pin to ESP32 2
 //GSM Module TX pin to ESP32 4
-#define rxPin 15
+#define rxPin 4
 #define txPin 2
 HardwareSerial sim800(1);
 
@@ -25,8 +25,8 @@ void setup() {
   Serial.begin(115200);
   Serial.println("esp32 serial initialize");
   
-    sim800.begin(9600, SERIAL_8N1, rxPin, txPin);
-    Serial.println("SIM800L serial initialize");
+  sim800.begin(9600, SERIAL_8N1, rxPin, txPin);
+  Serial.println("SIM800L serial initialize");
 
   neogps.begin(9600, SERIAL_8N1, RXD2, TXD2);
   Serial.println("neogps serial initialize");
@@ -195,7 +195,7 @@ void sendLocation()
     delay(1000);
     sim800.print("AT+CMGS=\""+PHONE+"\"\r");
     delay(1000);
-    sim800.print("https://maps.app.goo.gl/P56s1TB1afyg95nx5");
+    sim800.print("https://maps.app.goo.gl/DP4RPirkBQhyaY5S8");
     delay(100);
     sim800.write(0x1A); //ascii code for ctrl-26 //sim800.println((char)26); //ascii code for ctrl-26
     delay(1000);
@@ -250,4 +250,3 @@ void sendSpeed()
     Serial.println("GPS Location SMS Sent Successfully.");
   }
 }
-//MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM

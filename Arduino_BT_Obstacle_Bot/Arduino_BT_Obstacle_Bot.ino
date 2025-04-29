@@ -5,8 +5,8 @@
 LiquidCrystal_I2C lcd(0x27, 16, 2); // I2C address 0x27, 16 columns, 2 rows
 
 // Motor Pins
-#define MOTOR_A1 4 // Motor A forward
-#define MOTOR_A2 3 // Motor A backward
+#define MOTOR_A1 5 // Motor A forward
+#define MOTOR_A2 6 // Motor A backward
 #define MOTOR_B1 7 // Motor B forward
 #define MOTOR_B2 8 // Motor B backward
 
@@ -63,13 +63,13 @@ void loop() {
     lcd.print(distance);
     lcd.print(" cm  "); // Padding for clear display
 
-    if (isMovingForward && distance > 0 && distance <= OBSTACLE_DISTANCE) {
-      Serial.println("Obstacle detected! Stopping bot...");
-      lcd.setCursor(0, 0);
-      lcd.print("Obstacle Stop   ");
-      stopMotors();
-      isMovingForward = false; // Stop forward movement
-    }
+    // if (isMovingForward && distance > 0 && distance <= OBSTACLE_DISTANCE) {
+    //   Serial.println("Obstacle detected! Stopping bot...");
+    //   lcd.setCursor(0, 0);
+    //   lcd.print("Obstacle Stop   ");
+    //   stopMotors();
+    //   isMovingForward = false; // Stop forward movement
+    // }
   }
 
   // Read Bluetooth commands if available

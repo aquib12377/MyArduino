@@ -40,16 +40,16 @@ void loop() {
 
   // --- Send motor commands ---
   if (forwardPressed) {
-    Serial.println("F");  // Forward command
+    Serial.println("FO");  // Forward command
   } 
   else if (leftPressed) {
-    Serial.println("L");  // Left command
+    Serial.println("LE");  // Left command
   } 
   else if (rightPressed) {
-    Serial.println("R");  // Right command
+    Serial.println("RI");  // Right command
   } 
   else {
-    Serial.println("S");  // Stop command if no motor button is pressed
+    Serial.println("ST");  // Stop command if no motor button is pressed
   }
 
   // --- Send servo commands (while Button4 is held) ---

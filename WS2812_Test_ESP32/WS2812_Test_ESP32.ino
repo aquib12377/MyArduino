@@ -3,7 +3,7 @@
 #define NUM_LEDS 300       // Number of LEDs in your strip
 
 //ESP32 38 Pin
-#define DATA_PIN 8       // D  ata pin for the WS2812 connected to GPIO 15 on ESP32
+#define DATA_PIN 18       // D  ata pin for the WS2812 connected to GPIO 15 on ESP32
 //ESP32 30 Pin
 //#define DATA_PIN 13       // D  ata pin for the WS2812 connected to GPIO 15 on ESP32
 

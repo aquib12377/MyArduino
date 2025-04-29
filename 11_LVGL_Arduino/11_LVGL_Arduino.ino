@@ -3,7 +3,7 @@
 #include "Arduino_DriveBus_Library.h"
 #include "pin_config.h"
 #include "lv_conf.h"
-#include <demos/lv_demos.h>
+#include <D:/Aquib/MyArduino/libraries/lvgl/src/demos/lv_demos.h>
 #include "HWCDC.h"
 #include "image.h"
 
@@ -14,7 +14,9 @@ Arduino_DataBus *bus = new Arduino_ESP32SPI(LCD_DC, LCD_CS, LCD_SCK, LCD_MOSI);
 Arduino_GFX *gfx = new Arduino_ST7789(bus, LCD_RST /* RST */,
                                       0 /* rotation */, true /* IPS */, LCD_WIDTH, LCD_HEIGHT, 0, 20, 0, 0);
 
-
+static lv_obj_t *pin_label;           // shows the digits already typed
+static char      pin_buf[5] = "";     // holds the 4‑digit PIN (+ NUL)
+static uint8_t   pin_index  = 0;      // number of digits typed 0‑4
 std::shared_ptr<Arduino_IIC_DriveBus> IIC_Bus =
   std::make_shared<Arduino_HWIIC>(IIC_SDA, IIC_SCL, &Wire);
 
@@ -166,10 +168,9 @@ void setup() {
   esp_timer_handle_t lvgl_tick_timer = NULL;
   esp_timer_create(&lvgl_tick_timer_args, &lvgl_tick_timer);
   esp_timer_start_periodic(lvgl_tick_timer, EXAMPLE_LVGL_TICK_PERIOD_MS * 1000);
-
-  lv_demo_widgets();
-  // lv_demo_benchmark();
-  // lv_demo_keypad_encoder();
+  create_pin_ui();
+  USBSerial.println("Setup done – keypad ready");  // lv_demo_benchmark();
+  lv_example_style_1();
   // lv_demo_music();
   // lv_demo_stress();
 
@@ -178,7 +179,65 @@ void setup() {
   // lv_obj_align(img_obj, LV_ALIGN_CENTER, 0, 0);
   // USBSerial.println("Setup done");
 }
+/*— button‑event handler —*/
+static void pin_btn_event_cb(lv_event_t *e)
+{
+  lv_obj_t *btn = lv_event_get_target(e);
+  const char *txt = lv_label_get_text(lv_obj_get_child(btn, 0));   // button caption
 
+  if (pin_index < 4) {               // still room for another digit
+    pin_buf[pin_index++] = txt[0];   // copy digit into the buffer
+    pin_buf[pin_index]   = '\0';     // keep it NUL‑terminated
+    lv_label_set_text_fmt(pin_label, "PIN: %s", pin_buf);
+  }
+
+  if (pin_index == 4) {
+    /*  >>> 4‑digit PIN complete –‑ do whatever you need here <<<  */
+    USBSerial.printf("PIN entered: %s\n", pin_buf);
+    /* simple feedback: flash the text for half a second */
+    lv_label_set_text(pin_label, "PIN OK!");
+    lv_timer_t *t = lv_timer_create([](lv_timer_t *){
+                                      pin_index = 0;
+                                      pin_buf[0] = '\0';
+                                      lv_label_set_text(pin_label, "PIN: ");
+                                    },
+                                    500, nullptr);
+    lv_timer_set_repeat_count(t, 1);  // one‑shot timer
+  }
+}
+
+/*— build the whole screen —*/
+static void create_pin_ui(void)
+{
+  /* container = white card, centred */
+  lv_obj_t *card = lv_obj_create(lv_scr_act());
+  lv_obj_set_size(card, 210, 180);
+  lv_obj_center(card);
+  lv_obj_set_style_pad_all(card, 8, 0);
+  /* title / feedback label */
+  pin_label = lv_label_create(card);
+  lv_label_set_text(pin_label, "PIN: ");
+  lv_obj_align(pin_label, LV_ALIGN_TOP_MID, 0, 0);
+  lv_obj_set_style_text_font(pin_label, &lv_font_montserrat_14, 0);
+
+  /* 4 buttons laid out in a 2 × 2 grid */
+  static const char *numbers[4] = { "1", "2", "3", "4" };
+
+  for (uint8_t i = 0; i < 4; i++) {
+    lv_obj_t *btn = lv_btn_create(card);
+    lv_obj_set_size(btn, 70, 50);
+    lv_obj_align(btn,
+                 LV_ALIGN_CENTER,
+                 (i % 2) ? 50 : -50,          // X offsets: –50, 50
+                 (i / 2) ? 50 : -10);         // Y offsets: –10, 50
+    lv_obj_add_event_cb(btn, pin_btn_event_cb, LV_EVENT_CLICKED, nullptr);
+
+    lv_obj_t *lbl = lv_label_create(btn);
+    lv_label_set_text(lbl, numbers[i]);
+    lv_obj_center(lbl);
+    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_14, 0);
+  }
+}
 void loop() {
   lv_timer_handler(); /* let the GUI do its work */
   delay(5);

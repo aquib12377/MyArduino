@@ -26,9 +26,9 @@ Arduino_GFX *gfx = new Arduino_ILI9341(bus, 17 /* RST */);
 
 ```C
 gfx->begin();
-gfx->fillScreen(BLACK);
+gfx->fillScreen(RGB565_BLACK);
 gfx->setCursor(10, 10);
-gfx->setTextColor(RED);
+gfx->setTextColor(RGB565_RED);
 gfx->println("Hello World!");
 ```
 
@@ -87,7 +87,7 @@ Another U8g2 font advantage is the font support Unicode glyphs. Simply enable se
 
 ```C
 gfx->begin();
-gfx->fillScreen(BLACK);
+gfx->fillScreen(RGB565_BLACK);
 gfx->setUTF8Print(true);
 ```
 
@@ -331,19 +331,21 @@ ESP32LCD8, ESP32LCD16 and ESP32RGBPanel only supported by arduino-esp32 v2.x and
 * [ESP32-S3-RGB](https://github.com/W00ng/ESP32-S3-RGB-Panel) [[LVGL demo video](https://youtu.be/d11yUvjh34A)]
 * ESP32S3-2.1-TP
 * [ESPboy](https://www.espboy.com) [[demo video](https://youtu.be/Cx82XWrc8-0)]
-* [LILYGO T-Deck](https://www.lilygo.cc/products/t-deck) [[demo video](https://youtube.com/shorts/fXKTVqjUoPM)]
-* [LILYGO T-Display](https://www.lilygo.cc/products/lilygo®-ttgo-t-display-1-14-inch-lcd-esp32-control-board)
-* [LILYGO T-Display-S3](https://www.lilygo.cc/products/t-display-s3) [[demo video](https://youtu.be/kpRC64QNQAo)]
-* [LILYGO T-Display-S3 AMOLED](https://www.lilygo.cc/products/t-display-s3-amoled) [[demo video](https://youtu.be/NvOGJAMlh1M)]
-* [LILYGO T-Display-S3 AMOLED](https://www.lilygo.cc/products/t-display-s3-amoled-1-64) [[demo video](https://youtu.be/5O3fQ1xNsrg)][[LVGL demo video](https://youtu.be/6UEaxWfxm9g)]
-* [T-Display S3 Long](https://www.lilygo.cc/products/t-display-s3-long)[[LVGL demo video](https://youtu.be/OuxLFwxvcVc)]
-* [LILYGO T-Display-s3-Pro](https://www.lilygo.cc/products/t-display-s3-pro) [[demo video](https://youtube.com/shorts/PE-GKTzbdP8)]
-* [LILYGO T-QT](https://www.lilygo.cc/products/t-qt-v1-1) [[demo video](https://youtube.com/shorts/V1MCQ1tQ8PM)]
-* [LILYGO T-RGB](https://www.lilygo.cc/products/t-rgb) [[LVGL demo video](https://youtu.be/BKEl_pWp_qQ)]
-* [LILYGO T-Track](https://www.lilygo.cc/products/t-track) [[demo video](https://youtu.be/6wmUhp-5eMg)][[LVGL demo video](https://youtu.be/wQjMu5JZSkg)]
-* [LILYGO T-Watch](http://www.lilygo.cn/prod_view.aspx?TypeId=50053&Id=1123)
-* [LILYGO T-Watch 2021](https://www.lilygo.cc/products/t-watch-2021)
-* [LILYGO T4 S3](https://www.lilygo.cc/products/t4-s3)[[LVGL demo video](https://youtu.be/h4vXEYrDERM)]
+* [Guition JC1060P470](https://www.aliexpress.com/item/1005008328088576.html) [[demo video](https://youtu.be/CF1EDSQDHQ8)] [[LVGL demo](https://youtu.be/CF1EDSQDHQ8)]
+* [LILYGO T-Deck](https://www.lilygo.cc/products/t-deck?bg_ref=Ts2JN05e23) [[demo video](https://youtube.com/shorts/fXKTVqjUoPM)]
+* [LILYGO T-Deck Plus](https://www.lilygo.cc/products/t-deck-plus-1?bg_ref=Ts2JN05e23)
+* [LILYGO T-Display](https://www.lilygo.cc/products/lilygo®-ttgo-t-display-1-14-inch-lcd-esp32-control-board?bg_ref=Ts2JN05e23)
+* [LILYGO T-Display-S3](https://www.lilygo.cc/products/t-display-s3?bg_ref=Ts2JN05e23) [[demo video](https://youtu.be/kpRC64QNQAo)]
+* [LILYGO T-Display-S3 AMOLED](https://www.lilygo.cc/products/t-display-s3-amoled?bg_ref=Ts2JN05e23) [[demo video](https://youtu.be/NvOGJAMlh1M)]
+* [LILYGO T-Display-S3 AMOLED 1.64](https://www.lilygo.cc/products/t-display-s3-amoled-1-64?bg_ref=Ts2JN05e23) [[demo video](https://youtu.be/5O3fQ1xNsrg)][[LVGL demo video](https://youtu.be/6UEaxWfxm9g)]
+* [LILYGO T-Display S3 Long](https://www.lilygo.cc/products/t-display-s3-long?bg_ref=Ts2JN05e23)[[LVGL demo video](https://youtu.be/OuxLFwxvcVc)]
+* [LILYGO T-Display S3 Pro](https://www.lilygo.cc/products/t-display-s3-pro?bg_ref=Ts2JN05e23) [[demo video](https://youtube.com/shorts/PE-GKTzbdP8)]
+* [LILYGO T-QT](https://www.lilygo.cc/products/t-qt-pro?bg_ref=Ts2JN05e23) [[demo video](https://youtube.com/shorts/V1MCQ1tQ8PM)]
+* [LILYGO T-RGB](https://www.lilygo.cc/products/t-rgb?bg_ref=Ts2JN05e23) [[LVGL demo video](https://youtu.be/BKEl_pWp_qQ)]
+* [LILYGO T-Track](https://www.lilygo.cc/products/t-track?bg_ref=Ts2JN05e23) [[demo video](https://youtu.be/6wmUhp-5eMg)][[LVGL demo video](https://youtu.be/wQjMu5JZSkg)]
+* LILYGO T-Watch
+* [LILYGO T-Watch 2021](https://www.lilygo.cc/products/t-watch-2021?bg_ref=Ts2JN05e23)
+* [LILYGO T4 S3](https://www.lilygo.cc/products/t4-s3?bg_ref=Ts2JN05e23)[[LVGL demo video](https://youtu.be/h4vXEYrDERM)]
 * [M5Stack Core Family](https://shop.m5stack.com/collections/m5-controllers/CORE)
 * [M5Stack AtomS3](https://shop.m5stack.com/products/atoms3-dev-kit-w-0-85-inch-screen)[[demo video](https://youtu.be/8u4TwZHmnN0)]
 * [Makerfabs ESP32 3.5" TFT Touch with Camera](https://www.makerfabs.com/esp32-3.5-inch-tft-touch-capacitive-with-camera.html)
@@ -351,7 +353,11 @@ ESP32LCD8, ESP32LCD16 and ESP32RGBPanel only supported by arduino-esp32 v2.x and
 * [Makerfabs ESP32-S3 TFT 4.3" v1.3](https://www.makerfabs.com/esp32-s3-parallel-tft-with-touch-4-3-inch.html) [[demo video](https://youtu.be/oQ57L2gTHoo)]
 * [Odroid Go](https://www.hardkernel.com/shop/odroid-go/)
 * [seeed studio Wio Terminal](https://wiki.seeedstudio.com/Wio-Terminal-Getting-Started/)
-* [Waveshare RP2040-LCD-1.28](https://www.waveshare.com/wiki/RP2040-LCD-1.28)
+* [Waveshare RP2040-LCD-0.96](https://www.waveshare.com/rp2040-lcd-0.96.htm?&aff_id=107987)
+* [Waveshare RP2040-LCD-1.28](https://www.waveshare.com/rp2040-lcd-1.28.htm?&aff_id=107987)
+* [Waveshare RP2350-LCD-0.96](https://www.waveshare.com/rp2350-lcd-0.96.htm?&aff_id=107987)
+* [Waveshare ESP32-C6-LCD-1.47](https://www.waveshare.com/esp32-c6-lcd-1.47.htm?&aff_id=107987)
+* [Waveshare ESP32-S3-Touch-LCD-2.8](https://www.waveshare.com/esp32-s3-touch-lcd-2.8.htm?&aff_id=107987)
 * [wireless-tag WT-32-SC01](http://www.wireless-tag.com/portfolio/wt32-sc01/)
 * [Elecrow ESP Terminal with 3.5" parallel RGB display DLC35010R](https://www.elecrow.com/esp-terminal-with-esp32-3-5-inch-parallel-480x320-tft-capacitive-touch-display-rgb-by-chip-ili9488.html) [[demo video](https://youtu.be/QRDVuwayNFw)]
 * [Elecrow Wizee-ESP32 WZ8048C050](https://www.elecrow.com/esp32-display-5-inch-hmi-display-rgb-tft-lcd-touch-screen-support-lvgl.html)
@@ -395,6 +401,7 @@ ESP32LCD8, ESP32LCD16 and ESP32RGBPanel only supported by arduino-esp32 v2.x and
 * NT35310 320x480 [[demo video](https://youtu.be/bvIz5CoYPNk)]
 * NT35510 480x800 (8-bit/16-bit Parallel) [[demo video](https://youtu.be/C_1ASzUN3bg)]
 * NT39125 240x376 (8-bit/16-bit Parallel) [[demo video](https://youtu.be/JGMrM18JAFA)]
+* NV3007 142x428 [[demo video](https://youtube.com/shorts/ePcf0LmMgOo)]
 * NV3041A 480x272 [[demo video](https://youtu.be/pd1DTW9QHkg)]
 * OTM8009A 480x800 (8-bit/16-bit Parallel)
 * R61529 320x480 (8-bit/16-bit Parallel) [[demo video](https://youtu.be/s93gxjbIAT8)]

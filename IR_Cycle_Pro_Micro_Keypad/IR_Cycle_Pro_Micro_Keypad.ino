@@ -17,7 +17,7 @@ void loop() {
   currentState = digitalRead(inputPin);
 
   // Check if the state has changed
-  if (currentState != lastInputState) {
+if (currentState != lastInputState) {
     unsigned long currentTime = millis(); // Get the current time
     unsigned long timeDifference = currentTime - lastChangeTime; // Calculate time difference
     
@@ -35,9 +35,9 @@ void loop() {
     // Check if 5 state changes have occurred
     if (stateChangeCount % 2 == 0) {
       Serial.println("5 state changes detected!");
-      Keyboard.print('8');
+      Keyboard.print('2');
     delay(5);
-    Keyboard.release('8');
+    Keyboard.release('2');
     }
     
     // Update the last state and last change time

@@ -6,6 +6,7 @@
 #include "databus/Arduino_UNOPAR8.h"
 #include "databus/Arduino_AVRPAR16.h"
 #include "databus/Arduino_DUEPAR16.h"
+#include "databus/Arduino_ESP32DSIPanel.h"
 #include "databus/Arduino_ESP32LCD8.h"
 #include "databus/Arduino_ESP32LCD16.h"
 #include "databus/Arduino_ESP32PAR8.h"
@@ -50,6 +51,7 @@
 
 #include "display/Arduino_AXS15231B.h"
 #include "display/Arduino_CO5300.h"
+#include "display/Arduino_DSI_Display.h"
 #include "display/Arduino_GC9A01.h"
 #include "display/Arduino_GC9106.h"
 #include "display/Arduino_GC9107.h"
@@ -74,6 +76,7 @@
 #include "display/Arduino_NT35310.h"
 #include "display/Arduino_NT35510.h"
 #include "display/Arduino_NT39125.h"
+#include "display/Arduino_NV3007.h"
 #include "display/Arduino_NV3023.h"
 #include "display/Arduino_NV3041A.h"
 #include "display/Arduino_OTM8009A.h"
@@ -83,7 +86,6 @@
 #include "display/Arduino_RGB_Display.h"
 #include "display/Arduino_SEPS525.h"
 #include "display/Arduino_SH1106.h"
-#include "display/Arduino_SH8601.h"
 #include "display/Arduino_SSD1283A.h"
 #include "display/Arduino_SSD1306.h"
 #include "display/Arduino_SSD1331.h"
@@ -189,7 +191,7 @@
 #define DF_GFX_DC 3
 #define DF_GFX_RST 2
 #define DF_GFX_BL 1
-#elif defined(TARGET_RP2040)
+#elif defined(TARGET_RP2040) || defined(PICO_RP2350)
 #define DF_GFX_SCK 18
 #define DF_GFX_MOSI 19
 #define DF_GFX_MISO 16

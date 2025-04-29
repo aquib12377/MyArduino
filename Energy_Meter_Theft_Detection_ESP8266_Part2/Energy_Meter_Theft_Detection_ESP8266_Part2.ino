@@ -4,9 +4,10 @@
  *    - Wire (already included for ESP8266)
  * 2) Adjust your Blynk credentials below.
  ***************************************************/
-#define BLYNK_TEMPLATE_ID "TMPL3tUoah5CR"
-#define BLYNK_TEMPLATE_NAME "Energy Meter Monitoring"
-#define BLYNK_AUTH_TOKEN "ugh86NOIL0l97T_PAf3IV2gYSn-Vb-Cx"
+#define BLYNK_PRINT Serial
+#define BLYNK_TEMPLATE_ID "TMPL31-SE4ZS4"
+#define BLYNK_TEMPLATE_NAME "ENERGY METER"
+#define BLYNK_AUTH_TOKEN "vQ-1c4sk2aRqRTtNubZYhtsoTvfBguo1"
 // Blynk needs the following includes
 #include <ESP8266WiFi.h>
 #include <BlynkSimpleEsp8266.h>
@@ -53,14 +54,16 @@ void requestDataFromArduino() {
     if (commaIndex > 0) {
       String unitsStr = data.substring(0, commaIndex);
       String costStr  = data.substring(commaIndex + 1);
+      unitsStr.trim();
+      costStr.trim();
       Serial.println("Units: "+String(unitsStr));
       Serial.println("Cost: "+String(costStr));
       int units = unitsStr.toInt();
       int cost  = costStr.toInt();
 
       // Update Blynk widgets
-      Blynk.virtualWrite(V0, units); // e.g. Value Display widget
-      Blynk.virtualWrite(V1, cost);  // e.g. Value Display widget
+      Blynk.virtualWrite(V0, String(units)); // e.g. Value Display widget
+      Blynk.virtualWrite(V1, String(cost));  // e.g. Value Display widget
     }
   }
 }
@@ -113,4 +116,5 @@ void setup() {
 void loop() {
   Blynk.run();    // Process Blynk events
   timer.run();    // Run our timed functions
+  delay(10000);
 }

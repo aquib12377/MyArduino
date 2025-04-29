@@ -199,7 +199,7 @@ namespace firebase_ns
             return v.existed(cVec, aclient_addr) ? aClient : nullptr;
         }
 
-        void setEvent(firebase_auth_event_type event)
+        void setEvent(firebase_auth_event_type event, const String &reason = "")
         {
             if (auth_data.user_auth.status._event == event)
                 return;
@@ -215,7 +215,7 @@ namespace firebase_ns
                 auth_timer.stop();
             }
 
-            setEventResult(sData ? &sData->aResult : getRefResult(), auth_data.user_auth.status.authEventString(auth_data.user_auth.status._event), auth_data.user_auth.status._event);
+            setEventResult(sData ? &sData->aResult : getRefResult(), reason.length() ? reason : auth_data.user_auth.status.authEventString(auth_data.user_auth.status._event), auth_data.user_auth.status._event);
 
             if (event == auth_event_error || event == auth_event_ready)
             {
@@ -616,7 +616,7 @@ namespace firebase_ns
                 {
                     // In case of googleapis returns http status code >= 400 or request is timed out.
                     // Note that, only status line was read in case http status code >= 400
-                    setEvent(auth_event_error);
+                    setEvent(auth_event_error, req_timer.remaining() == 0 ? "connection timed out" : sData->response.val[resns::status]);
                     return false;
                 }
 
@@ -645,7 +645,7 @@ namespace firebase_ns
 
                     if (parseToken(sData->response.val[resns::payload].c_str()))
                     {
-#if defined(ENABLE_SERVICE_AUTH) || defined(ENABLE_CUSTOM_AUTH)
+#if defined(ENABLE_CUSTOM_AUTH)
                         if (auth_data.user_auth.auth_type == auth_sa_custom_token && auth_data.app_token.val[app_tk_ns::uid].length() == 0) // store the custom UID if UID was not found in the response.
                             auth_data.app_token.val[app_tk_ns::uid] = auth_data.user_auth.cust.val[cust_ns::uid];
 #endif
@@ -664,7 +664,7 @@ namespace firebase_ns
                     }
                     else
                     {
-                        setEvent(auth_event_error);
+                        setEvent(auth_event_error, "unable to parse the response");
                     }
                 }
             }
@@ -729,7 +729,9 @@ namespace firebase_ns
 #else
         void loop()
         {
+#if defined(ENABLE_JWT)
             jwtClass = nullptr;
+#endif
             await(await_ms);
         }
 #endif
@@ -750,12 +752,13 @@ namespace firebase_ns
         void getApp(T &app)
         {
             app.resetApp();
+
             cvec_address_info_t cvec_address_info;
             cvec_address_info.app_token = &auth_data.app_token;
             cvec_address_info.app_addr = app_addr;
             cvec_address_info.cvec_addr = cVecAddr(app);
             cvec_address_list.push_back(cvec_address_info);
-            setAppBase(app, app_addr, &auth_data.app_token, reinterpret_cast<uint32_t>(&aVec), reinterpret_cast<uint32_t>(&ul_dl_task_running), reinterpret_cast<uint32_t>(&cvec_address_list), reinterpret_cast<uint32_t>(&app_loop_count));
+            setAppBase(app, app_addr, &auth_data, reinterpret_cast<uint32_t>(&aVec), reinterpret_cast<uint32_t>(&ul_dl_task_running), reinterpret_cast<uint32_t>(&cvec_address_list), reinterpret_cast<uint32_t>(&app_loop_count));
         }
 
         /**
@@ -894,6 +897,7 @@ namespace firebase_ns
             auth_timer.setInterval(0);
         }
 
+#if defined(ENABLE_JWT)
         /**
          * Set the JWT token processor object(DEPRECATED).
          *
@@ -904,6 +908,7 @@ namespace firebase_ns
          * @param  jwtClass The pointer to JWTClass class object to handle the JWT token generation and signing.
          */
         void setJWTProcessor(JWTClass &jwtClass) { this->jwtClass = &jwtClass; }
+#endif
     };
 };
 #endif

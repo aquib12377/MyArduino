@@ -285,7 +285,7 @@ void setup()
   } else {
     Serial.println("Fingerprint: Sensor not found :(");
     displayLCD("Fingerprint", "Sensor Error");
-    while (1) { delay(1); }
+    //while (1) { delay(1); }
   }
 
   // Display Fingerprint Sensor Status

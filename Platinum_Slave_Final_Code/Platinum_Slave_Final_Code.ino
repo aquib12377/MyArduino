@@ -103,9 +103,6 @@ void setup() {
   memset(roomAvailability, 0, sizeof(roomAvailability));
   Serial.println("Slave ready.");
   turnOffAllLEDs();
-  //patternSoftColorsSmooth();
-  // Optionally, run a default pattern:
-  //patternRoomVariations9To11Floor();
 }
 
 // ----------------------------------------------------------------------------------------
@@ -406,7 +403,7 @@ void executeTurnOnBHK(uint8_t bhkType) {
           color = ledsFloor[f]->Color(softColors[0][0], softColors[0][1], softColors[0][2]);
         else if (bhkType == 3) 
           color = ledsFloor[f]->Color(softColors[2][0], softColors[2][1], softColors[2][2]);
-        else 
+        else  
           color = ledsFloor[f]->Color(255, 255, 255);
           
         int ledStart = r * NUM_LEDS_PER_ROOM;

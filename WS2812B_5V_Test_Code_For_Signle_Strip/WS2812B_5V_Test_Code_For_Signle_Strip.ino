@@ -1,19 +1,20 @@
 #include <Adafruit_NeoPixel.h>
 
-#define LED_PIN     2   // Pin where the data line is connected
-#define LED_COUNT   120  // Number of LEDs in the strip
+#define LED_PIN     A0   // Pin where the data line is connected
+#define LED_COUNT   32  // Number of LEDs in the strip
 
 Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 
 void setup() {
     strip.begin();  // Initialize the NeoPixel library
     strip.show();   // Turn off all LEDs
-    strip.setBrightness(255);  // Set brightness (0-255)
+    strip.setBrightness(100);  // Set brightness (0-255)
 }
 
 void loop() {
       
     colorWipe(strip.Color(100, 0, 100), 10 ); // Blue
+    rainbowCycle(10);
     delay(5000);
 }
 

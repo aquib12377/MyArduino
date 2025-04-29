@@ -43,7 +43,12 @@ void setup() {
   // Read from EEPROM
   pulseCount = EEPROM.read(10);
   readUnitsFromEEPROM();
-
+  
+  /*Un-Comment only if units needs to be changed*/
+  // EEPROM.write(11, 1000);
+  // EEPROM.write(12, 100);
+  // EEPROM.write(13, 10);
+  // EEPROM.write(14, 1);
   // Init GSM module
   GSM.begin(9600);
   initGSM();
@@ -56,7 +61,7 @@ void setup() {
   Wire.onReceive(receiveEvent);
 
   // Optionally send an SMS
-  sendSMS("+918591399832", "Project Started - Energy Meter with Theft Detection.");
+  sendSMS("+919834490448", "Project Started - Energy Meter with Theft Detection.");
 
   Serial.println("Meter Reading, I2C, and Call/SMS Handling Initialized.");
 }
@@ -232,10 +237,10 @@ void sendSMS(String number, String msg) {
 // Read total units from EEPROM
 // ------------------------------------------------------------------------
 void readUnitsFromEEPROM() {
-  unt_a = EEPROM.read(1);
-  unt_b = EEPROM.read(2);
-  unt_c = EEPROM.read(3);
-  unt_d = EEPROM.read(4);
+  unt_a = EEPROM.read(11);
+  unt_b = EEPROM.read(12);
+  unt_c = EEPROM.read(13);
+  unt_d = EEPROM.read(14);
 
   total_unt = unt_d * 1000 + unt_c * 100 + unt_b * 10 + unt_a;
 }
@@ -252,9 +257,16 @@ void writeUnitsToEEPROM() {
 
   unt_b = total_unt / 10;
   unt_a = total_unt - (unt_b * 10);
-
-  EEPROM.write(1, unt_a);
-  EEPROM.write(2, unt_b);
-  EEPROM.write(3, unt_c);
-  EEPROM.write(4, unt_d);
+  Serial.print("Unit A: ");
+  Serial.println(unt_a);
+  Serial.print("Unit B: ");
+  Serial.println(unt_b);
+  Serial.print("Unit C: ");
+  Serial.println(unt_c);
+  Serial.print("Unit D: ");
+  Serial.println(unt_d);
+  EEPROM.write(11, unt_a);
+  EEPROM.write(12, unt_b);
+  EEPROM.write(13, unt_c);
+  EEPROM.write(14, unt_d);
 }

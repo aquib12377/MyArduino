@@ -43,7 +43,7 @@ Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
 const int relayPin = 2;            // Digital pin for relay
 bool relayOn = false;               // Track relay status
 unsigned long relayActivatedTime = 0;
-const unsigned long RELAY_ON_DURATION = 15000; // 15 seconds
+const unsigned long RELAY_ON_DURATION = 300000; // 15 seconds
 
 // --------------------------------------------------
 // 4. Password Configuration

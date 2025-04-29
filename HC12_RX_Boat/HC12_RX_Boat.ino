@@ -81,7 +81,8 @@ void loop() {
   if (hc12.available()) {
     String receivedMessage = hc12.readStringUntil('\n');  // Read incoming message
     receivedMessage.trim();                               // Remove stray whitespace/newlines
-    if (receivedMessage != "S") {
+    Serial.println(receivedMessage);
+    if (receivedMessage != "ST") {
       Serial.print("Received: ");
       Serial.println(receivedMessage);
     }

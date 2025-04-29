@@ -5,9 +5,9 @@
 SoftwareSerial BTSerial(2, 3);
 
 // Four unique CS pins for ADXL345:
-ADXL345 adxl1(6);  // CS on pin 6
+ADXL345 adxl1(8);  // CS on pin 6
 ADXL345 adxl2(7);  // CS on pin 7
-ADXL345 adxl3(8);  // CS on pin 8
+ADXL345 adxl3(6);  // CS on pin 8
 ADXL345 adxl4(9);  // CS on pin 9
 
 // Store old readings for each sensor (4 sensors => index 0..3)
@@ -46,7 +46,7 @@ void loop() {
   readXY(adxl2, 1, currentX, currentY);
   readXY(adxl3, 2, currentX, currentY);
   readXY(adxl4, 3, currentX, currentY);
-
+  Serial.println("=======================================");
   // 2) Check if ANY sensor changed significantly
   bool anySignificantChange = false;
   for (int i = 0; i < 4; i++) {
@@ -59,18 +59,17 @@ void loop() {
   }
 
   // 3) If there's a significant change, figure out which of 15 words to send
-  if (anySignificantChange) {
+  if (true) {
     Serial.println("------------------------------------------------------------------------");
     // Use all 8 values in the logic
     String newWord = getFifteenWordRange(
       currentX[0], currentY[0],
       currentX[1], currentY[1],
       currentX[2], currentY[2],
-      currentX[3], currentY[4]
+      currentX[3], currentY[3]
     );
 
     // Only send if different from the last word we sent
-    if (newWord != lastWord) {
       Serial.print("Significant change => Word: ");
       Serial.println(newWord);
 
@@ -79,7 +78,6 @@ void loop() {
 
       // Update lastWord
       lastWord = newWord;
-    }
   }
 
   // 4) Update stored values (lastX, lastY) for next loop
@@ -87,7 +85,6 @@ void loop() {
     lastX[i] = currentX[i];
     lastY[i] = currentY[i];
   }
-
   delay(1000); // adjust as needed
 }
 
@@ -99,82 +96,82 @@ void loop() {
         in different ways. Adjust thresholds and logic to suit your
         application (since max ±30).
 ********************************************************************/
+
+bool inBetween(int val, int bound1, int bound2)
+{
+  return val > min(bound1, bound2) && val < max(bound1, bound2);
+}
+
+
 String getFifteenWordRange(int x1, int y1, int x2, int y2,
                            int x3, int y3, int x4, int y4)
 {
-  // Just for debugging:
-  Serial.print("1: ");   Serial.println(y1);
+if(inBetween(x1, 15, -15) && inBetween(x2, -15, 15)  && inBetween(x4, -15, 15) &&
+inBetween(y1, 15, -15) && inBetween(y2, 15, -15)  && inBetween(y4, -15, 15) )
+{
+  return "Wait";
+}
 
-  Serial.print("2: ");   Serial.println(y2);
+else if(inBetween(x1, -22, -42) && inBetween(x2, -22, -42)  && inBetween(x4, -22, -42) &&
+inBetween(y1, 0, -20) && inBetween(y2, 10, -10)  && inBetween(y4, 20, -5) )
+{
+  return "Thank you";
+}
+else if(inBetween(x1, -22, -42) && inBetween(x2, -22, -42)  && inBetween(x4, -22, -35) &&
+inBetween(y1, 0, 10) && inBetween(y2, 10, 0)  && inBetween(y4, 20, 0) )
+{
+  return "You";
+}
+else if(inBetween(x1, 19, -1) && inBetween(x2, -17, 3)  && inBetween(x4, -18, 2) &&
+inBetween(y1, 37, 17) && inBetween(y2, 41,21)  && inBetween(y4, -7, -27) )
+{
+  return "Peace";
+}
+else if(inBetween(x1, 27, 7) && inBetween(x2, 16, -4) && inBetween(x4, 4,-16) &&
+inBetween(y1, -17, -37) && inBetween(y2, -23,-43)  && inBetween(y4, 33,13) )
+{
+  return "Washroom";
+}
+else if(inBetween(x1, 43,23) && inBetween(x2, 40,20) && inBetween(x3, 37,17) && inBetween(x4, 37,17) &&
+inBetween(y1, 0, 20) && inBetween(y2, -10,10) && inBetween(y3, -4, 16) && inBetween(y4, 5,-15) )
+{
+  return "Disagree";
+}
+else if(inBetween(x1, 14,-6) && inBetween(x2, 12,-8)  && inBetween(x4, -8,-29) &&
+inBetween(y1, 43, 23) && inBetween(y2, 44,24) && inBetween(y4, 39,19) )
+{
+  return "Stop";
+}
+else if(inBetween(y1, 20,-5) && inBetween(y2, 22, 2)  && inBetween(y4, 25,5) &&
+inBetween(x1, 30, 10) && inBetween(x2, 25,5) && inBetween(x4, 39,19) )
+{
+  return "Hello";
+}
 
-  Serial.print("3: ");   Serial.println(y3);
-
-  Serial.print("4: ");   Serial.println(y4);
-
-if (y1 < -1 && y2 > 0 && y3 > 0 && y4 > 0)
+else if(y1 > 26 && y1 < 33 && y2 > 29 && y2 < 33 && y3 > -10 && y3 < -5 && y4 > 22 && y4 < 30)
 {
-    return "Help";
+  return  "Good";
 }
-else if (y1 > 0 && y2 < -1 && y3 > 0 && y4 > 0)
+else if(y1 > -5 && y1 < 2 && y2 > 28 && y3 >28 && y4 < 0)
 {
-    return "Food";
+  return  "Peace";
 }
-else if (y1 > 0 && y2 > 0 && y3 < -1 && y4 > 0)
+else if(y1 > 30 && y2 > 30 && y3 > 30 && y4 > 21)
 {
-    return "Water";
+  return  "Stop";
 }
-else if (y1 > 0 && y2 > 0 && y3 > 0 && y4 < -1)
+else if(y1 < -20 && y2 < -2 && y3 < -2 && y4 < -20)
 {
-    return "Washroom";
+  return  "Washroom";
 }
-else if (y1 < -1 && y2 < -1 && y3 > 0 && y4 > 0)
+else if(y3 > 15)
 {
-    return "Love";
+  return "Hello";
 }
-else if (y1 < -1 && y2 > 0 && y3 < -1 && y4 > 0)
+else if(y3 < -15)
 {
-    return "Hate";
+  return "Bye";
 }
-else if (y1 < -1 && y2 > 0 && y3 > 0 && y4 < -1)
-{
-    return "Hello";
-}
-else if (y1 > 0 && y2 < -1 && y3 < -1 && y4 > 0)
-{
-    return "Bye";
-}
-else if (y1 > 0 && y2 < -1 && y3 > 0 && y4 < -1)
-{
-    return "Thank You";
-}
-else if (y1 > 0 && y2 > 0 && y3 < -1 && y4 < -1)
-{
-    return "Sorry";
-}
-// else if (y1 < -1 && y2 < -1 && y3 < -1 && y4 > 0)
-// {
-//     return "word11";
-// }
-// else if (y1 < -1 && y2 < -1 && y3 > 0 && y4 < -1)
-// {
-//     return "word12";
-// }
-// else if (y1 < -1 && y2 > 0 && y3 < -1 && y4 < -1)
-// {
-//     return "word13";
-// }
-// else if (y1 > 0 && y2 < -1 && y3 < -1 && y4 < -1)
-// {
-//     return "word14";
-// }
-// else if (y1 < -1 && y2 < -1 && y3 < -1 && y4 < -1)
-// {
-//     return "word15";
-// }
-// else if (y1 > 0 && y2 > 0 && y3 > 0 && y4 > 0)
-// {
-//     return "word16";
-// }
 
 else {
   return "";
@@ -235,5 +232,7 @@ void readXY(ADXL345 &sensor, int index, int currentX[], int currentY[]) {
   Serial.print("Sensor #"); 
   Serial.print(index+1);
   Serial.print(", Y: "); 
-  Serial.println(y);
+  Serial.print(y);
+    Serial.print(", X: "); 
+  Serial.println(x);
 }

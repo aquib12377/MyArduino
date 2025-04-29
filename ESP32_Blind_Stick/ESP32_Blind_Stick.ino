@@ -62,7 +62,7 @@ void checkRain() {
     Serial.print("Rain Sensor State: ");
     Serial.println(rainDetected);
 
-    if (rainDetected == HIGH) {  // If rain detected
+    if (rainDetected == LOW) {  // If rain detected
         Serial.println("Rain detected! Beeping...");
         beepBuzzer(500, 2);  // Long beep pattern
     }

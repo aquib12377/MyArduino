@@ -86,7 +86,7 @@ void loop() {
   }
 
   // Determine vertical movement
-  if (topLight && !bottomLight) {
+  if (topLight && !bottomLight) {2
     verticalAngle = constrain(verticalAngle + stepSize, 0, 180);
     verticalServo.write(verticalAngle);
     updateLCD("North Up: "+String(verticalAngle));

@@ -21,14 +21,14 @@ void setup(void) {
   if (!gfx->begin()) {
     USBSerial.println("gfx->begin() failed!");
   }
-  gfx->fillScreen(BLACK);
+  gfx->fillScreen(WHITE);
 
   pinMode(LCD_BL, OUTPUT);
   digitalWrite(LCD_BL, HIGH);
 
-  gfx->setCursor(10, 10);
-  gfx->setTextColor(RED);
-  gfx->println("Hello World!");
+  gfx->setCursor(30, 30);
+  gfx->setTextColor(BLACK);
+  gfx->println("SOS Watch");
 
   delay(5000);  // 5 seconds
 }

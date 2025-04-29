@@ -89,19 +89,23 @@ void loop() {
   } else {
     baseSpeed = baseSpeed;
   }
-    if (obsDist < 15) {
+    if (obsDist < 30) {
       Serial.println("Obstacle Detected - Stopping and Turning Right");
       stopBot();
       delay(500);
+       moveBackward(baseSpeed);
+      delay(1000);
       turnRight();
-      delay(500);
+      delay(3000);
       stopBot();  // brief stop after turn
-    } else if (potholeDist < 10) {
+    } else if (potholeDist > 15) {
       Serial.println("Pothole Detected - Stopping and Turning Left");
       stopBot();
       delay(500);
+      moveBackward(baseSpeed);
+      delay(1000);
       turnLeft();
-      delay(500);
+      delay(3000);
       stopBot();  // brief stop after turn
     } else {
       manualControl();
@@ -136,19 +140,23 @@ void autoControl(int obsDist, int potholeDist, float slope) {
   }
 
   // React to obstacles/potholes
-  if (obsDist < 15) {
+  if (obsDist < 30) {
     Serial.println("Obstacle Detected - Stopping and Turning Right");
     stopBot();
     delay(500);
+     moveBackward(baseSpeed);
+      delay(1000);
     turnRight();
-    delay(500);
+    delay(3000);
     stopBot();  // brief stop after turn
-  } else if (potholeDist < 10) {
+  } else if (potholeDist > 15) {
     Serial.println("Pothole Detected - Stopping and Turning Left");
     stopBot();
     delay(500);
+    moveBackward(baseSpeed);
+      delay(1000);
     turnLeft();
-    delay(500);
+    delay(3000);
     stopBot();  // brief stop after turn
   } else {
     Serial.println("Path Clear - Moving Forward");

@@ -64,13 +64,17 @@ int16_t w, h, text_size, banner_height, graph_baseline, graph_height, channel_wi
 
 // Channel color mapping from channel 1 to 14
 uint16_t channel_color[] = {
-    RED, ORANGE, YELLOW, GREEN, CYAN, BLUE, MAGENTA,
-    RED, ORANGE, YELLOW, GREEN, CYAN, BLUE, MAGENTA};
+    RGB565_RED, RGB565_ORANGE, RGB565_YELLOW, RGB565_GREEN, RGB565_CYAN, RGB565_BLUE, RGB565_MAGENTA,
+    RGB565_RED, RGB565_ORANGE, RGB565_YELLOW, RGB565_GREEN, RGB565_CYAN, RGB565_BLUE, RGB565_MAGENTA};
 
 uint8_t scan_count = 0;
 
 void setup()
 {
+#ifdef DEV_DEVICE_INIT
+  DEV_DEVICE_INIT();
+#endif
+
   Serial.begin(115200);
   // Serial.setDebugOutput(true);
   // while(!Serial);
@@ -80,10 +84,6 @@ void setup()
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
   delay(100);
-
-#ifdef GFX_EXTRA_PRE_INIT
-  GFX_EXTRA_PRE_INIT();
-#endif
 
 #if defined(LCD_PWR_PIN)
   pinMode(LCD_PWR_PIN, OUTPUT);    // sets the pin as output
@@ -114,12 +114,16 @@ void setup()
 
   // init banner
   gfx->setTextSize(text_size);
-  gfx->fillScreen(BLACK);
-  gfx->setTextColor(RED);
+  gfx->fillScreen(RGB565_BLACK);
+  gfx->setTextColor(RGB565_RED);
   gfx->setCursor(0, 28);
   gfx->print("ESP");
-  gfx->setTextColor(WHITE);
+  gfx->setTextColor(RGB565_WHITE);
   gfx->print(" WiFi分析儀");
+
+#ifdef CANVAS
+  gfx->flush();
+#endif
 }
 
 bool matchBssidPrefix(uint8_t *a, uint8_t *b)
@@ -156,12 +160,12 @@ void loop()
 #endif
 
   // clear old graph
-  gfx->fillRect(0, banner_height, w, h - banner_height, BLACK);
+  gfx->fillRect(0, banner_height, w, h - banner_height, RGB565_BLACK);
   gfx->setTextSize(1);
 
   if (n == 0)
   {
-    gfx->setTextColor(WHITE);
+    gfx->setTextColor(RGB565_WHITE);
     gfx->setCursor(0, banner_height + 14);
     gfx->println("找不到WiFi");
   }
@@ -298,7 +302,7 @@ void loop()
   }
 
   // print WiFi stat
-  gfx->setTextColor(WHITE);
+  gfx->setTextColor(RGB565_WHITE);
   gfx->setCursor(0, banner_height + 14);
   gfx->print("找到");
   gfx->print(n);
@@ -334,7 +338,7 @@ void loop()
   }
 
   // draw graph base axle
-  gfx->drawFastHLine(0, graph_baseline, gfx->width(), WHITE);
+  gfx->drawFastHLine(0, graph_baseline, gfx->width(), RGB565_WHITE);
   for (channel = 1; channel <= 14; channel++)
   {
     idx = channel - 1;
@@ -350,6 +354,10 @@ void loop()
       gfx->print('}');
     }
   }
+
+#ifdef CANVAS
+  gfx->flush();
+#endif
 
   // Wait a bit before scanning again
   delay(SCAN_INTERVAL);

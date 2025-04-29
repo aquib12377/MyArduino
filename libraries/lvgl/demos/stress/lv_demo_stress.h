@@ -30,11 +30,6 @@ extern "C" {
  **********************/
 void lv_demo_stress(void);
 
-/**
- * Check if stress demo has finished one round.
- */
-bool lv_demo_stress_finished(void);
-
 /**********************
  *      MACROS
  **********************/
