@@ -3,12 +3,12 @@
 #include <SPI.h>
 
 TMRpcm audio;
-const int irPin = 2;         // IR module signal pin
-const int sdCardCS = 10;     // SD module CS pin (could be 4 on some boards)
-bool soundPlayed = false;
+const int irPin   = A3;   // IR module signal pin (active LOW when object detected)
+const int sdCardCS = 10; // SD module CS pin
+const char* filename = "sound.wav";
 
 void setup() {
-  pinMode(irPin, INPUT);
+  pinMode(irPin, INPUT_PULLUP);
   Serial.begin(9600);
 
   if (!SD.begin(sdCardCS)) {
@@ -16,21 +16,27 @@ void setup() {
     while (1);
   }
 
-  audio.speakerPin = 9; // D9 is default PWM pin
-  audio.setVolume(6);   // 0 to 7
+  audio.speakerPin = 9;   // D9 is default PWM pin
+  audio.setVolume(5);     // 0 (quiet) to 7 (loud)
+  audio.quality(true);    // higher quality sampling
   Serial.println("Setup done");
 }
 
 void loop() {
-  int irValue = digitalRead(irPin); // LOW = object detected (active LOW)
+  bool objectDetected = (digitalRead(irPin) == LOW);
 
-  if (irValue == HIGH && !soundPlayed) {
-    Serial.println("IR triggered - playing sound");
-    audio.play("a.wav");
-    soundPlayed = true;
-  }
-
-  if (irValue == LOW && !audio.isPlaying()) {
-    soundPlayed = false; // Reset when object is gone and playback stops
+  if (objectDetected) {
+    // Object in front: start playing if not already
+    if (!audio.isPlaying()) {
+      Serial.println("Object detected – playing sound");
+      audio.play(filename);
+    }
+  } 
+  else {
+    // No object: stop playback immediately if it’s playing
+    if (audio.isPlaying()) {
+      Serial.println("No object – stopping sound");
+      audio.stopPlayback();
+    }
   }
 }

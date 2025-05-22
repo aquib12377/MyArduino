@@ -1,269 +1,298 @@
-#define BLYNK_TEMPLATE_ID "TMPL3W9OUu6H2"
-#define BLYNK_TEMPLATE_NAME "Building Model"
-#define BLYNK_AUTH_TOKEN "Y8CJDODQtjk6LDlZhWCKiD0GLDV-Vsp7"
+/********************************************************************
+ *  10-Strip “Up-and-Down” Runner – Adafruit_NeoPixel
+ *  -------------------------------------------------
+ *  • 10 independent WS2812B strips, 73 pixels each
+ *  • A single pixel on every strip runs from start→end and back
+ *  • Pixel hue is derived from its current position
+ *  • Whole animation breathes (fades in/out) while it moves
+ ********************************************************************/
+#include <Adafruit_NeoPixel.h>
 
-#include <FastLED.h>
-#include <BlynkSimpleEsp32.h>  // or BlynkSimpleStream.h for serial connection
-#include <WiFi.h>
+#define NUM_STRIPS   10
+#define NUM_LEDS     73
 
-#define LED_PIN 13
+// GPIOs for every strip                                   (2 … 11)
+const uint8_t STRIP_PINS[NUM_STRIPS] = {2,3,4,5,6,7,8,9,10,11};
 
-#define NUM_FLOORS 8
-#define LEDS_PER_ROOM 4  // 4 LEDs per room, 1 LED skipped
-#define ROOMS_PER_FLOOR 4
-#define LEDS_PER_FLOOR (ROOMS_PER_FLOOR * LEDS_PER_ROOM)  // 40 LEDs per floor including skipped ones
-#define FLOOR_GAP 0                                       // 4 LEDs between floors
-#define NUM_LEDS (NUM_FLOORS * ROOMS_PER_FLOOR * LEDS_PER_ROOM)
+#define NEO_TYPE    (NEO_GRB + NEO_KHZ800)
+#define MAX_BRIGHT  255          // upper limit for the breathing
+#define MIN_BRIGHT   20          // lower limit for the breathing
+#define FADE_STEP     3          // brightness step per frame
+#define MOVE_DELAY   25          // ms between frames
 
-int ledIndexMap[NUM_FLOORS][ROOMS_PER_FLOOR][LEDS_PER_ROOM] = {
-  { { 0, 1, 2, 3 }, { 4, 5, 6, 7 }, { 8, 9, 10, 11 }, { 12, 13, 14, 15 } },
-  { { 16, 17, 18, 19 }, { 20, 21, 22, 23 }, { 24, 25, 26, 27 }, { 28, 29, 30, 31 } },
-  { { 32, 33, 34, 35 }, { 36, 37, 38, 39 }, { 40, 41, 42, 43 }, { 44, 45, 46, 47 } },
-  { { 48, 49, 50, 51 }, { 52, 53, 54, 55 }, { 56, 57, 58, 59 }, { 60, 61, 62, 63 } },
-  { { 64, 65, 66, 67 }, { 68, 69, 70, 71 }, { 72, 73, 74, 75 }, { 76, 77, 78, 79 } },
-  { { 80, 81, 82, 83 }, { 84, 85, 86, 87 }, { 88, 89, 90, 91 }, { 92, 93, 94, 95 } },
-  { { 96, 97, 98, 99 }, { 100, 101, 102, 103 }, { 104, 105, 106, 107 }, { 108, 109, 110, 111 } },
-  { { 112, 113, 114, 115 }, { 116, 117, 118, 119 }, { 120, 121, 122, 123 }, { 124, 125, 126, 127 } }
+Adafruit_NeoPixel strip0(NUM_LEDS, STRIP_PINS[0], NEO_TYPE);
+Adafruit_NeoPixel strip1(NUM_LEDS, STRIP_PINS[1], NEO_TYPE);
+Adafruit_NeoPixel strip2(NUM_LEDS, STRIP_PINS[2], NEO_TYPE);
+Adafruit_NeoPixel strip3(NUM_LEDS, STRIP_PINS[3], NEO_TYPE);
+Adafruit_NeoPixel strip4(NUM_LEDS, STRIP_PINS[4], NEO_TYPE);
+Adafruit_NeoPixel strip5(NUM_LEDS, STRIP_PINS[5], NEO_TYPE);
+Adafruit_NeoPixel strip6(NUM_LEDS, STRIP_PINS[6], NEO_TYPE);
+Adafruit_NeoPixel strip7(NUM_LEDS, STRIP_PINS[7], NEO_TYPE);
+Adafruit_NeoPixel strip8(NUM_LEDS, STRIP_PINS[8], NEO_TYPE);
+Adafruit_NeoPixel strip9(NUM_LEDS, STRIP_PINS[9], NEO_TYPE);
+
+Adafruit_NeoPixel* const strips[NUM_STRIPS] = {
+  &strip0,&strip1,&strip2,&strip3,&strip4,
+  &strip5,&strip6,&strip7,&strip8,&strip9
 };
 
+/* ---------------------------------------------------------------- */
+static int      pos[NUM_STRIPS];     // current pixel position
+static int8_t   dir[NUM_STRIPS];     // +1 or –1
+static uint8_t  brightness = MIN_BRIGHT;
+static int8_t   fadeDir    =  1;     // +1 → brighter, –1 → dimmer
 
-CRGB leds[NUM_LEDS];
+/* ---------- helpers ---------- */
+inline void clearAll()
+{
+  for (uint8_t s = 0; s < NUM_STRIPS; ++s) strips[s]->clear();
+}
+inline void showAll()
+{
+  for (uint8_t s = 0; s < NUM_STRIPS; ++s) strips[s]->show();
+}
 
-const CRGB colors[10] = {
-  CRGB::Red,
-  CRGB::Orange,
-  CRGB::Yellow,
-  CRGB::Green,
-  CRGB::Blue,
-  CRGB::Indigo,
-  CRGB::Violet,
-  CRGB::Pink,
-  CRGB::White,
-  CRGB::Gray
-};
-int floorIndices[NUM_FLOORS][LEDS_PER_FLOOR];
+/* ---------------------------------------------------------------- */
+void setup()
+{
+  for (uint8_t s = 0; s < NUM_STRIPS; ++s)
+  {
+    strips[s]->begin();
+    strips[s]->setBrightness(brightness);
+    strips[s]->show();
+  }
 
-// Set your WiFi credentials
-char ssid[] = "MyProject";
-char pass[] = "12345678";
+  randomSeed(analogRead(A0));
 
-// Variables to track button states
-bool runningLEDActive = false;
-bool indicateAvailabilityActive = false;
-bool bhksLigh1Active = false;
-bool bhksLigh2Active = false;
-bool bhksLigh3Active = false;
-
-void setup() {
-  FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS);
-  fill_solid(leds, NUM_LEDS, CRGB::Black);
-  Serial.begin(115200);
-  FastLED.clear();
-
-  int currentIndex = 0;
-  for (int floor = 0; floor < NUM_FLOORS; floor++) {
-    for (int i = 0; i < LEDS_PER_FLOOR; i++) {
-      floorIndices[floor][i] = currentIndex;
-      currentIndex++;
+  /* randomise starting position and direction for every strip */
+  for (uint8_t s = 0; s < NUM_STRIPS; ++s)
+  {
+    pos[s] = random(NUM_LEDS);
+    dir[s] = random(2) ?  1 : -1;
+  }
+}
+/* ------------------------------------------------------------- */
+/*  1. Up–Down single-pixel runner (already in earlier sketch)   */
+/* ------------------------------------------------------------- */
+void patternUpDown(uint16_t cycles = 2)
+{
+  static int      pos [NUM_STRIPS];
+  static int8_t   dir [NUM_STRIPS];
+  static bool     init = false;
+  if (!init) {                    // one-time random init
+    for (uint8_t s = 0; s < NUM_STRIPS; ++s) {
+      pos[s] = random(NUM_LEDS);
+      dir[s] = random(2) ?  1 : -1;
     }
-    currentIndex += FLOOR_GAP;
+    init = true;
   }
 
-  for (int floor = 0; floor < NUM_FLOORS; floor++) {
-    Serial.print("Floor ");
-    Serial.print(floor + 1);
-    Serial.print(": ");
-    for (int i = 0; i < LEDS_PER_FLOOR; i++) {
-      Serial.print(floorIndices[floor][i]);
-      Serial.print(" ");
+  for (uint16_t c = 0; c < cycles * NUM_LEDS * 2; ++c) {
+    clearAll();
+    for (uint8_t s = 0; s < NUM_STRIPS; ++s) {
+      uint16_t hue = uint32_t(pos[s]) * 65535UL / NUM_LEDS;
+      strips[s]->setPixelColor(pos[s],
+                 Adafruit_NeoPixel::ColorHSV(hue, 255, 200));
+      pos[s] += dir[s];
+      if (pos[s] == NUM_LEDS - 1 || pos[s] == 0) dir[s] = -dir[s];
     }
-    Serial.println();
+    showAll();
+    delay(25);
   }
-
-  Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
 }
 
-void TurnOfAllLEDs() {
-  fill_solid(leds, NUM_LEDS, CRGB::Black);
-  FastLED.show();
-}
-
-void controlRoomLED(int floor, int room, bool state, CRGB color) {
-  if (floor < 0 || floor >= NUM_FLOORS || room < 0 || room >= ROOMS_PER_FLOOR) {
-    Serial.println("Invalid floor or room number!");
-    return;
-  }
-  int startLEDIndex = room * LEDS_PER_ROOM;
-  for (int i = 0; i < LEDS_PER_ROOM; i++) {
-    int ledIndex = floorIndices[floor][startLEDIndex + i];
-
-    leds[ledIndex] = color;
-  }
-  FastLED.show();
-}
-
-void BHKsLIGH(int b) {
-  delay(200);
-  for (int floor = 0; floor < NUM_FLOORS; floor++) {
-    for (int room = 0; room < ROOMS_PER_FLOOR; room++) {
-      if ((room == 0 || room == 1 || room == 2) && b == 1) {
-        controlRoomLED(floor, room, true, CRGB::Blue);
-        delay(100);
-      } else if ((room == 3 || room == 4 || room == 5) && b == 2) {
-        controlRoomLED(floor, room, true, CRGB::Purple);
-        delay(100);
-      } else if ((room == 6 || room == 7) && b == 3) {
-        controlRoomLED(floor, room, true, CRGB::DarkTurquoise);
-        delay(100);
+/* ------------------------------------------------------------- */
+/*  2. Rainbow runner (whole strip fades through rainbow)        */
+/* ------------------------------------------------------------- */
+void patternRainbowRunner(uint16_t cycles = 2)
+{
+  for (uint16_t shift = 0; shift < cycles * 65535UL; shift += 256) {
+    for (uint8_t s = 0; s < NUM_STRIPS; ++s) {
+      for (uint16_t p = 0; p < NUM_LEDS; ++p) {
+        uint16_t hue = (shift + p * 512) & 0xFFFF;
+        strips[s]->setPixelColor(p,
+            Adafruit_NeoPixel::ColorHSV(hue, 255, 150));
       }
     }
+    showAll();
+    delay(20);
   }
 }
 
-void IndicateAvailability() {
-  for (int i = 0; i < NUM_LEDS; i += 4) {
-    bool isRed = random(0, 2);
-    CRGB color = isRed ? CRGB::Red : CRGB::White;
-    for (int j = 0; j < 4 && (i + j) < NUM_LEDS; j++) {
-      leds[i + j] = color;
+/* ------------------------------------------------------------- */
+/*  3. Two-way chase – dots from both ends meet at centre        */
+/* ------------------------------------------------------------- */
+void patternTwoWayChase(uint16_t cycles = 3)
+{
+  for (uint16_t step = 0; step < cycles * NUM_LEDS; ++step) {
+    clearAll();
+    for (uint8_t s = 0; s < NUM_STRIPS; ++s) {
+      uint16_t a = step % NUM_LEDS;          // left→right
+      uint16_t b = (NUM_LEDS - 1 - a);       // right→left
+      strips[s]->setPixelColor(a, 0xFF0000); // red
+      strips[s]->setPixelColor(b, 0x0000FF); // blue
     }
+    showAll();
+    delay(40);
   }
-  FastLED.show();
 }
 
-void runningLED(int numLeds, int delayMs) {
-  int ledCount = 1;
-  for (int offset = 0; offset < numLeds; offset++) {
-    fill_solid(leds, numLeds, CRGB::Black);
-    for (int i = 0; i < ledCount; i++) {
-      int ledIndex = (offset + i) % numLeds;
-      leds[ledIndex - 1] = colors[(offset / ledCount) % 7];
-      leds[ledIndex - 2] = colors[(offset / ledCount) % 7];
-      leds[ledIndex - 3] = colors[(offset / ledCount) % 8];
-      leds[ledIndex - 4] = colors[(offset / ledCount) % 8];
-      leds[ledIndex - 5] = colors[(offset / ledCount) % 9];
-      leds[ledIndex - 6] = colors[(offset / ledCount) % 9];
-      leds[ledIndex] = colors[(offset / ledCount) % 10];
-      leds[ledIndex + 1] = colors[(offset / ledCount) % 6];
-      leds[ledIndex + 2] = colors[(offset / ledCount) % 6];
-      leds[ledIndex + 3] = colors[(offset / ledCount) % 5];
-      leds[ledIndex + 4] = colors[(offset / ledCount) % 5];
-      leds[ledIndex + 5] = colors[(offset / ledCount) % 4];
-      leds[ledIndex + 6] = colors[(offset / ledCount) % 4];
+/* ------------------------------------------------------------- */
+/*  4. Comet with fading tail                                    */
+/* ------------------------------------------------------------- */
+void patternComet(uint16_t cycles = 4)
+{
+  const uint8_t tail = 10;
+  for (uint16_t head = 0; head < cycles * NUM_LEDS; ++head) {
+    clearAll();
+    for (uint8_t s = 0; s < NUM_STRIPS; ++s) {
+      for (uint8_t t = 0; t < tail; ++t) {
+        int16_t idx = head - t;
+        if (idx < 0) idx += NUM_LEDS;
+        uint8_t b = 200 - t * (200 / tail);
+        strips[s]->setPixelColor(idx,
+          Adafruit_NeoPixel::ColorHSV(0, 0, b)); // white tail
+      }
     }
-    FastLED.show();
-    delay(delayMs);
+    showAll();
+    delay(20);
   }
 }
 
-// Blynk button handlers
-BLYNK_WRITE(V1) {
-  int pinValue = param.asInt();
-  if (pinValue == 0) {
-    TurnOfAllLEDs();
-    runningLEDActive = false;
-    indicateAvailabilityActive = false;
-    bhksLigh1Active = false;
-    bhksLigh2Active = false;
-    bhksLigh3Active = false;
-    return;
+/* ------------------------------------------------------------- */
+/*  5. Color sine-wave along each strip                          */
+/* ------------------------------------------------------------- */
+void patternColorWave(uint16_t cycles = 3)
+{
+  for (uint16_t phase = 0; phase < cycles * 360; ++phase) {
+    for (uint8_t s = 0; s < NUM_STRIPS; ++s) {
+      for (uint16_t p = 0; p < NUM_LEDS; ++p) {
+        float angle = (phase + p * 360.0 / NUM_LEDS) * DEG_TO_RAD;
+        uint8_t v   = (sin(angle) * 0.5 + 0.5) * 200;
+        strips[s]->setPixelColor(p,
+          Adafruit_NeoPixel::ColorHSV(32000, 200, v));
+      }
+    }
+    showAll();
+    delay(25);
   }
-  TurnOfAllLEDs();
-  runningLEDActive = true;
-  indicateAvailabilityActive = false;
-  bhksLigh1Active = false;
-  bhksLigh2Active = false;
-  bhksLigh3Active = false;
 }
 
-BLYNK_WRITE(V0) {
-  int pinValue = param.asInt();
-  if (pinValue == 0) {
-    TurnOfAllLEDs();
-    runningLEDActive = false;
-    indicateAvailabilityActive = false;
-    bhksLigh1Active = false;
-    bhksLigh2Active = false;
-    bhksLigh3Active = false;
-    return;
+/* ------------------------------------------------------------- */
+/*  6. Scanner / Cylon eye                                       */
+/* ------------------------------------------------------------- */
+void patternScanner(uint16_t cycles = 4)
+{
+  for (uint16_t pos = 0; pos < cycles * (NUM_LEDS * 2); ++pos) {
+    int16_t idx = pos < NUM_LEDS ? pos : (NUM_LEDS * 2 - 2 - pos);
+    clearAll();
+    for (uint8_t s = 0; s < NUM_STRIPS; ++s)
+      strips[s]->setPixelColor(idx, 0xFF0000);
+    showAll();
+    delay(15);
   }
-  TurnOfAllLEDs();
-  runningLEDActive = false;
-  indicateAvailabilityActive = true;
-  bhksLigh1Active = false;
-  bhksLigh2Active = false;
-  bhksLigh3Active = false;
 }
 
-BLYNK_WRITE(V2) {
-  int pinValue = param.asInt();
-  if (pinValue == 0) {
-    TurnOfAllLEDs();
-    runningLEDActive = false;
-    indicateAvailabilityActive = false;
-    bhksLigh1Active = false;
-    bhksLigh2Active = false;
-    bhksLigh3Active = false;
-    return;
+/* ------------------------------------------------------------- */
+/*  7. Sparkle & slow fade out                                   */
+/* ------------------------------------------------------------- */
+void patternSparkleFade(uint16_t cycles = 40)
+{
+  for (uint16_t i = 0; i < cycles; ++i) {
+    uint8_t s = random(NUM_STRIPS);
+    uint8_t p = random(NUM_LEDS);
+    strips[s]->setPixelColor(p, 0xFFFFFF);
+    showAll();
+    delay(20);
+
+    // global fade
+    for (uint8_t ss = 0; ss < NUM_STRIPS; ++ss)
+      for (uint16_t pp = 0; pp < NUM_LEDS; ++pp) {
+        uint32_t c = strips[ss]->getPixelColor(pp);
+        c = (c >> 1) & 0x7F7F7F;          // simple half-fade
+        strips[ss]->setPixelColor(pp, c);
+      }
   }
-  TurnOfAllLEDs();
-  runningLEDActive = false;
-  indicateAvailabilityActive = false;
-  bhksLigh1Active = true;
-  bhksLigh2Active = false;
-  bhksLigh3Active = false;
+  showAll();
 }
 
-BLYNK_WRITE(V3) {
-  int pinValue = param.asInt();
-  if (pinValue == 0) {
-    TurnOfAllLEDs();
-    runningLEDActive = false;
-    indicateAvailabilityActive = false;
-    bhksLigh1Active = false;
-    bhksLigh2Active = false;
-    bhksLigh3Active = false;
-    return;
+/* ------------------------------------------------------------- */
+/*  8. Stack-rise (fills upward, then clear)                     */
+/* ------------------------------------------------------------- */
+void patternStackRise(uint16_t cycles = 1)
+{
+  for (uint8_t c = 0; c < cycles; ++c) {
+    for (uint16_t p = 0; p < NUM_LEDS; ++p) {   // fill
+      for (uint8_t s = 0; s < NUM_STRIPS; ++s)
+        strips[s]->setPixelColor(p, 0x00FF00);
+      showAll();
+      delay(30);
+    }
+    clearAll(); showAll(); delay(400);
   }
-  TurnOfAllLEDs();
-  runningLEDActive = false;
-  indicateAvailabilityActive = false;
-  bhksLigh1Active = false;
-  bhksLigh2Active = true;
-  bhksLigh3Active = false;
 }
 
-BLYNK_WRITE(V4) {
-  int pinValue = param.asInt();
-  if (pinValue == 0) {
-    TurnOfAllLEDs();
-    runningLEDActive = false;
-    indicateAvailabilityActive = false;
-    bhksLigh1Active = false;
-    bhksLigh2Active = false;
-    bhksLigh3Active = false;
-    return;
+/* ------------------------------------------------------------- */
+/*  9. Theater-chase (3-pixel dashes)                            */
+/* ------------------------------------------------------------- */
+void patternTheaterChase(uint16_t cycles = 30)
+{
+  for (uint8_t step = 0; step < cycles; ++step) {
+    for (uint8_t s = 0; s < NUM_STRIPS; ++s) {
+      for (uint16_t p = 0; p < NUM_LEDS; ++p) {
+        strips[s]->setPixelColor(p,
+          (p + step) % 3 ? 0 : 0xFF00FF); // magenta dash
+      }
+    }
+    showAll();
+    delay(50);
   }
-  TurnOfAllLEDs();
-  runningLEDActive = false;
-  indicateAvailabilityActive = false;
-  bhksLigh1Active = false;
-  bhksLigh2Active = false;
-  bhksLigh3Active = true;
+  clearAll(); showAll();
 }
 
-void loop() {
-  Blynk.run();
+/* ------------------------------------------------------------- */
+/* 10. Meteor rain (bright head with fading trail)               */
+/* ------------------------------------------------------------- */
+void patternMeteorRain(uint16_t cycles = 4)
+{
+  const uint8_t meteorSize = 8;
+  for (uint16_t pos = 0; pos < cycles * (NUM_LEDS + meteorSize); ++pos) {
+    // global fade
+    for (uint8_t s = 0; s < NUM_STRIPS; ++s)
+      for (uint16_t p = 0; p < NUM_LEDS; ++p) {
+        uint32_t c = strips[s]->getPixelColor(p);
+        c = (c >> 1) & 0x7F7F7F;
+        strips[s]->setPixelColor(p, c);
+      }
 
-  if (runningLEDActive) {
-    runningLED(NUM_LEDS, 80);
-  } else if (indicateAvailabilityActive) {
-    IndicateAvailability();
-  } else if (bhksLigh1Active) {
-    BHKsLIGH(1);
-  } else if (bhksLigh2Active) {
-    BHKsLIGH(2);
-  } else if (bhksLigh3Active) {
-    BHKsLIGH(3);
+    // draw meteor head
+    for (uint8_t s = 0; s < NUM_STRIPS; ++s)
+      for (uint8_t m = 0; m < meteorSize; ++m) {
+        int16_t idx = pos - m;
+        if (idx >= 0 && idx < NUM_LEDS) {
+          uint8_t fade = 255 - (m * (255 / meteorSize));
+          strips[s]->setPixelColor(idx,
+            Adafruit_NeoPixel::ColorHSV(12000, 255, fade));
+        }
+      }
+    showAll();
+    delay(30);
   }
+}
+
+/* ------------------------------------------------------------- */
+/*  Call them in loop() …                                        */
+/* ------------------------------------------------------------- */
+void loop()
+{
+  patternUpDown();
+  patternRainbowRunner();
+  patternTwoWayChase();
+  patternComet();
+  patternColorWave();
+  patternScanner();
+  patternSparkleFade();
+  patternStackRise();
+  patternTheaterChase();
+  patternMeteorRain();
 }

@@ -1,6 +1,6 @@
 #include <SoftwareSerial.h>
 
-const int fsrPin = A0;               // FSR sensor connected to analog pin A0
+const int fsrPin = A2;               // FSR sensor connected to analog pin A0
 const int threshold = 100;           // Adjust this threshold based on your pressure needs
 
 // HC-12 connected to SoftwareSerial (RX = pin 2, TX = pin 3)
@@ -17,7 +17,8 @@ void setup() {
 
 void loop() {
   int fsrReading = analogRead(fsrPin);
-
+  Serial.println(fsrReading);
+  // delay(500);
   if (fsrReading > threshold) {
     Serial.print("Pressure detected: ");
     Serial.println(fsrReading);
