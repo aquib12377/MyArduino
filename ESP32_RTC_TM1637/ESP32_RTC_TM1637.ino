@@ -28,9 +28,9 @@ void setup() {
     Serial.println("Couldn't find RTC");
     while (true) delay(1);
   }
-
-  // comment‑out after the first successful flash if your RTC is already set
-  rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+  if (! rtc.isrunning()) {
+        rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+    }
 }
 
 void loop() {
