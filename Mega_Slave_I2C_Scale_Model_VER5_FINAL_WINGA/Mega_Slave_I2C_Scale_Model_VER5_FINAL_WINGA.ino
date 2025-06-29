@@ -17,9 +17,9 @@
 #define CMD_FILTER_2BHK 0xA6
 #define CMD_FILTER_3BHK 0xA7
 
-#define CMD_WINGA_2BHK_689_SQFT 0xB3
-#define CMD_WINGA_1BHK_458_SQFT 0xB4
-#define CMD_WINGA_1BHK_461_SQFT 0xB5
+#define CMD_WINGA_2BHK_689_SQFT 0xB0
+#define CMD_WINGA_1BHK_458_SQFT 0xB1
+#define CMD_WINGA_1BHK_461_SQFT 0xB2
 
 #define CMD_SHOW_AVAIL 0xC8
 #define REFUGEE_COLOR 0xFFA500  // Orange in 24-bit hex (R=255,G=165,B=0)
@@ -37,7 +37,7 @@ uint8_t softColors[NUM_COLORS][3] = {
 };
 
 const uint8_t bhkTypes[NUM_ROOMS_PER_FLOOR] = {
- 3,3, 2, 2, 1, 1, 2, 2
+ 2,2,1,1,2,2,3,3//3,3, 2, 2, 1, 1, 2, 2//2,2,1,1,2,2,3,3
 };
 
 Adafruit_NeoPixel* ledsFloor[NUM_FLOORS];
@@ -139,7 +139,9 @@ void setup() {
   Serial.println("Wing A slave ready.");
 
   turnOffAllLEDs();
-  //patternSoftColorsSmooth();
+  pattern2();
+
+  turnOffAllLEDs();
 }
 
 
@@ -147,7 +149,7 @@ void setup() {
 void loop() {
   if (!isIdleMode) {
     unsigned long now = millis();
-    if ((now - lastCommandTime) >= IDLE_TIMEOUT) {
+    if ((now - lastCommandTime) >= 30000) {
       // 5 minutes have passed with no new commands => enter idle
       turnOffAllLEDs();
       isIdleMode = true;

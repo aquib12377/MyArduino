@@ -2,14 +2,14 @@
 #include <Servo.h>
 #include <SoftwareSerial.h>
 
-SoftwareSerial bt(A1,A0);
+SoftwareSerial bt(A5,A4);
 // Define motors on the Adafruit Motor Shield
 AF_DCMotor motorLeft(1);  // Motor connected to port M1
 AF_DCMotor motorRight(3); // Motor connected to port M2
 
 // HC-SR04 Ultrasonic Sensor Pins
-const int trigPin = A2;
-const int echoPin = A3;
+const int trigPin = A3;
+const int echoPin = A2;
 
 // Bluetooth module HC-05 connected to RX, TX pins
 char command; // Stores Bluetooth commands
@@ -41,15 +41,15 @@ void setup() {
 
 void loop() {
   // Check for Bluetooth command input
-  if(Serial.available() > 0) {
-    String S = Serial.readString();
+  if(bt.available() > 0) {
+    String S = bt.readString();
     executeCommand(S);
   }
 
   // Read obstacle distance
   distance = getDistance();
-  //Serial.print("Ditance: ");
-  //Serial.println(distance);
+  Serial.print("Ditance: ");
+  Serial.println(distance);
   if (distance < 20) {
     // If an obstacle is too close, stop the bot
     stopBot();

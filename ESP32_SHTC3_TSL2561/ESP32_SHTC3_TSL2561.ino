@@ -57,7 +57,7 @@ esp_adc_cal_characteristics_t adc_chars;
 
 /********************  STATE  ***********************/
 bool shtc3_ok = false, tsl_ok = false;
-bool batt1Active = true;                // start on Batt-1
+bool batt1Active = false;                // start on Batt-1
 
 /********************  HELPERS  *********************/
 String nowStr()

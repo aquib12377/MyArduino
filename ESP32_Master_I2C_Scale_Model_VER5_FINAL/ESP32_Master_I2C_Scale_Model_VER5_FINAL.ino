@@ -12,9 +12,9 @@
 // ===== Logging Macros (Optional) =====
 #define LOG_LEVEL_INFO
 #ifdef LOG_LEVEL_INFO
-#define LOG_INFO(x) Serial.println("[INFO] " + String(x))
-#define LOG_DEBUG(x) Serial.println("[DEBUG] " + String(x))
-#define LOG_ERROR(x) Serial.println("[ERROR] " + String(x))
+#define LOG_INFO(x) //Serial.println("[INFO] " + String(x))
+#define LOG_DEBUG(x) //Serial.println("[DEBUG] " + String(x))
+#define LOG_ERROR(x) //Serial.println("[ERROR] " + String(x))
 #else
 #define LOG_INFO(x)
 #define LOG_DEBUG(x)
@@ -105,6 +105,7 @@ void sendAvailabilityData(uint8_t slaveAddress, uint8_t* roomAvailability, size_
 void runPatternAvailableRooms(WingInfo& wing);
 
 void setup() {
+
   LOG_INFO("Entering setup...");
   Serial.begin(115200);
   delay(1000);
@@ -126,7 +127,8 @@ void setup() {
   digitalWrite(9, LOW);
   digitalWrite(8, LOW);
   setupWiFi();
-
+pinMode(11, INPUT_PULLUP);
+  pinMode(12, INPUT_PULLUP);
   Wire.begin(11, 12);       // Adjust pins if needed
   Wire.setClock(400000UL);  // 400kHz
   LOG_INFO("I2C initialized");
@@ -135,7 +137,10 @@ void setup() {
   wings[0] = { 14, SLAVE_ADDRESS_WING_14, "", "", { 0 } };
   wings[1] = { 15, SLAVE_ADDRESS_WING_15, "", "", { 0 } };
   wings[2] = { 16, SLAVE_ADDRESS_WING_16, "", "", { 0 } };
-
+sendCommand(wings[0].slaveAddress,CMD_ACTIVATE_PATTERNS);
+  sendCommand(wings[1].slaveAddress,CMD_ACTIVATE_PATTERNS);
+  sendCommand(wings[2].slaveAddress,CMD_ACTIVATE_PATTERNS);
+  digitalWrite(10, LOW);
   // Create tasks
   xTaskCreatePinnedToCore(
     pollAPITask,
@@ -156,6 +161,7 @@ void setup() {
     1);
 
   LOG_INFO("Setup complete");
+  
 }
 
 void loop() {
@@ -220,7 +226,7 @@ void pollAPITask(void* parameter) {
 
       HTTPClient http;
       String url = String(baseUrl) + apiEndpoint
-                   + "  =" + String(projectId)
+                   + "?project_id=" + String(projectId)
                    + "&wing_id=" + String(wing.wingId);
       http.begin(url);
 
@@ -429,14 +435,14 @@ void ledControlTask(void* parameter) {
         } else {
           // If ctrl is non-empty and not recognized
           if (ctrl != "") {
-            Serial.println("Unknown command for Wing " + String(wing.wingId) + ": " + ctrl);
+            //Serial.println("Unknown command for Wing " + String(wing.wingId) + ": " + ctrl);
           }
         }
         // After processing, update the last sent control for this wing
         wing.lastSentControl = ctrl;
       }
 
-      Serial.println("Wing " + String(wing.wingId) + " => " + ctrl);
+      //Serial.println("Wing " + String(wing.wingId) + " => " + ctrl);
       vTaskDelay(50 / portTICK_PERIOD_MS);
     }
 
@@ -450,10 +456,10 @@ void ledControlTask(void* parameter) {
 // ----------------------------------------------------
 void sendCommand(uint8_t slaveAddress, uint8_t commandID) {
   // if (xSemaphoreTake(serialMutex, (TickType_t)10) == pdTRUE) {
-  //   Serial.print("I2C => 0x");
-  //   Serial.print(commandID, HEX);
-  //   Serial.print(" => Slave 0x");
-  //   Serial.println(slaveAddress, HEX);
+  //   //Serial.print("I2C => 0x");
+  //   //Serial.print(commandID, HEX);
+  //   //Serial.print(" => Slave 0x");
+  //   //Serial.println(slaveAddress, HEX);
   //   xSemaphoreGive(serialMutex);
   // }
 
@@ -461,13 +467,15 @@ void sendCommand(uint8_t slaveAddress, uint8_t commandID) {
   Wire.write(0xAA);
   Wire.write(commandID);
   int res = Wire.endTransmission();
-Serial.println(res);
+//Serial.println(res);
   delay(10);
 
   Wire.beginTransmission(slaveAddress);
   Wire.write(0x55);
   res = Wire.endTransmission();
-  Serial.println(res);
+  //Serial.print("I2C RESPONSE --------------------------- ");
+  //Serial.println(res);
+  //Serial.println("\n\n\n");
 }
 
 // ----------------------------------------------------
@@ -477,7 +485,7 @@ void sendAvailabilityData(uint8_t slaveAddress, uint8_t* roomAvail, size_t dataS
   const size_t maxChunkSize = 27;
   size_t bytesSent = 0;
 
-  Serial.println("Sending Availability => Slave 0x" + String(slaveAddress, HEX));
+  //Serial.println("Sending Availability => Slave 0x" + String(slaveAddress, HEX));
 
   // Start
   Wire.beginTransmission(slaveAddress);
@@ -519,17 +527,17 @@ void sendAvailabilityData(uint8_t slaveAddress, uint8_t* roomAvail, size_t dataS
   Wire.write(0x55);
   Wire.endTransmission();
 
-  Serial.println("Availability data sent => 0x" + String(slaveAddress, HEX));
+  //Serial.println("Availability data sent => 0x" + String(slaveAddress, HEX));
 }
 
 // ----------------------------------------------------
 //  runPatternAvailableRooms => fetch JSON, send chunk
 // ----------------------------------------------------
 void runPatternAvailableRooms(WingInfo& wing) {
-  Serial.println("Fetching availability => Wing " + String(wing.wingId));
+  //Serial.println("Fetching availability => Wing " + String(wing.wingId));
 
   if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("No Wi-Fi => reconnecting...");
+    //Serial.println("No Wi-Fi => reconnecting...");
     setupWiFi();
     return;
   }
@@ -540,7 +548,7 @@ void runPatternAvailableRooms(WingInfo& wing) {
 
   int httpCode = http.GET();
   if (httpCode <= 0) {
-    Serial.println("HTTP error => " + http.errorToString(httpCode));
+    //Serial.println("HTTP error => " + http.errorToString(httpCode));
     http.end();
     return;
   }
@@ -548,7 +556,7 @@ void runPatternAvailableRooms(WingInfo& wing) {
   http.end();
 
   if (payload.length() == 0) {
-    Serial.println("No room status payload...");
+    //Serial.println("No room status payload...");
     return;
   }
 
@@ -556,7 +564,7 @@ void runPatternAvailableRooms(WingInfo& wing) {
   StaticJsonDocument<16384> doc;
   DeserializationError err = deserializeJson(doc, payload);
   if (err) {
-    Serial.println("JSON parse error => " + String(err.c_str()));
+    //Serial.println("JSON parse error => " + String(err.c_str()));
     return;
   }
 

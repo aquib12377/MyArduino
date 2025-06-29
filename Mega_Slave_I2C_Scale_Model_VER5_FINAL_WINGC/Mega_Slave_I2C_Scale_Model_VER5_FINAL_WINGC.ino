@@ -87,7 +87,7 @@ volatile uint8_t debugReceivedByte = 0;
 volatile bool debugFlag = false;
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(115200); 
   Wire.begin(0x0A);  // Slave address
   Wire.setClock(400000UL);
   Wire.onReceive(receiveEvent);
@@ -116,7 +116,7 @@ void setup() {
 void loop() {
    if (!isIdleMode) {
     unsigned long now = millis();
-    if ((now - lastCommandTime) >= IDLE_TIMEOUT) {
+    if ((now - lastCommandTime) >= 30000) {
       // 5 minutes have passed with no new commands => enter idle
       turnOffAllLEDs();
       isIdleMode = true;

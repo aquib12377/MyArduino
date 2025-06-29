@@ -13,7 +13,7 @@
 #define CMD_TURN_ON_1BHK       0xB3  // 0xB1 from master code
 #define CMD_TURN_ON_2BHK       0xB4  // 0xB2 from master code
 #define CMD_TURN_ON_3BHK       0xB5  // 0xB3 from master code
-#define CMD_SHOW_AVAIL         0xC4  // 0xC4 from master code
+#define CMD_SHOW_AVAIL         0xA4  // 0xC4 from master code
 #define CMD_RUN_PATTERN        0xA2  // 0xD5 from master code
 
 // Pattern IDs
@@ -78,15 +78,29 @@ void setup() {
   Serial.println("Setup complete");
   Serial.println("Running Pattern till command received from ESP32");
 
-  // for (int floor = 0; floor < NUM_FLOORS; floor++) {
-  //   for (int i = 0; i < TOTAL_LEDS_PER_FLOOR; i++) {
-  //     ledsFloor[floor]->setPixelColor(i, ledsFloor[floor]->Color(255, 255, 255));
-  //   }
-  //   ledsFloor[floor]->show();
-  // }
+  for (int floor = 0; floor < NUM_FLOORS; floor++) {
+    for (int i = 0; i < TOTAL_LEDS_PER_FLOOR; i++) {
+      ledsFloor[floor]->setPixelColor(i, ledsFloor[floor]->Color(255, 255, 255));
+    }
+    ledsFloor[floor]->show();
+  }
 }
 
 void loop() {
+  if (!isIdleMode) {
+    unsigned long now = millis();
+    if ((now - lastCommandTime) >= IDLE_TIMEOUT) {
+      // 5 minutes have passed with no new commands => enter idle
+      turnOffAllLEDs();
+      isIdleMode = true;
+    }
+  }
+
+  // (B) If we are idle, run an idle pattern
+  if (isIdleMode) {
+    turnOffAllLEDs();
+    patternSoftColorsSmooth();
+  }
   // Debugging: Print received bytes outside ISR
   if (debugFlag) {
     noInterrupts();
