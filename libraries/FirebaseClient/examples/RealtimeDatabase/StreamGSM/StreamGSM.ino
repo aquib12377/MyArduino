@@ -1,7 +1,4 @@
-
 /**
- * ABOUT:
- *
  * The example to stream changes to a single location in Realtime Database.
  *
  * This example uses TinyGsmClient as the network client.
@@ -9,30 +6,18 @@
  * This example uses the UserAuth class for authentication.
  * See examples/App/AppInitialization for more authentication examples.
  *
- * The complete usage guidelines, please read README.md or visit https://github.com/mobizt/FirebaseClient
- *
- * SYNTAX:
- *
- * 1.------------------------
- *
- * RealtimeDatabase::get(<AsyncClient>, <path>, <AsyncResultCallback>, <SSE>, <uid>);
- *
- * RealtimeDatabase::get(<AsyncClient>, <path>, <DatabaseOption>, <AsyncResultCallback>, <uid>);
- *
- * <AsyncClient> - The async client.
- * <path> - The node path to get/watch the value.
- * <DatabaseOption> - The database options (DatabaseOptions).
- * <AsyncResultCallback> - The async result callback (AsyncResultCallback).
- * <uid> - The user specified UID of async result (optional).
- * <SSE> - The Server-sent events (HTTP Streaming) mode.
- *
- * In ESP32 Core v3.x.x, PPP devices are natively supported.
- * See examples/RealtimeDatabase/Async/Callback/StreamPPP/StreamPPP.ino
+ * For the complete usage guidelines, please read README.md or visit https://github.com/mobizt/FirebaseClient
  */
 
-#include <Arduino.h>
+#define ENABLE_USER_AUTH
+#define ENABLE_DATABASE
+#define ENABLE_GSM_NETWORK
+#define ENABLE_ESP_SSLCLIENT
 
 #define TINY_GSM_MODEM_SIM7600 // SIMA7670 Compatible with SIM7600 AT instructions
+
+// For network independent usage (disable all network features).
+// #define DISABLE_NERWORKS
 
 // Set serial for debug console (to the Serial Monitor, default speed 115200)
 #define SerialMon Serial
@@ -62,14 +47,18 @@ const char gprsPass[] = "";
 
 // LilyGO TTGO T-A7670 development board (ESP32 with SIMCom A7670)
 #define SIM_MODEM_RST 5
-#define SIM_MODEM_RST_LOW false // active HIGH
+#define SIM_MODEM_RST_LOW true // active LOW
 #define SIM_MODEM_RST_DELAY 200
 #define SIM_MODEM_TX 26
 #define SIM_MODEM_RX 27
 
 #include <Arduino.h>
-// Include TinyGsmClient.h first and followed by FirebaseClient.h
+// https://github.com/vshymanskyy/TinyGSM
 #include <TinyGsmClient.h>
+
+// Note that the library https://github.com/lewisxhe/TinyGSM-fork, may not incompatible with 
+// vshymanskyy's TinyGSM code using in this example.
+
 #include <FirebaseClient.h>
 #include "ExampleFunctions.h" // Provides the functions used in the examples.
 
@@ -81,6 +70,8 @@ const char gprsPass[] = "";
 #define USER_PASSWORD "USER_PASSWORD"
 #define DATABASE_URL "URL"
 
+void processData(AsyncResult &aResult);
+
 TinyGsm modem(SerialAT);
 
 TinyGsmClient gsm_client(modem, 0), stream_gsm_client(modem, 1);
@@ -91,10 +82,8 @@ TinyGsmClient gsm_client(modem, 0), stream_gsm_client(modem, 1);
 // For ESP_SSLClient documentation, see https://github.com/mobizt/ESP_SSLClient
 ESP_SSLClient ssl_client, stream_ssl_client;
 
-GSMNetwork gsm_network(&modem, GSM_PIN, apn, gprsUser, gprsPass);
-
 using AsyncClient = AsyncClientClass;
-AsyncClient aClient(ssl_client, getNetwork(gsm_network)), streamClient(stream_ssl_client, getNetwork(gsm_network));
+AsyncClient aClient(ssl_client), streamClient(stream_ssl_client);
 
 UserAuth user_auth(API_KEY, USER_EMAIL, USER_PASSWORD, 3000 /* expire period in seconds (<3600) */);
 FirebaseApp app;
@@ -103,9 +92,10 @@ AsyncResult streamResult;
 
 unsigned long ms = 0;
 
-void setup()
+bool initModem()
 {
-    Serial.begin(115200);
+    SerialMon.begin(115200);
+    delay(10);
 
     // Resetting the modem
 #if defined(SIM_MODEM_RST)
@@ -118,30 +108,28 @@ void setup()
 #endif
 
     DBG("Wait...");
-
     delay(3000);
 
     SerialAT.begin(UART_BAUD, SERIAL_8N1, SIM_MODEM_RX, SIM_MODEM_TX);
 
-    // Restart takes quite some time
-    // To skip it, call init() instead of restart()
     DBG("Initializing modem...");
     if (!modem.init())
     {
         DBG("Failed to restart modem, delaying 10s and retrying");
-        return;
+        return false;
     }
 
-    /*
-    2 Automatic
-    13 GSM Only
-    14 WCDMA Only
-    38 LTE Only
-    */
+    /**
+     * 2 Automatic
+     * 13 GSM Only
+     * 14 WCDMA Only
+     * 38 LTE Only
+     */
     modem.setNetworkMode(38);
     if (modem.waitResponse(10000L) != 1)
     {
         DBG(" setNetworkMode faill");
+        return false;
     }
 
     String name = modem.getModemName();
@@ -149,6 +137,28 @@ void setup()
 
     String modemInfo = modem.getModemInfo();
     DBG("Modem Info:", modemInfo);
+
+    SerialMon.print("Waiting for network...");
+    if (!modem.waitForNetwork())
+    {
+        SerialMon.println(" fail");
+        delay(10000);
+        return false;
+    }
+    SerialMon.println(" success");
+
+    if (modem.isNetworkConnected())
+        SerialMon.println("Network connected");
+
+    return true;
+}
+
+void setup()
+{
+    Serial.begin(115200);
+
+    if (!initModem())
+        return;
 
     Firebase.printf("Firebase Client v%s\n", FIREBASE_CLIENT_VERSION);
 
@@ -196,12 +206,8 @@ void setup()
 
 void loop()
 {
-    // The async task handler should run inside the main loop
-    // without blocking delay or bypassing with millis code blocks.
-
+    // To maintain the authentication and async tasks
     app.loop();
-
-    Database.loop();
 
     if (millis() - ms > 20000 && app.ready())
     {
@@ -224,7 +230,7 @@ void loop()
 
 void processData(AsyncResult &aResult)
 {
-    // Exits when no result available when calling from the loop.
+    // Exits when no result is available when calling from the loop.
     if (!aResult.isResult())
         return;
 
@@ -245,22 +251,22 @@ void processData(AsyncResult &aResult)
 
     if (aResult.available())
     {
-        RealtimeDatabaseResult &RTDB = aResult.to<RealtimeDatabaseResult>();
-        if (RTDB.isStream())
+        RealtimeDatabaseResult &stream = aResult.to<RealtimeDatabaseResult>();
+        if (stream.isStream())
         {
             Serial.println("----------------------------");
             Firebase.printf("task: %s\n", aResult.uid().c_str());
-            Firebase.printf("event: %s\n", RTDB.event().c_str());
-            Firebase.printf("path: %s\n", RTDB.dataPath().c_str());
-            Firebase.printf("data: %s\n", RTDB.to<const char *>());
-            Firebase.printf("type: %d\n", RTDB.type());
+            Firebase.printf("event: %s\n", stream.event().c_str());
+            Firebase.printf("path: %s\n", stream.dataPath().c_str());
+            Firebase.printf("data: %s\n", stream.to<const char *>());
+            Firebase.printf("type: %d\n", stream.type());
 
             // The stream event from RealtimeDatabaseResult can be converted to the values as following.
-            bool v1 = RTDB.to<bool>();
-            int v2 = RTDB.to<int>();
-            float v3 = RTDB.to<float>();
-            double v4 = RTDB.to<double>();
-            String v5 = RTDB.to<String>();
+            bool v1 = stream.to<bool>();
+            int v2 = stream.to<int>();
+            float v3 = stream.to<float>();
+            double v4 = stream.to<double>();
+            String v5 = stream.to<String>();
         }
         else
         {

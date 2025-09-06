@@ -2,11 +2,10 @@
  * @file Adafruit_SSD1331.h
  */
 
-#include "Arduino.h"
-#include <Adafruit_GFX.h>
+#ifndef ADAFRUIT_SSD1331_H
+#define ADAFRUIT_SSD1331_H
+
 #include <Adafruit_SPITFT.h>
-#include <Adafruit_SPITFT_Macros.h>
-#include <SPI.h>
 
 /*!
  * @brief Select one of these defines to set the pixel color order
@@ -15,7 +14,7 @@
 // #define SSD1331_COLORORDER_BGR
 
 #if defined SSD1331_COLORORDER_RGB && defined SSD1331_COLORORDER_BGR
-#error "RGB and BGR can not both be defined for SSD1331_COLORODER."
+#error "RGB and BGR can not both be defined for SSD1331_COLORORDER."
 #endif
 
 // Timing Delays
@@ -63,7 +62,7 @@ public:
 
   // commands
   void begin(uint32_t begin = 8000000);
-
+  void setRotation(uint8_t r);
   void setAddrWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h);
 
   void enableDisplay(boolean enable);
@@ -73,3 +72,5 @@ public:
 
 private:
 };
+
+#endif // ADAFRUIT_SSD1331_H

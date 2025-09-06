@@ -1,15 +1,19 @@
+/*
+ * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 #ifndef CORE_FILE_FILE_CONFIG_H
 #define CORE_FILE_FILE_CONFIG_H
 
 #include <Arduino.h>
-#include "./FirebaseConfig.h"
 #include "./core/Utils/StringUtil.h"
 #include "./core/File/FileConfigData.h"
 #include "./core/File/DefaultFileConfig.h"
 #include "./core/File/BlobConfig.h"
 
 #if defined(ENABLE_FS)
-#include <FS.h>
 class FileConfig
 {
 public:

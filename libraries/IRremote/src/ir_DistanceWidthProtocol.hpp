@@ -34,7 +34,7 @@
  ************************************************************************************
  * MIT License
  *
- * Copyright (c) 2022-2024 Armin Joachimsmeyer
+ * Copyright (c) 2022-2025 Armin Joachimsmeyer
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -62,7 +62,7 @@
 #define DISTANCE_WIDTH_MAXIMUM_REPEAT_DISTANCE_MICROS       100000 // 100 ms, bit it is just a guess
 #endif
 
-#if defined(DEBUG) && !defined(LOCAL_DEBUG)
+#if defined(DEBUG)
 #define LOCAL_DEBUG
 #else
 //#define LOCAL_DEBUG // This enables debug output only for this file
@@ -192,17 +192,21 @@ bool aggregateArrayCounts(uint8_t aArray[], uint8_t aMaxIndex, uint8_t *aShortIn
  * 3. Try to decode with the mark and space data found in step 1
  * No data and address decoding, only raw data as result.
  *
+ * Restrictions:
+ * Only protocols with at least 7 bits (+ start and trailing stop bit) are accepted.
+ * Pulse or pause duration must be below 2500 us (depends on DISTANCE_WIDTH_DECODER_DURATION_ARRAY_SIZE).
+ *
  * calloc() version is 700 bytes larger :-(
  */
 bool IRrecv::decodeDistanceWidth() {
     /*
      * Array for up to 49 ticks / 2500 us (or 199  ticks / 10 ms us if RAM > 2k)
-     * 0 tick covers mark or space durations from 0 to 49 us, and 49 ticks from 2450 to 2499 us
+     * tick array index 0 covers mark or space durations from 0 to 49 us, and index 49 from 2450 to 2499 us
      */
     uint8_t tDurationArray[DISTANCE_WIDTH_DECODER_DURATION_ARRAY_SIZE];
 
     /*
-     * Accept only protocols with at least 7 bits
+     * Only protocols with at least 7 bits are accepted
      */
     if (decodedIRData.rawlen < (2 * 7) + 4) {
         IR_DEBUG_PRINT(F("PULSE_DISTANCE_WIDTH: "));
@@ -434,8 +438,12 @@ bool IRrecv::decodeDistanceWidth() {
     decodedIRData.flags = IRDATA_FLAGS_IS_MSB_FIRST;
 #endif
 
-    // Check for repeat
-    checkForRepeatSpaceTicksAndSetFlag(DISTANCE_WIDTH_MAXIMUM_REPEAT_DISTANCE_MICROS / MICROS_PER_TICK);
+    // Check for repeat. Check also for equality of last DecodedRawData.
+    if (decodedIRData.initialGapTicks < DISTANCE_WIDTH_MAXIMUM_REPEAT_DISTANCE_MICROS / MICROS_PER_TICK
+            && decodedIRData.decodedRawDataArray[tNumberOfAdditionalArrayValues] == lastDecodedRawData) {
+        decodedIRData.flags |= IRDATA_FLAGS_IS_REPEAT;
+    }
+    lastDecodedRawData = decodedIRData.decodedRawData;
 
     /*
      * Store timing data to reproduce frame for sending

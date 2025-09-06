@@ -1,8 +1,13 @@
+/*
+ * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 #ifndef CORE_FILE_DEFAULT_FILE_CONFIG_H
 #define CORE_FILE_DEFAULT_FILE_CONFIG_H
 
 #include <Arduino.h>
-#include "./FirebaseConfig.h"
 #include "./core/File/FileConfigData.h"
 
 class DefaultFileConfig

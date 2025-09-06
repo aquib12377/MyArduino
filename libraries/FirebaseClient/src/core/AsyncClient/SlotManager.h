@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 #ifndef CORE_ASYNC_CLIENT_SLOT_MANAGER_H
 #define CORE_ASYNC_CLIENT_SLOT_MANAGER_H
 
@@ -30,11 +36,6 @@ private:
     AsyncResult *refResult = nullptr;
     AsyncResult aResult;
     FirebaseError lastErr;
-#if defined(ENABLE_ASYNC_TCP_CLIENT)
-    AsyncTCPConfig *atcp_config = nullptr;
-#else
-    void *atcp_config = nullptr;
-#endif
     tcp_client_type client_type = tcpc_sync;
     std::vector<uint32_t> rVec; // AsyncResult vector
     String sse_events_filter;
@@ -149,7 +150,9 @@ public:
 #if defined(ENABLE_DATABASE)
         clearSSE(&sData->aResult.rtdbResult);
 #endif
+#if defined(ENABLE_FS)
         sData->request.closeFile();
+#endif
         setLastError(sData);
         // data available from sync and asyn request except for sse
         returnResult(sData, true);
@@ -257,9 +260,9 @@ public:
 
     void newCon(async_data *sData, const char *host, uint16_t port)
     {
-        conn.newConn(client_type, client, atcp_config, &debug_log);
-        sData->request.setClient(client_type, client, atcp_config);
-        sData->response.setClient(client_type, client, atcp_config);
+        conn.newConn(client_type, client, &debug_log);
+        sData->request.setClient(client_type, client);
+        sData->response.setClient(client_type, client);
 
         if ((!sData->sse && session_timeout_sec >= FIREBASE_SESSION_TIMEOUT_SEC && session_timer.remaining() == 0) || sData->stop_current_async ||
             (conn.sse && !sData->sse) || (!conn.sse && sData->sse) || (sData->auth_used && sData->state == astate_undefined) ||
@@ -281,7 +284,7 @@ public:
     void stop()
     {
         if (conn.isConnected())
-            debug_log.push_back(-1, FPSTR("Terminating the server connection..."));
+            debug_log.push_back(-1, "Terminating the server connection...");
         conn.stop();
     }
 
@@ -289,18 +292,6 @@ public:
     {
         List vec;
         return vec.existed(rVec, result_addr) ? refResult : &aResult;
-    }
-
-    function_return_type networkConnect(async_data *sData)
-    {
-        function_return_type ret = conn.netConnect();
-        if (ret == ret_failure)
-        {
-            // TCP (network) disconnected error.
-            setAsyncError(sData ? sData : nullptr, sData ? sData->state : astate_undefined, FIREBASE_ERROR_TCP_DISCONNECTED, sData ? !sData->sse : true, false);
-            return ret_failure;
-        }
-        return ret;
     }
 
     void setAsyncError(async_data *sData, async_state state, int code, bool toRemove, bool toCloseFile)
@@ -314,27 +305,29 @@ public:
         if (toRemove)
             sData->to_remove = toRemove;
 
+#if defined(ENABLE_FS)
         if (toCloseFile)
             sData->request.closeFile();
-
+#endif
+        (void)toCloseFile;
         setLastError(sData);
     }
 
     template <typename T>
     void setClientError(T &request, int code)
     {
-        AsyncResult *aResult = request.aResult;
+        AsyncResult *aRes = request.aResult;
 
-        if (!aResult)
-            aResult = new AsyncResult();
+        if (!aRes)
+            aRes = new AsyncResult();
 
-        aResult->lastError.setClientError(code);
-        firebase_bebug_callback(request.cb, *aResult, __func__, __LINE__, __FILE__);
+        aRes->lastError.setClientError(code);
+        firebase_bebug_callback(request.cb, *aRes, __func__, __LINE__, __FILE__);
 
         if (!request.aResult)
         {
-            delete aResult;
-            aResult = nullptr;
+            delete aRes;
+            aRes = nullptr;
         }
     }
 
@@ -374,7 +367,7 @@ public:
         debug_log.reset();
 
         if (!conn.isConnected() && !sData->auth_used) // This info is already shown in auth task
-            debug_log.push_back(-1, FPSTR("Connecting to server..."));
+            debug_log.push_back(-1, "Connecting to server...");
 
         sData->return_type = conn.connect(host, port);
 

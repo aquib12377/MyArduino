@@ -1,7 +1,12 @@
+/*
+ * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 #ifndef RULES_DATA_OPTIONS_H
 #define RULES_DATA_OPTIONS_H
 
-#include "./FirebaseConfig.h"
 #if defined(ENABLE_RULESETS)
 
 #include <Arduino.h>
@@ -59,11 +64,11 @@ private:
         owriter.clear(buf[0]);
 
         if (pagesize > 0)
-            uut.addParam(buf[0], FPSTR("pageSize"), String(pagesize), hasParam);
+            uut.addParam(buf[0], "pageSize", String(pagesize), hasParam);
         if (buf[1].length() > 0)
-            uut.addParam(buf[0], FPSTR("pageToken"), buf[1], hasParam);
+            uut.addParam(buf[0], "pageToken", buf[1], hasParam);
         if (buf[2].length() > 0)
-            uut.addParam(buf[0], FPSTR("filter"), buf[2], hasParam);
+            uut.addParam(buf[0], "filter", buf[2], hasParam);
         return *this;
     }
 

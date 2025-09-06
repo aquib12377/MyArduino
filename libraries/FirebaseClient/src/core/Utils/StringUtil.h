@@ -1,9 +1,14 @@
+/*
+ * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 #ifndef CORE_UTILS_STRING_UTILS_H
 #define CORE_UTILS_STRING_UTILS_H
 
 #include <Arduino.h>
 #include <Client.h>
-#include "./FirebaseConfig.h"
 #include <type_traits>
 #include <stdarg.h>
 
@@ -119,7 +124,7 @@ public:
         va_start(va, format);
         vsnprintf(s, size, format, va);
         va_end(va);
-        buff += (const char *)s;
+        buff += reinterpret_cast<const char *>(s);
     }
     void addParams(const String &src, String &dest)
     {

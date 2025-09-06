@@ -1,8 +1,9 @@
 /**
- * ABOUT:
- * 
  * The example show how to create a wrapper class for Firebase Realtime Database that is easier to use.
 */
+
+#define ENABLE_USER_AUTH
+#define ENABLE_DATABASE
 
 #include "MyFirebase.h"
 #include <WiFi.h>

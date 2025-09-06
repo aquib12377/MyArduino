@@ -1,8 +1,13 @@
+/*
+ * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 #ifndef CORE_AUTH_DATA_AUTH_BASE_H
 #define CORE_AUTH_DATA_AUTH_BASE_H
 
 #include <Arduino.h>
-#include "./FirebaseConfig.h"
 
 #define FIREBASE_DEFAULT_TOKEN_TTL 3300
 

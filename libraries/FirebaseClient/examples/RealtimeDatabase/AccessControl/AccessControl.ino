@@ -1,6 +1,4 @@
 /**
- * ABOUT:
- *
  * The example to show how to use custom claims and UID with security rules to control Firebase Realtime database access.
  *
  * We use the sync functions in this example because it is easy to describe the processes stype by step.
@@ -22,11 +20,14 @@
  *
  * The syntaxes used in this example are described in example/App/AppInitialization/Sync/CustomAuth/CustomAuth.ino
  *
- * The complete usage guidelines, please read README.md or visit https://github.com/mobizt/FirebaseClient
+ * For the complete usage guidelines, please read README.md or visit https://github.com/mobizt/FirebaseClient
  *
  */
 
-#include <Arduino.h>
+#define ENABLE_CUSTOM_AUTH
+#define ENABLE_LEGACY_TOKEN
+#define ENABLE_DATABASE
+
 #include <FirebaseClient.h>
 #include "ExampleFunctions.h" // Provides the functions used in the examples.
 #include <FirebaseJson.h>
@@ -47,8 +48,6 @@ bool mofifyRules(const String &controlPath, const String &readCondition, const S
 
 SSL_CLIENT ssl_client;
 
-// This uses built-in core WiFi/Ethernet for network connection.
-// See examples/App/NetworkInterfaces for more network examples.
 using AsyncClient = AsyncClientClass;
 AsyncClient aClient(ssl_client);
 
@@ -189,7 +188,7 @@ void loop()
 
 void processData(AsyncResult &aResult)
 {
-    // Exits when no result available when calling from the loop.
+    // Exits when no result is available when calling from the loop.
     if (!aResult.isResult())
         return;
 

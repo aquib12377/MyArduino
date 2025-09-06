@@ -1,6 +1,4 @@
 /**
- * ABOUT:
- *
  * The example to delete the object (file) in the Cloud Storage bucket.
  *
  * This example uses the ServiceAuth class for authentication.
@@ -8,26 +6,12 @@
  *
  * The OAuth2.0 authentication or access token authorization is required for Cloud Storage operations.
  *
- * The complete usage guidelines, please read README.md or visit https://github.com/mobizt/FirebaseClient
- *
- * SYNTAX:
- *
- * 1.------------------------
- *
- * CloudStorage::deleteObject(<AsyncClient>, <GoogleCloudStorage::Parent>, <GoogleCloudStorage::DeleteOptions>, <AsyncResultCallback>, <uid>);
- *
- * <AsyncClient> - The async client.
- * <GoogleCloudStorage::Parent> - The GoogleCloudStorage::Parent object included Storage bucket Id and object in its constructor.
- * <GoogleCloudStorage::DeleteOptions> - The GoogleCloudStorage::DeleteOptions that holds the delete options.
- * For the delete options, see https://cloud.google.com/storage/docs/json_api/v1/objects/delete#optional-parameters.
- * <AsyncResultCallback> - The async result callback (AsyncResultCallback).
- * <uid> - The user specified UID of async result (optional).
- *
- * The bucketid is the Storage bucket Id of object to delete.
- * The object is the object in Cloud Storage bucket to delete.
+ * For the complete usage guidelines, please read README.md or visit https://github.com/mobizt/FirebaseClient
  */
 
-#include <Arduino.h>
+#define ENABLE_SERVICE_AUTH
+#define ENABLE_CLOUD_STORAGE
+
 #include <FirebaseClient.h>
 #include "ExampleFunctions.h" // Provides the functions used in the examples.
 
@@ -50,8 +34,6 @@ FirebaseApp app;
 
 SSL_CLIENT ssl_client;
 
-// This uses built-in core WiFi/Ethernet for network connection.
-// See examples/App/NetworkInterfaces for more network examples.
 using AsyncClient = AsyncClientClass;
 AsyncClient aClient(ssl_client);
 
@@ -126,7 +108,7 @@ void loop()
 
 void processData(AsyncResult &aResult)
 {
-    // Exits when no result available when calling from the loop.
+    // Exits when no result is available when calling from the loop.
     if (!aResult.isResult())
         return;
 

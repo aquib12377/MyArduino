@@ -1,8 +1,13 @@
+/*
+ * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 #ifndef CORE_UTILS_TIMER_H
 #define CORE_UTILS_TIMER_H
 
 #include <Arduino.h>
-#include "./FirebaseConfig.h"
 
 class Timer
 {

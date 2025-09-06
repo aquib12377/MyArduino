@@ -1,6 +1,4 @@
 /**
- * ABOUT:
- *
  * The Realtime Database Stream performance test example.
  *
  * This example will show how fast your device gets the Stream event.
@@ -9,11 +7,13 @@
  *
  * Open the index.html file with web browser and follow the instructions on that page to test.
  *
- * The complete usage guidelines, please read README.md or visit https://github.com/mobizt/FirebaseClient
+ * For the complete usage guidelines, please read README.md or visit https://github.com/mobizt/FirebaseClient
  *
  */
 
-#include <Arduino.h>
+#define ENABLE_USER_AUTH
+#define ENABLE_DATABASE
+
 #include <FirebaseClient.h>
 #include "ExampleFunctions.h" // Provides the functions used in the examples.
 
@@ -29,8 +29,6 @@ void processData(AsyncResult &aResult);
 
 SSL_CLIENT ssl_client, stream_ssl_client;
 
-// This uses built-in core WiFi/Ethernet for network connection.
-// See examples/App/NetworkInterfaces for more network examples.
 using AsyncClient = AsyncClientClass;
 AsyncClient aClient(ssl_client), streamClient(stream_ssl_client);
 
@@ -105,16 +103,16 @@ void processData(AsyncResult &aResult)
 
     if (aResult.available())
     {
-        RealtimeDatabaseResult &RTDB = aResult.to<RealtimeDatabaseResult>();
+        RealtimeDatabaseResult &stream = aResult.to<RealtimeDatabaseResult>();
 
-        if (RTDB.isStream())
+        if (stream.isStream())
         {
-            if (RTDB.type() == 0 /* null */)
+            if (stream.type() == 0 /* null */)
                 return;
 
-            if (RTDB.type() == 5 /* string */ && RTDB.dataPath() == "/chat")
+            if (stream.type() == 5 /* string */ && stream.dataPath() == "/chat")
             {
-                String op = RTDB.to<String>();
+                String op = stream.to<String>();
 
                 if (op.indexOf("hello-") > -1)
                 {
@@ -172,11 +170,11 @@ void processData(AsyncResult &aResult)
             {
                 counter++;
 
-                if (RTDB.type() == 1 /* int */ && RTDB.dataPath().length())
+                if (stream.type() == 1 /* int */ && stream.dataPath().length())
                 {
-                    sum += RTDB.to<int>();
+                    sum += stream.to<int>();
                     if (option == 1)
-                        Firebase.printf("counter: %d\ndata: %d\nsum: %d\n", counter, RTDB.to<int>(), sum);
+                        Firebase.printf("counter: %d\ndata: %d\nsum: %d\n", counter, stream.to<int>(), sum);
                     else if (option == 3)
                     {
                         // Blink

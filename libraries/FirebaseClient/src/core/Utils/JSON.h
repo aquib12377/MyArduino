@@ -1,9 +1,14 @@
+/*
+ * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 #ifndef CORE_UTILS_JSON_H
 #define CORE_UTILS_JSON_H
 
 #include <Arduino.h>
 #include <Client.h>
-#include "./FirebaseConfig.h"
 #include "./core/Utils/Memory.h"
 #include "./core/Utils/StringUtil.h"
 #include "./core/AsyncResult/Value.h"

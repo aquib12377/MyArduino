@@ -1,8 +1,13 @@
+/*
+ * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 #ifndef CORE_FILE_RESUMABLE_UPLOAD_H
 #define CORE_FILE_RESUMABLE_UPLOAD_H
 
 #include <Arduino.h>
-#include "./FirebaseConfig.h"
 #include "./core/Utils/StringUtil.h"
 
 #if defined(ENABLE_CLOUD_STORAGE)

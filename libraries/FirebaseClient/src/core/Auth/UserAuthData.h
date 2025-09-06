@@ -1,8 +1,13 @@
+/*
+ * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 #ifndef CORE_AUTH_USER_AUTH_DATA_H
 #define CORE_AUTH_USER_AUTH_DATA_H
 
 #include <Arduino.h>
-#include "./FirebaseConfig.h"
 #include "./core/File/FileConfig.h"
 #include "./core/Auth/Data/ServiceData.h"
 #include "./core/Auth/Data/CustomData.h"
@@ -60,7 +65,7 @@ namespace firebase_ns
         void copy(const user_auth_data &rhs)
         {
             this->user.copy(rhs.user);
-#if defined(ENABLE_SERVICE_AUTH)
+#if defined(ENABLE_SERVICE_AUTH) || defined(ENABLE_CUSTOM_AUTH)
             this->sa.copy(rhs.sa);
 #endif
 #if defined(ENABLE_CUSTOM_AUTH)
@@ -92,7 +97,7 @@ namespace firebase_ns
         void clear()
         {
             user.clear();
-#if defined(ENABLE_SERVICE_AUTH)
+#if defined(ENABLE_SERVICE_AUTH) || defined(ENABLE_CUSTOM_AUTH)
             sa.clear();
 #endif
 #if defined(ENABLE_CUSTOM_AUTH)

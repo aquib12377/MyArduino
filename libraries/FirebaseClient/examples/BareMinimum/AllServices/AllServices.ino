@@ -1,7 +1,5 @@
 /**
- * ABOUT:
- *
- * The beare minimum code example for using all Firebase services.
+ * The bare minimum code example for using all Firebase services.
  *
  * The steps which are generally required are explained below.
  *
@@ -39,7 +37,7 @@
  * ==============================
  * It handles server connection and data transfer works.
  *
- * In this beare minimum example we use only one SSL client for all processes.
+ * In this bare minimum example we use only one SSL client for all processes.
  * In some use cases e.g. Realtime Database Stream connection, you may have to define the SSL client for it separately.
  *
  * Step 6. Define the Async Client.
@@ -58,14 +56,14 @@
  *
  * Step 8. Start the authenticate process.
  * ========================================
- * At this step, the authentication credential will be used to generate the auth tokens for authentication by
+ * At this step, the authentication credentials will be used to generate the auth tokens for authentication by
  * calling initializeApp.
  *
  * This allows us to use different authentications for each Firebase/Google Cloud services with different
  * FirebaseApps (authentication handler)s.
  *
  * When calling initializeApp with timeout, the authenication process will begin immediately and wait at this process
- * until it finished or timed out. It works in sync mode.
+ * until it is finished or timed out. It works in sync mode.
  *
  * If no timeout was assigned, it will work in async mode. The authentication task will be added to async client queue
  * to process later e.g. in the loop by calling FirebaseApp::loop.
@@ -82,7 +80,7 @@
  * ========================================================================================================
  * This allows us to use different authentications for each Firebase/Google Cloud services.
  *
- * It is easy to bind/unbind/change the authentication method for different Firebase/Google Cloud services APIs.
+ * It is easy to bind, unbind or change the authentication method for different Firebase/Google Cloud services APIs.
  *
  * Step 10. Set the Realtime Database URL (for Realtime Database only)
  * ===================================================================
@@ -96,13 +94,23 @@
  * Before calling the Firebase/Google Cloud services functions, the FirebaseApp::ready() of authentication handler that bined to it
  * should return true.
  *
- * Step 13. Process the results of async tasks the end of the loop.
+ * Step 13. Process the results of async tasks at the end of the loop.
  * ============================================================================
  * This requires only when async result was assigned to the Firebase/Google Cloud services functions.
  */
 
 // Step 1
-#include <Arduino.h>
+
+#define ENABLE_SERVICE_AUTH
+#define ENABLE_DATABASE
+#define ENABLE_FIRESTORE
+#define ENABLE_FIRESTORE_QUERY
+#define ENABLE_MESSAGING
+#define ENABLE_STORAGE
+#define ENABLE_CLOUD_STORAGE
+#define ENABLE_FUNCTIONS
+
+// For ESP32
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <FirebaseClient.h>
@@ -122,8 +130,6 @@ WiFiClientSecure ssl_client1, ssl_client2;
 
 // Step 6
 // Use two AsyncClients for sync and async tasks for demonstation only.
-// This uses built-in core WiFi/Ethernet for network connection.
-// See examples/App/NetworkInterfaces for more network examples.
 using AsyncClient = AsyncClientClass;
 AsyncClient async_client1(ssl_client1), async_client2(ssl_client2);
 
@@ -186,17 +192,18 @@ void setup()
 
     // The SSL client options depend on the SSL client used.
 
-    // Skip certificate verification
+    // Skip certificate verification (Optional)
     ssl_client1.setInsecure();
     ssl_client2.setInsecure();
 
     // Set timeout
+     // Set timeout for ESP32 core sdk v3.x (Optional)
     ssl_client1.setConnectionTimeout(1000);
     ssl_client1.setHandshakeTimeout(5);
     ssl_client2.setConnectionTimeout(1000);
     ssl_client2.setHandshakeTimeout(5);
 
-    // ESP8266 Set buffer size
+    // ESP8266 Set buffer size (Optional)
     // ssl_client1.setBufferSizes(4096, 1024);
     // ssl_client2.setBufferSizes(4096, 1024);
 
@@ -227,6 +234,19 @@ void loop()
     if (app.ready() && !onetimeTest)
     {
         onetimeTest = true;
+
+        // The following code shows how to call the Firebase functions in both async and await or sync mode
+        
+        // for demonstation only. You can choose async or await/sync mode or use both modes in the same application. 
+        // For await/sync mode, no callback and AsyncResult object are assigned to the function, the function will
+        // return the value or payload immediately.
+
+        // For async mode, the value or payload will be returned later to the AsyncResult object 
+        // or when the callback was called.
+        // If AsyncResult was assigned to the function, please don't forget to check it before 
+        // exiting the loop as in step 13.
+
+        // For elaborate usage, plese see other examples.
 
         // Realtime Database set value.
         // ============================
@@ -347,7 +367,7 @@ void loop()
 
 void processData(AsyncResult &aResult)
 {
-    // Exits when no result available when calling from the loop.
+    // Exits when no result is available when calling from the loop.
     if (!aResult.isResult())
         return;
 

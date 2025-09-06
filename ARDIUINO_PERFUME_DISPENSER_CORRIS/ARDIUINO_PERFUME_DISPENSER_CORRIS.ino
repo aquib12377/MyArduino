@@ -12,9 +12,9 @@
 #include <Arduino.h>
 
 /* ---------- user configuration ---------------------------- */
-const uint8_t FLOW_PIN        = 2;      // INT0
-const uint8_t PUMP_PIN        = 8;      // MOSFET gate (digital)
-const uint8_t VALVE_PIN       = 7;      // LOW = open
+const uint8_t FLOW_PIN        = 13;      // INT0
+const uint8_t PUMP_PIN        = 27;      // MOSFET gate (digital)
+const uint8_t VALVE_PIN       = 26;      // LOW = open
 const uint16_t PULSES_PER_LITRE = 1750; // sensor calibration
 const uint32_t PRINT_MS       = 250;    // console update rate
 /* ---------------------------------------------------------- */
@@ -73,7 +73,7 @@ void setup()
   while (!Serial);                          // wait for PC (optional)
 
   pinMode(FLOW_PIN, INPUT_PULLUP);
-  attachInterrupt(0, ISR_flow, FALLING);    // INT0 = pin 2
+  attachInterrupt(digitalPinToInterrupt(FLOW_PIN), ISR_flow, FALLING);    // INT0 = pin 2
 
   pinMode(PUMP_PIN,   OUTPUT);
   pumpOFF();

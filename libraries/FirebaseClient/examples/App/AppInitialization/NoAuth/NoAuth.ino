@@ -1,56 +1,12 @@
 /**
- * ABOUT:
- *
  * The bare minimum example for using non-authentication.
  *
  * The read and write conditions in the security rules should be true for all conditions.
  *
- * The complete usage guidelines, please read README.md or visit https://github.com/mobizt/FirebaseClient
- *
- * SYNTAX:
- *
- * 1.------------------------
- *
- * NoAuth::NoAuth();
- *
- * 2.------------------------
- *
- * initializeApp(<AsyncClient>, <FirebaseApp>, <user_auth_data>, <AsyncResultCallback>, <uid>);
- *
- * <AsyncClient> - The async client.
- * <FirebaseApp> - The authentication and access token handler.
- * <user_auth_data> - The user auth data (user_auth_data struct) that holds the user input sign-in credentials and token.
- *
- * The <user_auth_data> can be obtained from the following sign-in credentials, access key, auth token providers classs via getAuth function i.e.
- * CustomAuth, ServiceAuth, UserAuth, NoAuth, CustomToken, AccessToken, IDToken, LegacyToken.
- *
- * <AsyncResultCallback> - The AsyncResultCallback function for debugging.
- * <uid> - Optional The user defined task UID for debugging.
- *
- * 3.------------------------
- *
- * initializeApp(<AsyncClient>, <FirebaseApp>, <user_auth_data>, <timeoutMs>, <AsyncResultCallback>);
- *
- * <AsyncClient> - The async client.
- * <FirebaseApp> - The authentication and access token handler.
- * <user_auth_data> - The user auth data (user_auth_data struct) that holds the user input sign-in credentials and token.
- *
- * The <user_auth_data> can be obtained from the following sign-in credentials, access key, auth token providers classs via getAuth function i.e.
- * CustomAuth, ServiceAuth, UserAuth, NoAuth, CustomToken, AccessToken, IDToken, LegacyToken.
- *
- * <timeoutMs> - Optional. The await timeout in milliseconds.
- * <AsyncResultCallback> - Optional. The async result callback (AsyncResultCallback) for debugging.
- *
- * NOTE:
- *
- * The timeoutMs is the timeout for waiting the authentication process to be done.
- *
- * By providing AsyncResultCallback in the initializeApp function, the debug information will be collected and send to AsyncResultCallback
- * function immediately.
+ * For the complete usage guidelines, please read README.md or visit https://github.com/mobizt/FirebaseClient
  *
  */
 
-#include <Arduino.h>
 #include <FirebaseClient.h>
 #include "ExampleFunctions.h" // Provides the functions used in the examples.
 
@@ -63,8 +19,6 @@ FirebaseApp app;
 
 SSL_CLIENT ssl_client;
 
-// This uses built-in core WiFi/Ethernet for network connection.
-// See examples/App/NetworkInterfaces for more network examples.
 using AsyncClient = AsyncClientClass;
 AsyncClient aClient(ssl_client);
 

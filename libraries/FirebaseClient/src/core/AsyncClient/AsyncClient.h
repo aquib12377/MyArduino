@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 #ifndef CORE_ASYNC_CLIENT_ASYNC_CLIENT_H
 #define CORE_ASYNC_CLIENT_ASYNC_CLIENT_H
 
@@ -49,7 +55,7 @@ private:
     template <typename T>
     void setClientError(T &request, int code) { sman.setClientError(request, code); }
     async_data *createSlot(slot_options_t &options) { return sman.createSlot(options); }
-    void eventPushBack(async_data *sData, int code, const String &msg) { sman.event_log.push_back(code, msg); }
+    void eventPushBack(int code, const String &msg) { sman.event_log.push_back(code, msg); }
     size_t slotCount() const { return sman.sVec.size(); }
     AsyncResult *getResult() { return sman.getResult(); }
     void handleRemove()
@@ -89,6 +95,7 @@ private:
                 return ret_failure;
             }
 #endif
+            (void)state;
             if (sData->request.base64)
             {
                 ret = sendImpl(sData, reinterpret_cast<const uint8_t *>("\""), 1, totalLen, astate_send_payload);
@@ -292,12 +299,7 @@ private:
     // Handles TCP data sending process.
     function_return_type send(async_data *sData)
     {
-        function_return_type ret = sman.networkConnect(sData); // Check the network status and re-connect
-
-        if (ret != ret_complete)
-            return ret;
-
-        ret = ret_continue;
+        function_return_type ret = ret_continue;
 
         if (sData->state == astate_undefined || sData->state == astate_send_header) // Initial connection or payload sending state.
         {
@@ -314,7 +316,7 @@ private:
             // Stop the server connection when entering the initial/auth token request states or host, port, and SSE mode changes or session timed out.
             sman.newCon(sData, sData->request.getHost(true, &sData->response.val[resns::location]).c_str(), sData->request.port);
 
-            if ((sman.client_type == tcpc_sync && !sman.conn.isConnected()) || sman.client_type == tcpc_async)
+            if ((sman.client_type == tcpc_sync && !sman.conn.isConnected()))
             {
                 if (sData->request.getHost(true, &sData->response.val[resns::location]).length() == 0)
                 {
@@ -377,11 +379,6 @@ private:
 
     function_return_type receive(async_data *sData)
     {
-        function_return_type ret = sman.networkConnect(sData); // Check the network status and re-connect
-
-        if (ret != ret_complete)
-            return ret;
-
         // HTTP error is allowed in case non-auth task to get its response.
         if (!readResponse(sData))
         {
@@ -548,7 +545,7 @@ private:
                 }
 #endif
                 if (sData->request.method == reqns::http_delete && sData->response.httpCode == FIREBASE_ERROR_HTTP_CODE_NO_CONTENT)
-                    sman.debug_log.push_back(-1, FPSTR("Delete operation complete"));
+                    sman.debug_log.push_back(-1, "Delete operation complete");
             }
         }
     }
@@ -571,16 +568,41 @@ private:
                 if (sData->response.flags.chunks)
                 {
                     // Use temporary String buffer for decodeChunks
-                    String temp;
-                    int res = sData->response.decodeChunks(&temp);
-                    if (temp.length())
+                    if (!sData->response.chunkInfo.buf)
+                    {
+                        sData->response.chunkInfo.bufLen = 1024;
+                        sData->response.chunkInfo.dataPos = 0;
+                        sData->response.chunkInfo.buf = (uint8_t *)mem.alloc(sData->response.chunkInfo.bufLen);
+                    }
+
+                    int pos = sData->response.chunkInfo.dataPos;
+                    int res = sData->response.decodeChunks(&sData->response.chunkInfo.buf, &sData->response.chunkInfo.dataPos, &sData->response.chunkInfo.bufLen);
+
+                    if (!sData->response.flags.gzip && pos < sData->response.chunkInfo.dataPos)
                     {
                         reserveString(sData); // Work around for large string concatenation issue.
-                        sData->response.val[resns::payload] += temp;
+
+                        int len = sData->response.chunkInfo.dataPos - pos + 1;
+                        unsigned char *temp = (unsigned char *)mem.alloc(mem.getReservedLen(len), false);
+                        memcpy(temp, sData->response.chunkInfo.buf + pos, len);
+                        temp[len - 1] = 0;
+                        sData->response.val[resns::payload] += (char *)temp;
+                        mem.release(&temp);
                     }
 
                     if (res == -1)
+                    {
                         sData->response.flags.payload_remaining = false;
+#if defined(ENABLE_GZIP)
+                        if (sData->response.flags.gzip && sData->response.chunkInfo.dataPos)
+                        {
+                        }
+#endif
+                        sData->response.chunkInfo.dataPos = 0;
+                        mem.release(&sData->response.chunkInfo.buf);
+                        sData->response.chunkInfo.bufLen = 0;
+                        sData->response.chunkInfo.dataPos = 0;
+                    }
                 }
                 else
                 {
@@ -596,6 +618,7 @@ private:
                             {
                                 if (sData->request.ota)
                                 {
+#if defined(OTA_UPDATE_ENABLED) && defined(FIREBASE_OTA_UPDATER)
 #if defined(FIREBASE_OTA_STORAGE)
                                     otaut.setOTAStorage(sData->request.ota_storage_addr);
 #endif
@@ -607,6 +630,7 @@ private:
                                         sman.setAsyncError(sData, astate_read_response, sData->request.ota_error, !sData->sse, false);
                                         return false;
                                     }
+#endif
                                 }
 #if defined(ENABLE_FS)
                                 else if (sData->request.file_data.filename.length() && sData->request.file_data.cb)
@@ -668,7 +692,8 @@ private:
                                     otaut.getPad(buf + ofs, read, sData->request.b64Pad);
                                     if (sData->request.ota)
                                     {
-                                        otaut.decodeBase64OTA(mem, &b64ut, reinterpret_cast<const char *>(buf), read - ofs, sData->request.ota_error);
+#if defined(OTA_UPDATE_ENABLED) && defined(FIREBASE_OTA_UPDATER)
+                                        otaut.decodeBase64OTA(mem, &b64ut, reinterpret_cast<const char *>(buf), sData->request.ota_error);
                                         if (sData->request.ota_error != 0)
                                         {
                                             // OTA error.
@@ -686,6 +711,7 @@ private:
                                                 goto exit;
                                             }
                                         }
+#endif
                                     }
 #if defined(ENABLE_FS)
                                     else if (sData->request.file_data.filename.length() && sData->request.file_data.cb)
@@ -707,6 +733,7 @@ private:
                                     // To write flash (OTA)
                                     if (sData->request.ota)
                                     {
+#if defined(OTA_UPDATE_ENABLED) && defined(FIREBASE_OTA_UPDATER)
                                         b64ut.updateWrite(buf, read);
 
                                         if (sData->response.payloadRead == sData->response.payloadLen)
@@ -719,6 +746,7 @@ private:
                                                 goto exit;
                                             }
                                         }
+#endif
                                     }
 #if defined(ENABLE_FS)
                                     else if (sData->request.file_data.filename.length() && sData->request.file_data.cb)
@@ -800,8 +828,9 @@ private:
             // It should set in readPayload when decodeChunks returns -1.
             if (!sData->response.flags.chunks)
                 sData->response.flags.payload_remaining = false;
-
+#if defined(ENABLE_FS)
             sData->request.closeFile();
+#endif
 
             if (sData->auth_used)
                 sData->response.auth_data_available = true;
@@ -817,6 +846,8 @@ private:
         sData->response.val[resns::payload].remove(0, sData->response.val[resns::payload].length());
         sData->response.val[resns::payload].reserve(sData->response.payloadRead + 1);
         sData->response.val[resns::payload] = old;
+#else
+        (void)sData;
 #endif
     }
 
@@ -1035,18 +1066,6 @@ private:
                 *ul_dl_task_running = true;
             }
 
-            if (sman.networkConnect(sData) == ret_failure)
-            {
-                // TCP (network) disconnected error.
-                sman.setAsyncError(sData, sData->state, FIREBASE_ERROR_TCP_DISCONNECTED, !sData->sse, false);
-                if (sData->async)
-                {
-                    sman.returnResult(sData, false);
-                    sman.reset(sData, true);
-                }
-                return exitProcess(false);
-            }
-
             if (sData->async && !async)
                 return exitProcess(false);
 
@@ -1120,7 +1139,7 @@ private:
                 }
                 else if (!sData->async) // wait for non async
                 {
-                    while (!sData->response.tcpAvailable() && sman.networkConnect(sData) == ret_complete)
+                    while (!sData->response.tcpAvailable())
                     {
                         sys_idle();
                         if (handleReadTimeout(sData))
@@ -1185,32 +1204,7 @@ public:
         sman.client_type = tcpc_sync;
     }
 
-    AsyncClientClass(Client &client, bool reconnect = true)
-    {
-        DefaultNetwork defaultNet(reconnect);
-        sman.client = &client;
-        sman.conn.setNetwork(getNetwork(defaultNet));
-        this->addr = reinterpret_cast<uint32_t>(this);
-        sman.client_type = tcpc_sync;
-    }
-
-    AsyncClientClass(Client &client, network_config_data &net)
-    {
-        sman.client = &client;
-        sman.conn.setNetwork(net);
-        this->addr = reinterpret_cast<uint32_t>(this);
-        sman.client_type = tcpc_sync;
-    }
-
-#if defined(ENABLE_ASYNC_TCP_CLIENT)
-    AsyncClientClass(AsyncTCPConfig &tcpClientConfig, network_config_data &net)
-    {
-        sman.atcp_config = &tcpClientConfig;
-        conn.setNetwork(net);
-        this->addr = reinterpret_cast<uint32_t>(this);
-        sman.client_type = tcpc_async;
-    }
-#endif
+    explicit AsyncClientClass(Client &client) { setClient(client); }
 
     ~AsyncClientClass()
     {
@@ -1250,27 +1244,6 @@ public:
         sman.refResult = nullptr;
         sman.result_addr = 0;
     }
-
-    /**
-     * Get the network connection status.
-     *
-     * @return bool Returns true if network is connected.
-     */
-    bool networkStatus() { return sman.conn.getNetworkStatus(); }
-
-    /**
-     * Get the network disconnection time.
-     *
-     * @return unsigned long The millisec of network disconnection since device boot.
-     */
-    unsigned long networkLastSeen() { return sman.conn.networkLastSeen(); }
-
-    /**
-     * Return the current network type enum.
-     *
-     * @return firebase_network_type The firebase_network_type enums are firebase_network_default, firebase_network_generic, firebase_network_ethernet and firebase_network_gsm.
-     */
-    firebase_network_type getNetworkType() { return sman.conn.getNetworkType(); }
 
     /**
      * Stop and remove the async/sync task from the queue.
@@ -1314,7 +1287,11 @@ public:
      *
      * The etag can be set via the functions that support etag.
      */
-    void setEtag(const String &etag) { Serial.println("🔥 AsyncClientClass::setEtag is deprecated."); }
+    void setEtag(const String &etag)
+    {
+        (void)etag;
+        Serial.println("🔥 AsyncClientClass::setEtag is deprecated.");
+    }
 
     /**
      * Set the sync task's send timeout in seconds.
@@ -1358,32 +1335,16 @@ public:
     void setSSEFilters(const String &sse_events_filter) { sman.sse_events_filter = sse_events_filter; }
 
     /**
-     * Set the network interface.
+     * Set the SSL client.
      *
-     * The SSL client set here should work for the type of network set.
-     *
-     * @param client The SSL client that working with this type of network interface.
-     * @param net The network config data can be obtained from the networking classes via the static function called `getNetwork`.
+     * @param client The SSL client.
      */
-    void setNetwork(Client &client, network_config_data &net)
+    void setClient(Client &client)
     {
-        // Check client changes.
-        bool client_changed = reinterpret_cast<uint32_t>(&client) != reinterpret_cast<uint32_t>(sman.client);
-
-        // Some changes, stop the current network client.
-        if (client_changed && sman.client)
-            sman.conn.stop();
-
-        // Change the network interface.
-        // Should not check the type changes, just overwrite
-        sman.conn.setNetwork(net);
-
-        // Change the client.
-        if (client_changed)
-        {
-            sman.client = &client;
-            sman.conn.setClientChange();
-        }
+        sman.client = &client;
+        sman.conn.setClientChange();
+        this->addr = reinterpret_cast<uint32_t>(this);
+        sman.client_type = tcpc_sync;
     }
 };
 #endif

@@ -1,27 +1,9 @@
-/**
- * 2025-03-26
+/*
+ * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
  *
- * The MIT License (MIT)
- * Copyright (c) 2025 K. Suwatchai (Mobizt)
- *
- *
- * Permission is hereby granted, free of charge, to any person returning a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- * the Software, and to permit persons to whom the Software is furnished to do so,
- * subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * SPDX-License-Identifier: MIT
  */
+
 #ifndef FIRESTORE_FIRESTORE_BASE_H
 #define FIRESTORE_FIRESTORE_BASE_H
 
@@ -62,7 +44,7 @@ public:
      * Perform the async task repeatedly.
      * Should be placed in main loop function.
      */
-    void loop() { loopImpl(__PRETTY_FUNCTION__); }
+    void loop() { loopImpl(); }
 
 protected:
     struct req_data
@@ -100,13 +82,13 @@ protected:
         String extras;
         sut.printTo(request.path, 20, "/v1%s%s/projects/", beta == 0 ? "" : "beta", beta == 0 ? "" : String(beta).c_str());
         request.path += strlen(request.options->parent.getProjectId()) == 0 ? atoken->val[app_tk_ns::pid] : request.options->parent.getProjectId();
-        request.path += FPSTR("/databases");
+        request.path += "/databases";
         if (!request.options->parent.isDatabaseIdParam())
             sut.printTo(request.path, strlen(request.options->parent.getDatabaseId()) + 20, "/%s", strlen(request.options->parent.getDatabaseId()) > 0 ? request.options->parent.getDatabaseId() : "(default)");
 
         sut.addParams(request.options->extras, extras);
 
-        url(FPSTR("firestore.googleapis.com"));
+        url("firestore.googleapis.com");
 
         async_data *sData = createSlotBase(request.aClient, request.opt);
 
@@ -129,8 +111,6 @@ protected:
         if (request.aResult)
             sData->setRefResult(request.aResult, reinterpret_cast<uint32_t>(&(getRVec(request.aClient))));
 
-        sData->download = request.method == reqns::http_get && sData->request.file_data.filename.length();
-
         processBase(request.aClient, sData->async);
         handleRemoveBase(request.aClient);
     }
@@ -143,7 +123,7 @@ protected:
         options.payload = eximOptions.c_str();
         if (!isImport)
             options.payload.replace("inputUriPrefix", "outputUriPrefix");
-        options.extras += isImport ? FPSTR(":importDocuments") : FPSTR(":exportDocuments");
+        options.extras += isImport ? ":importDocuments" : ":exportDocuments";
         req_data aReq(&aClient, reqns::http_post, slot_options_t(false, false, async, false, false, false), &options, result, cb, uid);
         asyncRequest(aReq);
         return aClient.getResult();
@@ -168,9 +148,9 @@ protected:
         if (key.length())
         {
             if (mode == Firestore::cf_mode_delete)
-                options.extras += FPSTR("?etag=");
+                options.extras += "?etag=";
             else if (mode == Firestore::cf_mode_patch)
-                options.extras += FPSTR("?updateMask=");
+                options.extras += "?updateMask=";
             options.extras += key;
         }
 

@@ -1,11 +1,16 @@
+/*
+ * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 #ifndef CORE_UTILS_OBJECT_WRITER_H
 #define CORE_UTILS_OBJECT_WRITER_H
 
 #include <Arduino.h>
-#include "./FirebaseConfig.h"
 #include "./core/Utils/JSON.h"
 
-#define RESOURCE_PATH_BASE FPSTR("<resource_path>")
+#define RESOURCE_PATH_BASE "<resource_path>"
 
 class ObjectWriter
 {
@@ -109,11 +114,11 @@ public:
     }
     void setBool(String &buf, bool value) { buf = getBoolStr(value); }
 
-    String getBoolStr(bool value) { return value ? FPSTR("true") : FPSTR("false"); }
+    String getBoolStr(bool value) { return value ? "true" : "false"; }
 
     String getArrayStr(const String &value)
     {
-        String str = FPSTR("[");
+        String str = "[";
         str += value;
         str += ']';
         return str;
@@ -121,7 +126,7 @@ public:
 
     void setString(String &buf, const String &value)
     {
-        buf = FPSTR("\"");
+        buf = "\"";
         buf += value;
         buf += '"';
     }

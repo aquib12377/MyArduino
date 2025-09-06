@@ -7,6 +7,8 @@
  */
 
 #include "nimble/porting/nimble/include/syscfg/syscfg.h"
+#if MYNEWT_VAL(BLE_MESH)
+
 #define MESH_LOG_MODULE BLE_MESH_LOG
 
 #include <stdbool.h>
@@ -309,7 +311,7 @@ int bt_mesh_init(uint8_t own_addr_type, const struct bt_mesh_prov *prov,
 	g_mesh_addr_type = own_addr_type;
 
 	/* initialize SM alg ECC subsystem (it is used directly from mesh code) */
-	ble_sm_alg_ecc_init();
+	na_ble_sm_alg_ecc_init();
 
 	err = bt_mesh_comp_register(comp);
 	if (err) {
@@ -414,3 +416,5 @@ int bt_mesh_start(void)
 
 	return 0;
 }
+
+#endif /* MYNEWT_VAL(BLE_MESH) */

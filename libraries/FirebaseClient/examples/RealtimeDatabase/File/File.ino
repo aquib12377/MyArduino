@@ -1,6 +1,4 @@
 /**
- * ABOUT:
- *
  * The example to store your file data to the database and read it back.
  *
  * With the FileConfig object provides with the set function, the file data will be converted to base64
@@ -15,36 +13,18 @@
  * This example uses the UserAuth class for authentication.
  * See examples/App/AppInitialization for more authentication examples.
  *
- * The complete usage guidelines, please read README.md or visit https://github.com/mobizt/FirebaseClient
- *
- * SYNTAX:
- *
- * 1.------------------------
- *
- * FileConfig::FileConfig(<file_name>, <file_callback>);
- *
- * <file_name> - The filename included path of file that will be used.
- * <file_callback> - The callback function that provides file operation.
- *
- * The file_callback function parameters included the File reference returned from file operation, filename for file operation and file_operating_mode.
- * The file_operating_mode included file_mode_open_read, file_mode_open_write, file_mode_open_append and file_mode_open_remove.
- *
- * The file name can be a name of source (input) and target (output) file that used in upload and download.
- *
- * 2.------------------------
- *
- * RealtimeDatabase::set(<AsyncClient>, <path>, <file_config_data>, <AsyncResultCallback>, <uid>);
- *
- * RealtimeDatabase::get(<AsyncClient>, <path>, <file_config_data>, <AsyncResultCallback>, <uid>);
- *
- * <AsyncClient> - The async client.
- * <path> - The node path to set/get the file data.
- * <file_config_data> - The file config data which in case of filesystem data, it will be obtained from FileConfig via getFile.
- * <AsyncResultCallback> - The async result callback (AsyncResultCallback).
- * <uid> - The user specified UID of async result (optional).
+ * For the complete usage guidelines, please read README.md or visit https://github.com/mobizt/FirebaseClient
  */
 
-#include <Arduino.h>
+#define ENABLE_USER_AUTH
+#define ENABLE_DATABASE
+#define ENABLE_FS
+
+// You may have to include the storage library you used e.g. SPIFFS.h or SD.h here.
+#include <FS.h>
+// #include <SPIFFS.h>
+// #include <SD.h>
+
 #include <FirebaseClient.h>
 #include "ExampleFunctions.h" // Provides the functions used in the examples.
 
@@ -66,8 +46,6 @@ void push_file_await();
 
 SSL_CLIENT ssl_client;
 
-// This uses built-in core WiFi/Ethernet for network connection.
-// See examples/App/NetworkInterfaces for more network examples.
 using AsyncClient = AsyncClientClass;
 AsyncClient aClient(ssl_client);
 
@@ -158,7 +136,7 @@ void loop()
 
 void processData(AsyncResult &aResult)
 {
-    // Exits when no result available when calling from the loop.
+    // Exits when no result is available when calling from the loop.
     if (!aResult.isResult())
         return;
 

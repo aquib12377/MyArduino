@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 #ifndef CORE_AUTH_USER_AUTH_H
 #define CORE_AUTH_USER_AUTH_H
 
@@ -31,6 +37,8 @@ namespace firebase_ns
             data.clear();
             if (userFile.initialized)
                 data.file_data.copy(userFile);
+#else
+            (void)userFile;
 #endif
         }
 
@@ -68,6 +76,8 @@ namespace firebase_ns
                     userFile.file.close();
                 }
             }
+#else
+            (void)userFile;
 #endif
             return ret;
         }

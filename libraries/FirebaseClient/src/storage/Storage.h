@@ -1,27 +1,9 @@
-/**
- * 2025-03-26
+/*
+ * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
  *
- * The MIT License (MIT)
- * Copyright (c) 2025 K. Suwatchai (Mobizt)
- *
- *
- * Permission is hereby granted, free of charge, to any person returning a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- * the Software, and to permit persons to whom the Software is furnished to do so,
- * subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * SPDX-License-Identifier: MIT
  */
+
 #ifndef STORAGE_STORAGE_H
 #define STORAGE_STORAGE_H
 
@@ -60,7 +42,7 @@ public:
      * Perform the async task repeatedly.
      * Should be placed in main loop function.
      */
-    void loop() { loopImpl(__PRETTY_FUNCTION__); }
+    void loop() { loopImpl(); }
 
     /** Download object from the Firebase Storage.
      *
@@ -340,7 +322,7 @@ private:
             uut.addEncUrl(request.path, "/", request.options->parent.getObject());
 
         sut.addParams(request.options->extras, extras);
-        url(FPSTR("firebasestorage.googleapis.com"));
+        url("firebasestorage.googleapis.com");
 
         async_data *sData = request.aClient->createSlot(request.opt);
 
@@ -371,9 +353,10 @@ private:
                 sData->request.addContentType(request.mime);
 
             sData->request.setFileContentLength();
-
+#if defined(ENABLE_FS)
             if (sData->request.file_data.filename.length() > 0 && sData->request.file_data.file_size == 0)
                 return request.aClient->setClientError(request, FIREBASE_ERROR_FILE_READ);
+#endif
             sData->aResult.upload_data.downloadUrl = uut.downloadURL(request.options->parent.getBucketId(), request.options->parent.getObject());
         }
         else if (request.options->payload.length())
@@ -396,7 +379,11 @@ private:
 
     void setFileStatus(async_data *sData, const FirebaseStorage::req_data &request)
     {
-        if ((request.file && (request.file->filename.length() || request.file->data_size)) || request.opt.ota)
+        bool isFile = request.file && request.file->data && request.file->data_size > 0;
+#if defined(ENABLE_FS)
+        isFile |= request.file && request.file->filename.length() > 0;
+#endif
+        if (isFile || request.opt.ota)
         {
             sData->download = request.method == reqns::http_get;
             sData->upload = request.method == reqns::http_post || request.method == reqns::http_put || request.method == reqns::http_patch;

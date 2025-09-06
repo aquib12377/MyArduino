@@ -1,9 +1,14 @@
+/*
+ * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 #ifndef CORE_ASYNC_CLIENT_REQUEST_HANDLER_H
 #define CORE_ASYNC_CLIENT_REQUEST_HANDLER_H
 
 #include <Arduino.h>
 #include <Client.h>
-#include "./FirebaseConfig.h"
 #include "./core/File/FileConfig.h"
 #include "./core/Utils/Timer.h"
 #include "./core/Utils/StringUtil.h"
@@ -11,14 +16,23 @@
 #include "./core/Utils/Base64.h"
 #include "./core/AsyncClient/ConnectionHandler.h"
 #include "./core/Auth/Token/AppToken.h"
-#if defined(ENABLE_ASYNC_TCP_CLIENT)
-#include "./core/AsyncClient/AsyncTCPConfig.h"
-#endif
 
 #if defined(ENABLE_FS)
 #if __has_include(<SPIFFS.h>)
 #include <SPIFFS.h>
 #endif
+#endif
+
+#if defined(ENABLE_GZIP)
+#include <stdlib.h>
+#include <stdio.h>
+extern "C"
+{
+    // TO DO: include gzip library
+}
+#define EXTRAS_HEADERS "Accept-Encoding: gzip\r\n"
+#else
+#define EXTRAS_HEADERS ""
 #endif
 
 typedef void (*NetworkStatus)(bool &status);
@@ -72,17 +86,15 @@ public:
     reqns::http_request_method method = reqns::http_undefined;
     Timer send_timer;
 
-    tcp_client_type client_type;
+    tcp_client_type client_type = tcpc_sync;
     Client *client = nullptr;
-    void *atcp_config = nullptr;
 
     req_handler() {}
 
-    void setClient(tcp_client_type client_type, Client *client, void *atcp_config)
+    void setClient(tcp_client_type client_type, Client *client)
     {
         this->client_type = client_type;
         this->client = client;
-        this->atcp_config = atcp_config;
     }
 
     void clear()
@@ -106,7 +118,7 @@ public:
     }
 
     void addNewLine() { val[reqns::header] += "\r\n"; }
-    void addHostHeader(const String &host) { sut.printTo(val[reqns::header], host.length(), "Host: %s\r\n", host.c_str()); }
+    void addHostHeader(const String &host) { sut.printTo(val[reqns::header], host.length() + String(EXTRAS_HEADERS).length(), "Host: %s\r\n%s", host.c_str(), EXTRAS_HEADERS); }
     void addConnectionHeader(bool keepAlive) { sut.printTo(val[reqns::header], 50, "Connection: %s\r\n", keepAlive ? "keep-alive" : "close"); }
     void addContentType(const String &type) { sut.printTo(val[reqns::header], type.length(), "Content-Type: %s\r\n", type.c_str()); }
     void setContentLengthFinal(size_t len) { sut.printTo(val[reqns::header], 30, "Content-Length: %d\r\n\r\n", (int)len); }
@@ -165,19 +177,6 @@ public:
     {
         if (client_type == tcpc_sync)
             return client ? client->write(data, size) : 0;
-        else
-        {
-#if defined(ENABLE_ASYNC_TCP_CLIENT)
-
-            AsyncTCPConfig *async_tcp_config = reinterpret_cast<AsyncTCPConfig *>(atcp_config);
-            if (!async_tcp_config && !async_tcp_config->tcpSend)
-                return 0;
-
-            uint32_t sent = 0;
-            async_tcp_config->tcpSend(data, size, sent);
-            return sent;
-#endif
-        }
         return 0;
     }
 
@@ -185,7 +184,6 @@ public:
     // Note: If no custom header assigned, the new line will append to the header.
     void setFileContentLength(int headerLen = 0, const String &customHeader = "")
     {
-        StringUtil sut;
         size_t sz = 0;
 #if defined(ENABLE_FS)
         if (file_data.cb && file_data.filename.length())
@@ -204,14 +202,15 @@ public:
                 sut.printTo(val[reqns::header], customHeader.length() + 30, "%s:%d\r\n", customHeader.c_str(), file_data.file_size + headerLen);
             else
                 sut.printTo(val[reqns::header], 30, "Content-Length: %d\r\n\r\n", (int)file_data.file_size);
-
+#if defined(ENABLE_FS)
             closeFile();
+#endif
         }
     }
 
+#if defined(ENABLE_FS)
     void closeFile()
     {
-#if defined(ENABLE_FS)
         if (file_data.file && file_data.file_status == file_config_data::file_status_opened)
         {
             file_data.file_size = 0;
@@ -220,21 +219,19 @@ public:
             file_data.file_status = file_config_data::file_status_closed;
             file_data.file.close();
         }
-#endif
     }
 
     bool openFile(file_operating_mode mode)
     {
-#if defined(ENABLE_FS)
+
         file_data.cb(file_data.file, file_data.filename.c_str(), mode);
         if (!file_data.file)
             return false;
-#else
-        return false;
-#endif
+
         file_data.file_status = file_config_data::file_status_opened;
         return true;
     }
+#endif
 };
 
 #endif

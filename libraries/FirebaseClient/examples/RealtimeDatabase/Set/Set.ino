@@ -1,30 +1,15 @@
 /**
- * ABOUT:
- *
  * The example to set/store value to the database.
  *
  * This example uses the UserAuth class for authentication.
  * See examples/App/AppInitialization for more authentication examples.
  *
- * The complete usage guidelines, please read README.md or visit https://github.com/mobizt/FirebaseClient
- *
- * SYNTAX:
- *
- * 1.------------------------
- *
- * RealtimeDatabase::set<T>(<AsyncClient>, <path>, <value>, <AsyncResultCallback>, <uid>, <matchingEtag>);
- *
- * T - The type of value to set.
- * <AsyncClient> - The async client.
- * <path> - The node path to set the value.
- * <value> - The value to set.
- * <AsyncResultCallback> - The async result callback (AsyncResultCallback).
- * <uid> - Optional. The user specified UID of async result (optional).
- * <matchingEtag> - Optional. The Etag value for comparison with the existing server's Ethag value.
- * The operation will fail with HTTP code 412 Precondition Failed if the Etag does not match.
+ * For the complete usage guidelines, please read README.md or visit https://github.com/mobizt/FirebaseClient
  */
 
-#include <Arduino.h>
+#define ENABLE_USER_AUTH
+#define ENABLE_DATABASE
+
 #include <FirebaseClient.h>
 #include "ExampleFunctions.h" // Provides the functions used in the examples.
 
@@ -43,8 +28,6 @@ void set_await();
 
 SSL_CLIENT ssl_client;
 
-// This uses built-in core WiFi/Ethernet for network connection.
-// See examples/App/NetworkInterfaces for more network examples.
 using AsyncClient = AsyncClientClass;
 AsyncClient aClient(ssl_client);
 
@@ -112,7 +95,7 @@ void loop()
 
 void processData(AsyncResult &aResult)
 {
-    // Exits when no result available when calling from the loop.
+    // Exits when no result is available when calling from the loop.
     if (!aResult.isResult())
         return;
 

@@ -1,30 +1,15 @@
-
 /**
- * ABOUT:
- *
  * The example to work with Etag to prevent writing to the out dated data.
  *
  * This example uses the UserAuth class for authentication, and the DefaultNetwork class for network interface configuration.
  * See examples/App/AppInitialization and examples/App/NetworkInterfaces for more authentication and network examples.
  *
- * The complete usage guidelines, please read README.md or visit https://github.com/mobizt/FirebaseClient
- *
- * SYNTAX:
- *
- * 1.------------------------
- *
- * To set the Etag to the request
- *
- * AsyncClientClass::setETag(<etag>)
- *
- * <etag> - The Etag to set.
- *
- * To get the Etag from server response
- *
- * String etag = AsyncClientClass::etag()
+ * For the complete usage guidelines, please read README.md or visit https://github.com/mobizt/FirebaseClient
  */
 
-#include <Arduino.h>
+#define ENABLE_USER_AUTH
+#define ENABLE_DATABASE
+
 #include <FirebaseClient.h>
 #include "ExampleFunctions.h" // Provides the functions used in the examples.
 
@@ -42,8 +27,6 @@ void update_loop(uint16_t timeout);
 
 SSL_CLIENT ssl_client;
 
-// This uses built-in core WiFi/Ethernet for network connection.
-// See examples/App/NetworkInterfaces for more network examples.
 using AsyncClient = AsyncClientClass;
 AsyncClient aClient(ssl_client);
 
@@ -104,7 +87,7 @@ void loop()
 
 void processData(AsyncResult &aResult)
 {
-    // Exits when no result available when calling from the loop.
+    // Exits when no result is available when calling from the loop.
     if (!aResult.isResult())
         return;
 

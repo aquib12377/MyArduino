@@ -1,30 +1,15 @@
-
 /**
- * ABOUT:
- *
  * The example to check wether data existes in your database or not.
  *
  * This example uses the UserAuth class for authentication.
  * See examples/App/AppInitialization for more authentication examples.
  *
- * The complete usage guidelines, please read README.md or visit https://github.com/mobizt/FirebaseClient
- *
- * SYNTAX:
- *
- * 1.------------------------
- *
- * bool RealtimeDatabase::exists(<AsyncClient>, <path>);
- *
- * <AsyncClient> - The async client.
- * <path> - The node path to check the value existent.
- *
- * The sync Existed function returns the operating status (true if existed).
- *
- * In case of error, the operation error information can be obtain from AsyncClient via aClient.lastError().message() and
- * aClient.lastError().code().
+ * For the complete usage guidelines, please read README.md or visit https://github.com/mobizt/FirebaseClient
  */
 
-#include <Arduino.h>
+#define ENABLE_USER_AUTH
+#define ENABLE_DATABASE
+
 #include <FirebaseClient.h>
 #include "ExampleFunctions.h" // Provides the functions used in the examples.
 
@@ -40,8 +25,6 @@ void processData(AsyncResult &aResult);
 
 SSL_CLIENT ssl_client;
 
-// This uses built-in core WiFi/Ethernet for network connection.
-// See examples/App/NetworkInterfaces for more network examples.
 using AsyncClient = AsyncClientClass;
 AsyncClient aClient(ssl_client);
 
@@ -93,7 +76,7 @@ void loop()
 
 void processData(AsyncResult &aResult)
 {
-    // Exits when no result available when calling from the loop.
+    // Exits when no result is available when calling from the loop.
     if (!aResult.isResult())
         return;
 

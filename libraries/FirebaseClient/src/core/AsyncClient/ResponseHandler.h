@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 #ifndef CORE_ASYNC_CLIENT_RESPONSE_HANDLER_H
 #define CORE_ASYNC_CLIENT_RESPONSE_HANDLER_H
 
@@ -7,9 +13,6 @@
 #include "./core/AsyncClient/ConnectionHandler.h"
 #include "./core/AsyncClient/RequestHandler.h"
 #include "./core/Utils/StringUtil.h"
-#if defined(ENABLE_ASYNC_TCP_CLIENT)
-#include "./core/AsyncClient/AsyncTCPConfig.h"
-#endif
 
 namespace resns
 {
@@ -41,7 +44,7 @@ public:
 
     public:
         bool header_remaining = false, payload_remaining = false, keep_alive = false, uploadRange = false;
-        bool sse = false, http_response = false, chunks = false, payload_available = false;
+        bool sse = false, http_response = false, chunks = false, payload_available = false, gzip = false;
 
         void reset()
         {
@@ -51,6 +54,7 @@ public:
             sse = false;
             chunks = false;
             payload_available = false;
+            gzip = false;
             uploadRange = false;
         }
     };
@@ -60,6 +64,10 @@ public:
         chunk_phase phase = READ_CHUNK_SIZE;
         int chunkSize = 0;
         int dataLen = 0;
+
+        int dataPos = 0;
+        uint8_t *buf = nullptr;
+        int bufLen = 0;
     };
 
     struct auth_error_t
@@ -79,26 +87,23 @@ public:
     Timer read_timer;
     bool auth_data_available = false;
 
-    tcp_client_type client_type;
+    tcp_client_type client_type = tcpc_sync;
     Client *client = nullptr;
-    void *atcp_config = nullptr;
+    Memory mem;
 
     res_handler() {}
 
     ~res_handler()
     {
-        if (toFill)
-            free(toFill);
-        toFill = nullptr;
+        mem.release(&toFill);
         toFillLen = 0;
         toFillIndex = 0;
     }
 
-    void setClient(tcp_client_type client_type, Client *client, void *atcp_config)
+    void setClient(tcp_client_type client_type, Client *client)
     {
         this->client_type = client_type;
         this->client = client;
-        this->atcp_config = atcp_config;
     }
 
     void clear()
@@ -147,25 +152,6 @@ public:
     {
         if (client_type == tcpc_sync)
             return client ? client->available() : 0;
-        else
-        {
-#if defined(ENABLE_ASYNC_TCP_CLIENT)
-            AsyncTCPConfig *async_tcp_config = reinterpret_cast<AsyncTCPConfig *>(atcp_config);
-            if (!async_tcp_config && !async_tcp_config->tcpReceive)
-                return 0;
-
-            uint8_t buf[1];
-            async_tcp_config->tcpReceive(buf, 1, async_tcp_config->filledSize, async_tcp_config->available);
-
-            if (async_tcp_config->filledSize)
-            {
-                memcpy(async_tcp_config->buff + async_tcp_config->buffPos, buf, async_tcp_config->filledSize);
-                async_tcp_config->buffPos++;
-            }
-
-            return async_tcp_config->available;
-#endif
-        }
 
         return 0;
     }
@@ -174,33 +160,6 @@ public:
     {
         if (client_type == tcpc_sync)
             return client ? client->read() : -1;
-        else
-        {
-#if defined(ENABLE_ASYNC_TCP_CLIENT)
-
-            AsyncTCPConfig *async_tcp_config = reinterpret_cast<AsyncTCPConfig *>(atcp_config);
-            if (!async_tcp_config && !async_tcp_config->tcpReceive)
-                return 0;
-
-            if (async_tcp_config->buffPos)
-            {
-                uint8_t v = async_tcp_config->buff[0];
-                async_tcp_config->buffPos--;
-
-                if (async_tcp_config->buffPos)
-                    memmove(async_tcp_config->buff, async_tcp_config->buff + 1, async_tcp_config->buffPos);
-
-                return v;
-            }
-
-            async_tcp_config->tcpReceive(async_tcp_config->buff, 1, async_tcp_config->filledSize, async_tcp_config->available);
-
-            if (async_tcp_config->filledSize)
-                async_tcp_config->buffPos = async_tcp_config->filledSize;
-
-            return async_tcp_config->filledSize ? async_tcp_config->buff[0] : -1;
-#endif
-        }
 
         return 0;
     }
@@ -209,44 +168,6 @@ public:
     {
         if (client_type == tcpc_sync)
             return client ? client->read(buf, size) : -1;
-        else
-        {
-#if defined(ENABLE_ASYNC_TCP_CLIENT)
-            AsyncTCPConfig *async_tcp_config = reinterpret_cast<AsyncTCPConfig *>(atcp_config);
-            if (!async_tcp_config && !async_tcp_config->tcpReceive)
-                return 0;
-
-            int pos = 0;
-            if (async_tcp_config->buffPos)
-            {
-                int read = async_tcp_config->buffPos;
-                if (read > (int)size)
-                    read = size;
-
-                memcpy(buf, async_tcp_config->buff, read);
-                async_tcp_config->buffPos -= read;
-
-                if (async_tcp_config->buffPos)
-                    memmove(async_tcp_config->buff, async_tcp_config->buff + read, async_tcp_config->buffPos);
-
-                if ((int)size <= read)
-                    return read;
-
-                pos = read;
-                size -= read;
-            }
-
-            if (size > 0)
-            {
-                async_tcp_config->buffPos = 0;
-                uint8_t buff[size];
-                async_tcp_config->tcpReceive(buff + pos, size, async_tcp_config->filledSize, async_tcp_config->available);
-                return async_tcp_config->filledSize ? async_tcp_config->filledSize : -1;
-            }
-
-            return -1;
-#endif
-        }
 
         return 0;
     }
@@ -285,27 +206,60 @@ public:
         return 0;
     }
 
-    int getChunkSize(String &line)
+    int getChunkSize(uint8_t **ptr, bool newbuf, int *bufSize)
     {
-        if (line.length() == 0)
-            readLine(&line);
+        if (newbuf)
+            readLineBuf(ptr, bufSize);
 
-        int p = line.indexOf(";");
-        if (p == -1)
-            p = line.indexOf("\r\n");
-        if (p != -1)
-            chunkInfo.chunkSize = hex2int(line.substring(0, p).c_str());
+        int p = -1, i = 0;
+        uint8_t *buf = *ptr;
+        if (buf)
+        {
+            while (i < *bufSize)
+            {
+                if (buf[i] == ';')
+                {
+                    p = i;
+                    break;
+                }
+                i++;
+            }
+
+            if (p == -1)
+            {
+                i = 0;
+                while (i < *bufSize - 1)
+                {
+                    if (buf[i] == '\r' && buf[i + 1] == '\n')
+                    {
+                        p = i;
+                        break;
+                    }
+                    i++;
+                }
+            }
+
+            if (p != -1)
+            {
+                char str[20];
+                memset(str, 0, 20);
+                memcpy(str, buf, p);
+                chunkInfo.chunkSize = hex2int(str);
+            }
+        }
 
         return chunkInfo.chunkSize;
     }
 
     // Returns -1 when complete
-    int decodeChunks(String *out)
+    int decodeChunks(uint8_t **ptr, int *index, int *outSize)
     {
+        uint8_t *out = *ptr;
         if (!client || !out)
             return 0;
-        int res = 0, read = 0;
-        String line;
+        int res = 0;
+        int bufSize = 512;
+        uint8_t *buf = reinterpret_cast<uint8_t *>(mem.alloc(bufSize, true));
 
         // because chunks might span multiple reads, we need to keep track of where we are in the chunk
         // chunkInfo.dataLen is our current position in the chunk
@@ -320,7 +274,7 @@ public:
             chunkInfo.phase = READ_CHUNK_DATA;
             chunkInfo.chunkSize = -1;
             chunkInfo.dataLen = 0;
-            res = getChunkSize(line);
+            res = getChunkSize(&buf, true, &bufSize);
             payloadLen += res > -1 ? res : 0;
         }
         // read chunk-data and CRLF
@@ -330,28 +284,39 @@ public:
             // if chunk-size is 0, it's the last chunk, and can be skipped
             if (chunkInfo.chunkSize > 0)
             {
-                read = readLine(&line);
+                int read = readLineBuf(&buf, &bufSize);
 
                 // if we read till a CRLF, we have a chunk (or the rest of it)
                 // if the last two bytes are NOT CRLF, we have a partial chunk
                 // if we read 0 bytes, read next chunk size
 
                 // check for \n and \r, remove them if present (they're part of the protocol, not the data)
-                if (read >= 2 && line[read - 2] == '\r' && line[read - 1] == '\n')
+                if (read >= 2 && buf[read - 2] == '\r' && buf[read - 1] == '\n')
                 {
                     // last chunk?
-                    if (line[0] == '0')
-                        return -1;
+                    if (buf[0] == '0')
+                    {
+                        res = -1;
+                        goto exit;
+                    }
 
                     // remove the \r\n
-                    line.remove(line.length() - 2);
                     read -= 2;
                 }
 
                 // if we still have data, append it and update the chunkInfo
                 if (read)
                 {
-                    *out += line;
+                    if (*index + read >= *outSize)
+                    {
+                        int newOutSize = mem.getReservedLen(*index + read + 512);
+                        out = (uint8_t *)mem.reallocate(out, newOutSize);
+                        *outSize = newOutSize;
+                        *ptr = out;
+                    }
+
+                    memcpy(out + *index, buf, read);
+                    *index += read;
                     chunkInfo.dataLen += read;
                     payloadRead += read;
 
@@ -359,25 +324,25 @@ public:
                     if (chunkInfo.dataLen == chunkInfo.chunkSize)
                         chunkInfo.phase = READ_CHUNK_SIZE;
                 }
-                // if we read 0 bytes, read next chunk size
-                else
-                {
+                else // if we read 0 bytes, read next chunk size
                     chunkInfo.phase = READ_CHUNK_SIZE;
-                }
             }
             else
             {
-
-                read = readLine(&line);
-
+                int read = readLineBuf(&buf, &bufSize);
                 // CRLF (end of chunked body)
-                if (read == 2 && line[0] == '\r' && line[1] == '\n')
+                if (read == 2 && buf[0] == '\r' && buf[1] == '\n')
+                {
                     res = -1;
+                    goto exit;
+                }
                 else // another chunk?
-                    getChunkSize(line);
+                    getChunkSize(&buf, read == 0, &bufSize);
             }
         }
 
+    exit:
+        mem.release(&buf);
         return res;
     }
 
@@ -404,7 +369,7 @@ public:
 
     uint32_t hex2int(const char *hex)
     {
-        uint32_t val = 0;
+        uint32_t num = 0;
         while (*hex)
         {
             // get current character then increment
@@ -417,9 +382,9 @@ public:
             else if (byte >= 'A' && byte <= 'F')
                 byte = byte - 'A' + 10;
             // shift 4 to make space for new digit, and add the 4 bits of the new digit
-            val = (val << 4) | (byte & 0xF);
+            num = (num << 4) | (byte & 0xF);
         }
-        return val;
+        return num;
     }
 
     int readLine(String *buf = nullptr)
@@ -437,6 +402,34 @@ public:
                 p++;
                 if (res == '\n')
                     return p;
+            }
+        }
+        return p;
+    }
+
+    int readLineBuf(uint8_t **ptr, int *bufSize)
+    {
+        int p = 0;
+        while (tcpAvailable())
+        {
+            int res = tcpRead();
+            if (res > -1)
+            {
+                uint8_t *buf = *ptr;
+                if (buf)
+                {
+                    buf[p] = res;
+                    p++;
+                    if (res == '\n')
+                        return p;
+
+                    if (p == *bufSize)
+                    {
+                        *bufSize = mem.getReservedLen(p + 512);
+                        uint8_t *tmp = (uint8_t *)mem.reallocate(buf, *bufSize);
+                        *ptr = tmp;
+                    }
+                }
             }
         }
         return p;
@@ -469,6 +462,9 @@ public:
 
             parseHeaders(v, "Content-Type", true);
             flags.sse = v.length() && v.indexOf("text/event-stream") > -1;
+
+            parseHeaders(v, "Content-Encoding", true);
+            flags.gzip = v.length() && v.indexOf("gzip") > -1;
 
             if (upload)
             {

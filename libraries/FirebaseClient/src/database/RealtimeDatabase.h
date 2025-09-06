@@ -1,27 +1,9 @@
-/**
- * 2025-03-26
+/*
+ * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
  *
- * The MIT License (MIT)
- * Copyright (c) 2025 K. Suwatchai (Mobizt)
- *
- *
- * Permission is hereby granted, free of charge, to any person returning a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- * the Software, and to permit persons to whom the Software is furnished to do so,
- * subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * SPDX-License-Identifier: MIT
  */
+
 #ifndef DATABASE_REALTIME_DATABASE_H
 #define DATABASE_REALTIME_DATABASE_H
 #include <Arduino.h>
@@ -956,7 +938,7 @@ public:
     /**
      * Perform the async task repeatedly (DEPRECATED).
      */
-    void loop() { loopImpl(__PRETTY_FUNCTION__); }
+    void loop() { loopImpl(); }
 
 private:
     String sse_events_filter;
@@ -973,7 +955,7 @@ private:
         AsyncResultCallback cb = NULL;
         bool isSSEFilter = false;
         req_data() {}
-        req_data(AsyncClientClass *aClient, const String &path, reqns::http_request_method method, slot_options_t opt, DatabaseOptions *options, file_config_data *file, AsyncResult *aResult, AsyncResultCallback cb, const String &uid = "", const String &etag = "")
+        req_data(AsyncClientClass *aClient, const String &path, reqns::http_request_method method, const slot_options_t &opt, DatabaseOptions *options, file_config_data *file, AsyncResult *aResult, AsyncResultCallback cb, const String &uid = "", const String &etag = "")
         {
             this->aClient = aClient;
             this->path = path;
@@ -1126,7 +1108,11 @@ private:
     void setFileStatus(async_data *sData, const req_data &request)
     {
         using namespace reqns;
-        if ((request.file && (request.file->filename.length() || (request.file->data && request.file->data_size))) || request.opt.ota)
+        bool isFile = request.file && request.file->data && request.file->data_size > 0;
+#if defined(ENABLE_FS)
+        isFile |= request.file && request.file->filename.length() > 0;
+#endif
+        if (isFile || request.opt.ota)
         {
             sData->download = request.method == http_get;
             sData->upload = request.method == http_post || request.method == http_put || request.method == http_patch;

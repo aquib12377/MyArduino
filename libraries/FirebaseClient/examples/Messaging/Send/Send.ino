@@ -1,6 +1,4 @@
 /**
- * ABOUT:
- *
  * The example to send the Cloud Messaging message.
  *
  * This example uses the ServiceAuth class for authentication.
@@ -8,24 +6,12 @@
  *
  * You can test this example with Firebase Cloud Messaging Web Client App in /examples/Messaging/WebClient.
  *
- * The complete usage guidelines, please read README.md or visit https://github.com/mobizt/FirebaseClient
- *
- * SYNTAX:
- *
- * 1.------------------------
- *
- * Messaging::send(<AsyncClient>, <Messages::Parent>, <Messages::Message>, <AsyncResultCallback>, <uid>);
- *
- * <AsyncClient> - The async client.
- * The <Messages::Parent> - The Messages::Parent object included project Id in its constructor.
- * The <Messages::Message> - The Messages::Message object that holds the information of message to send.
- * <AsyncResultCallback> - The async result callback (AsyncResultCallback).
- * <uid> - The user specified UID of async result (optional).
- *
- * The Firebase project Id should be only the name without the firebaseio.com.
+ * For the complete usage guidelines, please read README.md or visit https://github.com/mobizt/FirebaseClient
  */
 
-#include <Arduino.h>
+#define ENABLE_SERVICE_AUTH
+#define ENABLE_MESSAGING
+
 #include <FirebaseClient.h>
 #include "ExampleFunctions.h" // Provides the functions used in the examples.
 
@@ -49,8 +35,6 @@ FirebaseApp app;
 
 SSL_CLIENT ssl_client;
 
-// This uses built-in core WiFi/Ethernet for network connection.
-// See examples/App/NetworkInterfaces for more network examples.
 using AsyncClient = AsyncClientClass;
 AsyncClient aClient(ssl_client);
 
@@ -117,7 +101,7 @@ void loop()
 
 void processData(AsyncResult &aResult)
 {
-    // Exits when no result available when calling from the loop.
+    // Exits when no result is available when calling from the loop.
     if (!aResult.isResult())
         return;
 
@@ -171,7 +155,7 @@ void getMsg(Messages::Message &msg)
 
     Messages::AndroidConfig androidConfig;
 
-    // Priority of a message to send to Android devices.
+    // Set the priority of a message to send to Android devices.
     // https://firebase.google.com/docs/reference/fcm/rest/v1/projects.messages#androidmessagepriority
     androidConfig.priority(Messages::AndroidMessagePriority::_HIGH);
 

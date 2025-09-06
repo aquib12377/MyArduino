@@ -31,5 +31,4 @@ void loop() {
   else if (x < -3) command = "L";
 
   Serial.println(command);
-  delay(500);
 }

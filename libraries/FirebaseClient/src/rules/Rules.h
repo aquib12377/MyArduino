@@ -1,7 +1,12 @@
+/*
+ * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 #ifndef RULES_RULES_H
 #define RULES_RULES_H
 
-#include "./FirebaseConfig.h"
 #if defined(ENABLE_RULESETS)
 
 #include <Arduino.h>
@@ -33,18 +38,18 @@ namespace Rules
         /**
          * Rules language statements. Use \n for line breaks.
         */
-        void content(const String &content) { wr.set<File &, const char *>(*this, content.c_str(), buf, bufSize, 1, FPSTR(__func__)); }
+        void content(const String &content) { wr.set<File &, const char *>(*this, content.c_str(), buf, bufSize, 1, __func__); }
         
         /**
          * File name.
         */
-        void name(const String &name) { wr.set<File &, const char *>(*this, name.c_str(), buf, bufSize, 2, FPSTR(__func__)); }
+        void name(const String &name) { wr.set<File &, const char *>(*this, name.c_str(), buf, bufSize, 2, __func__); }
         
         /**
          * Fingerprint (e.g. github sha) associated with the File.
          * Don't provide the base64 encoded fingerprint as it will encode automatically.
         */
-        void fingerprint(const String &fingerprint) { wr.set<File &, const char *>(*this, toBase64(fingerprint).c_str(), buf, bufSize, 3, FPSTR(__func__)); }
+        void fingerprint(const String &fingerprint) { wr.set<File &, const char *>(*this, toBase64(fingerprint).c_str(), buf, bufSize, 3, __func__); }
         const char *c_str() const { return buf[0].c_str(); }
         void clear() { owriter.clearBuf(buf, bufSize); }
     };
@@ -66,7 +71,7 @@ namespace Rules
         /**
          * File containing source content.
         */
-        void files(const File &file) { wr.append<Source &, File>(*this, file, buf, bufSize, 1, FPSTR(__func__)); }
+        void files(const File &file) { wr.append<Source &, File>(*this, file, buf, bufSize, 1, __func__); }
         const char *c_str() const { return buf[0].c_str(); }
         void clear() { owriter.clearBuf(buf, bufSize); }
     };

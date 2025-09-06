@@ -1,27 +1,9 @@
-/**
- * 2025-03-26
+/*
+ * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
  *
- * The MIT License (MIT)
- * Copyright (c) 2025 K. Suwatchai (Mobizt)
- *
- *
- * Permission is hereby granted, free of charge, to any person returning a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- * the Software, and to permit persons to whom the Software is furnished to do so,
- * subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * SPDX-License-Identifier: MIT
  */
+
 #ifndef FUNCTIONS_FUNCTIONS_H
 #define FUNCTIONS_FUNCTIONS_H
 
@@ -58,7 +40,7 @@ public:
     /**
      * Perform the async task repeatedly (DEPRECATED).
      */
-    void loop() { loopImpl(__PRETTY_FUNCTION__); }
+    void loop() { loopImpl(); }
 
     /** Creates a new function.
      * If a function with the given name already exists in the specified project,
@@ -745,7 +727,7 @@ private:
 
         sut.addParams(request.options->extras, extras);
 
-        url(FPSTR("cloudfunctions.googleapis.com"));
+        url("cloudfunctions.googleapis.com");
 
         async_data *sData = request.aClient->createSlot(request.opt);
 
@@ -753,25 +735,8 @@ private:
             return request.aClient->setClientError(request, FIREBASE_ERROR_OPERATION_CANCELLED);
 
         request.aClient->newRequest(sData, service_url, request.path, extras, request.method, request.opt, request.uid, "");
-
-        if (request.file)
-            sData->request.file_data.copy(*request.file);
-
-        setFileStatus(sData, request);
-
-        if (request.file && sData->upload)
-        {
-            sData->request.base64 = false;
-
-            if (request.mime.length())
-                sData->request.addContentType(request.mime);
-
-            sData->request.setFileContentLength(0);
-
-            if (sData->request.file_data.file_size == 0)
-                return request.aClient->setClientError(request, FIREBASE_ERROR_FILE_READ);
-        }
-        else if (request.options->payload.length())
+        
+        if (request.options->payload.length())
         {
             sData->request.val[reqns::payload] = request.options->payload;
             sData->request.setContentLengthFinal(request.options->payload.length());
@@ -790,16 +755,6 @@ private:
 
         request.aClient->process(sData->async);
         request.aClient->handleRemove();
-    }
-
-    void setFileStatus(async_data *sData, const GoogleCloudFunctions::req_data &request)
-    {
-        using namespace reqns;
-        if ((request.file && request.file->filename.length()) || request.opt.ota)
-        {
-            sData->download = request.method == http_get;
-            sData->upload = request.method == http_post || request.method == http_put || request.method == http_patch;
-        }
     }
 };
 #endif

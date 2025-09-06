@@ -1,0 +1,24 @@
+##################################################################
+# Syntax Coloring Map For 
+# ClosedCube TCA9538 Remote 8-bit I2C Low-Power I/O Expander breakout module
+##################################################################
+
+##################################################################
+# Datatypes (KEYWORD1)
+##################################################################
+
+ClosedCube_TCA9538	KEYWORD1
+
+##################################################################
+# Methods and Functions (KEYWORD2)
+##################################################################
+
+begin KEYWORD2
+init KEYWORD2
+readInput KEYWORD2
+writePolarity KEYWORD2
+writeOutput KEYWORD2
+readOutput KEYWORD2
+writeConfig KEYWORD2
+
+

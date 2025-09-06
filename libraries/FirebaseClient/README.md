@@ -2,9 +2,7 @@
 
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/mobizt/FirebaseClient/.github%2Fworkflows%2Fcompile_library.yml?logo=github&label=compile) [![Github Stars](https://img.shields.io/github/stars/mobizt/FirebaseClient?logo=github)](https://github.com/mobizt/FirebaseClient/stargazers) ![Github Issues](https://img.shields.io/github/issues/mobizt/FirebaseClient?logo=github)
 
-![GitHub Release](https://img.shields.io/github/v/release/mobizt/FirebaseClient) ![Arduino](https://img.shields.io/badge/Arduino-v2.0.3-57C207?logo=arduino) ![PlatformIO](https://badges.registry.platformio.org/packages/mobizt/library/FirebaseClient.svg) ![GitHub Release Date](https://img.shields.io/github/release-date/mobizt/FirebaseClient)
-
-Revision `2025-04-07`
+![GitHub Release](https://img.shields.io/github/v/release/mobizt/FirebaseClient) ![Arduino](https://www.ardu-badge.com/badge/FirebaseClient.svg) ![PlatformIO](https://badges.registry.platformio.org/packages/mobizt/library/FirebaseClient.svg) ![GitHub Release Date](https://img.shields.io/github/release-date/mobizt/FirebaseClient)
 
 ## Introduction
 
@@ -22,7 +20,7 @@ This is the `REST APIs Firebase Client` library that supports the following `Fir
 
 This Firebase library is quite comprehensive which covers many applications. 
 
-It is suitable for all serverless applications e.g. data logging, automation and IoTs. You can choose what options and services you want to use (see [Library Build Options](#library-build-options)) and it also works with any network interfaces (WiFi, Ethernet and GSM/PPP modem).
+It is suitable for all serverless applications e.g. data logging, automation and IoTs. You can choose what options and services you want to use (see [Library Build Options](#library-build-options)).
 
 There are many types of authentications supported and you can manage the user account with sign up (user/guest), delete, verify the user and reset the user password.
 
@@ -45,31 +43,20 @@ To see how Firebase Realtime Database provides the efficient, fast and reliable 
 To test notification sending with Firebase Cloud Messaging by using our FCM Web Client App, see  [WebClient](/examples/Messaging/WebClient/) example.
 
 
+## Changes since v2.1.0
+
+The library since v2.1.0 is network independent. All network data and management classes are removed. 
+
+Users have to define the macros or build options in their sketch before including the library header file. See [Library Build Options](#library-build-options) section for the available options.
+
+The SSL client can be set via `AsyncClientClass::setClient()` or in the `AsyncClientClass` constructors without the network options.
+
+The `AsyncClientClass` methods that are related to the networks are removed.
+
+
 ## Supported Devices
 
- * ESP8266 MCUs based boards
- * ESP32 MCUs based boards
- * Arduino® MKR WiFi 1010
- * Arduino® MKR 1000 WIFI
- * Arduino® Nano 33 IoT
- * Arduino® MKR Vidor 4000
- * Arduino® UNO R4 WiFi (Renesas)
- * Arduino® Portenta C33
- * Arduino® Nano RP2040
- * Arduino® GIGA R1 WiFi
- * Arduino® OPTA
- * Raspberry Pi Pico (RP2040)
- * Raspberry Pi Pico 2 (RP2350)
- * STM32 MCU based boards (minimum 256k Flash memory)
- * Teensy 3.1, 3.2, 3.5, 3.6, 4.0 and 4.1
- * LAN8720 Ethernet PHY
- * TLK110 Ethernet PHY
- * IP101 Ethernet PHY
- * ENC28J60 SPI Ethernet module
- * W5100 SPI Ethernet module
- * W5500 SPI Ethernet module
- * SIMCom Modules with [TinyGSM](https://github.com/vshymanskyy/TinyGSM)
- * PPP Modules with ESP32 Core v3.x.x 
+ESP8266, ESP32 and all 32-bit MCU except for Atmel AVR.
 
 ## Installation
 
@@ -81,7 +68,7 @@ In Library Manager Window, search **"firebase"** in the search form then select 
 
 Click **"Install"** button.
 
-For `PlatformIO` IDE, using the following command.
+For `PlatformIO` IDE, use the following command.
 
 **pio lib install "FirebaseClient""**
 
@@ -123,37 +110,30 @@ See this Arduino-Pico SDK [documentation](https://arduino-pico.readthedocs.io/en
 > [!NOTE]  
 > You cannot install Arduino IDE and Arduino library in Microsoft's `OneDrive` folder because the `OneDrive` folder is the sandbox or virtual folder instead of real folder which causes the path error when compilation.
 
+
 ## Usages
 
 For new `Firebase` users, please read the [Project Preparation and Setup](#project-preparation-and-setup) section for preparing the Firebase project.
 
-For new library user that the project was setup and prepared, see the [bare minimun examples](/examples/BareMinimum/) to start using this library with minimum code that requires by this library.
+For new library user that the project was setup and prepared, see the [bare minimun examples](/examples/BareMinimum/) to start using this library with minimum code that is required by this library.
 
-For more examples please click [here](/examples/).
+For more examples, please click [here](/examples/).
 
 ### Working Principle 
 
-This library can be used in two modes i.e. async mode and await or sinc mode.
+This library can be used in two modes i.e. async mode and await or sync mode.
 
-With async mode, the task will store in the FIFO queue. The result of the running task can be obtained via the callback function or the proxy object that assign when calling the functions.
+With async mode, the task will be stored in the FIFO queue. The result of the running task can be obtained via the callback function or the proxy object that assign when calling the functions.
 
 The `AsyncClientClass` is the proxy class that provides the queue for async tasks and also the information of task process when working in await or sync mode.
 
-The async task that stored in the queue contains the preprocess HTTP request data (headers without auth tokens and payload). 
+The async task that is stored in the queue contains the preprocess HTTP request data (headers without auth tokens and payload). 
 
-The SSL Client that assign with the `AsyncClientClass` constructor will be the network client used for all async tasks in its queue.
-
-User can assign the network config/identifier object with the `AsyncClientClass` constructor to let the library to monitor the network status when operating the request and response. 
-
-In addition, some additional network tasks will be performed internally in this library to ensure the network client is working normally before process the request and response e.g. WiFi auto-reconnection when disconnected (can be disable when using with WiFi management library), Ethernet module resetting and initializing (can be disable) with MAC and IPs, GSM network reconnection (can be disable).
-
-If the network config/identifier was not assigned, library will assumed that you are using the native networks that support by the device and core libraries e.g. WiFi, Ethernet and PPP devices e.g. WiFi library in ESP8266, ESP32, Raspberry Pi Pico and Arduino MKR, Ethernet (ETH) library in ESP32 and PPP library in ESP32 device.
-
-The status of WiFi, Ethernet and PPP network connection will be checked by default in this case.
+The SSL Client that is assigned with the `AsyncClientClass` constructor will be the network client used for all async tasks in its queue.
 
 The result of a async task can be obtained from the `AsyncResult` class object. This object provides the debug, authentication process event, error information and the response payload of the request.
 
-If no async callback function assigned with the function, the `AsyncResult` class object should be assigned otherwise it will work in sync mode.
+If no async callback function is assigned with the function, the `AsyncResult` class object should be assigned otherwise it will work in sync mode.
 
 In this case, it should be polling read for new available information from the `AsyncResult` at the end of the loop function.
 
@@ -179,7 +159,7 @@ In version 2.x.x and later, when assign the timeout (> 0) to the `initializeApp`
 
 The callback function assigned with `initializeApp` function will provide the auth process event, debug and error information while authenticating in async and sync modes.
 
-In version 2.x.x, the `FirebaseApp` class can also maintain the async tasks that shored in other `AsyncClientClass`s.
+In version 2.x.x, the `FirebaseApp` class can also maintain the async tasks that stored in other `AsyncClientClass`s.
 
 The details for all classes used in this library are available. Click the following links for details. 
 
@@ -203,8 +183,6 @@ The details for all classes used in this library are available. Click the follow
 - [Security Ruls Management Class](resources/docs/rules.md)
 
 - [Authentications Classes](resources/docs/auth_class.md). 
-
-- [Networks Classes](/resources//docs/net_config.md)
 
 - [AsyncClient Class](/resources//docs//async_client.md)
 
@@ -235,7 +213,7 @@ The [Internal_Storage_OTA](https://github.com/mobizt/Internal_Storage_OTA) is th
 
 To allow OTA update in SAMD21 Arduino boards, you have to include `Internal_Storage_OTA.h` in your sketch.
 
-Then assign the `InternalStorage` class object to be used for `Realtume Database` via `RealtumeDatabase::setOTAStorage`,  for `Google Cloud Storage` via `CloudStorage::setOTAStorage` and for `Firebase Storage` via `Storage::setOTAStorage`
+Then assign the `InternalStorage` class object to be used for `Realtime Database` via `RealtumeDatabase::setOTAStorage`,  for `Google Cloud Storage` via `CloudStorage::setOTAStorage` and for `Firebase Storage` via `Storage::setOTAStorage`
 
 In SAMD21 Arduino boards, if `OTA Storage` was not set before calling OTA function, the error `OTA Storage was not set` will be occurred.
 
@@ -647,7 +625,7 @@ Vcc (Pin 8)                         3V3
 Vcc (Pin 4)                         GND
 ```
 
-Once the external Heap memory was selected in IDE, to allow the library to use the external memory, you can set it in [**FirebaseConfig.h**](src/FirebaseConfig.h) by define this macro.
+Once the external Heap memory was selected in IDE, to allow the library to use the external memory, you can define this macro in your sketch before including the library header file `FirebaseClient.h`.
 
 
 ```cpp
@@ -678,7 +656,7 @@ In PlatformIO on VSCode or Atom IDE, add the following build_flags in your proje
 build_flags = -DBOARD_HAS_PSRAM -mfix-esp32-psram-cache-issue
 ```
 
-As in ESP8266, once the external Heap memory was enabled in IDE, to allow the library to use the external memory, you can set it in [**FirebaseConfig.h**](src/FirebaseConfig.h) by define this macro.
+As in ESP8266, once the external Heap memory was selected in IDE, to allow the library to use the external memory, you can define this macro in your sketch before including the library header file `FirebaseClient.h`.
 
 ```cpp
 #define ENABLE_PSRAM
@@ -689,11 +667,11 @@ As in ESP8266, once the external Heap memory was enabled in IDE, to allow the li
 
 The library build options are defined as preprocessor macros (`#define name`).
 
-Some options can be disabled.
+Since version 2.1.0, there are no predefined build options, user needs to define what he wants to use before compiling. 
 
-- ### Predefined Options
+The build options can be defined before including the library header file `FirebaseClient.h` or as the compiler build flags.
 
-The predefined options that are already set in [**FirebaseConfig.h**](src/FirebaseConfig.h) are following.
+The available options are the following.
 
 ```cpp
 ENABLE_DATABASE // For RTDB compilation
@@ -705,8 +683,12 @@ ENABLE_CLOUD_STORAGE // For Google Cloud Storage compilation
 ENABLE_FUNCTIONS // For Google Cloud Functions compilation
 ENABLE_RULESETS // For RuleSets compilation
 ENABLE_PSRAM // For enabling PSRAM support
-ENABLE_OTA // For enabling OTA updates support via RTDB, Firebase Storage and Google Cloud Storage buckets
+ENABLE_OTA // For enabling OTA updates support
 ENABLE_FS // For enabling Flash filesystem support
+
+FIREBASE_ASYNC_QUEUE_LIMIT // For maximum async queue limit (number).
+FIREBASE_PRINTF_PORT // For Firebase.printf debug port class object.
+FIREBASE_PRINTF_BUFFER // Firebase.printf buffer size.
 
 // For enabling authentication and token
 ENABLE_SERVICE_AUTH
@@ -716,111 +698,28 @@ ENABLE_ACCESS_TOKEN
 ENABLE_CUSTOM_TOKEN
 ENABLE_ID_TOKEN
 ENABLE_LEGACY_TOKEN
-
-// For enabling non-sdk networking
-ENABLE_ETHERNET_NETWORK
-ENABLE_GSM_NETWORK
 ```
 
-- ### Optional Options
+## Known Issues
 
-The following options are not yet defined in [**FirebaseConfig.h**](src/FirebaseConfig.h) and can be defined by user.
+### Slow Arduino IDE Compilation Speed
 
-```cpp
-FIREBASE_ETHERNET_MODULE_LIB `"EthernetLibrary.h"` // For the Ethernet library to work with external Ethernet module.
-FIREBASE_ETHERNET_MODULE_CLASS EthernetClass // For the Ethernet class object of Ethernet library to work with external Ethernet module.
-FIREBASE_ETHERNET_MODULE_TIMEOUT 2000 // For the timeout in milliseconds to wait external Ethernet module to connect to network.
-ENABLE_ESP8266_ENC28J60_ETH //  For native core library ENC28J60 Ethernet module support in ESP8266.
-ENABLE_ESP8266_W5500_ETH // For native core library W5500 Ethernet module support in ESP8266.
-ENABLE_ESP8266_W5100_ETH // For native core library W5100 Ethernet module support in ESP8266.
-FIREBASE_DISABLE_ONBOARD_WIFI // For disabling on-board WiFI functionality in case external Client usage.
-FIREBASE_DISABLE_NATIVE_ETHERNET // For disabling native (sdk) Ethernet functionality in case external Client usage.
-FIREBASE_DISABLE_NATIVE_PPP // For disabling native ESP32 (sdk) PPP functionality.
-ENABLE_ASYNC_TCP_CLIENT // For Async TCP Client usage.
-FIREBASE_ASYNC_QUEUE_LIMIT // For maximum async queue limit (number) setting for an async client.
-FIREBASE_PRINTF_PORT // For Firebase.printf debug port class object.
-FIREBASE_PRINTF_BUFFER // Firebase.printf buffer size. The default printf buffer size is 1024 for ESP8266 and SAMD otherwise 4096. Some debug message may be truncated for larger text.
-```
+Normally this issue can be existed due to large anount of files to be compiled and anti virus software interference.
 
-You can assign the optional build options using one of the following methods.
+This library contains the large anount of C files from `BearSSL` engine used in the internal `ESP_SSLClient` library which will be used only when the `ServiceAuth`, `CustomAuth` and `ESP_SSLClient` classes are used. This can increase the compilation time.
 
-- By creating user config file `UserConfig.h` in library installed folder and define these optional options.
-
-- By adding compiler build flags with `-D name`.
-
-- By defined the macros before including the library main header file `FirebaseClient.h`.
-
-In PlatformIO IDE, using `build_flags` in PlatformIO IDE's platformio.ini is more convenient 
-
-```ini
-build_flags = -D DISABLE_STORAGE
-              -D FIREBASE_DISABLE_ONBOARD_WIFI
-```
-
-For external Ethernet module integation used with function `setEthernetClient`, both `FIREBASE_ETHERNET_MODULE_LIB` and `FIREBASE_ETHERNET_MODULE_CLASS` should be defined.
-
-`FIREBASE_ETHERNET_MODULE_LIB` is the Ethernet library name with extension (.h) and should be inside `""` or `<>` e.g. `"Ethernet.h"`.
-
-`FIREBASE_ETHERNET_MODULE_CLASS` is the name of static object defined from class e.g. `Ethernet`.
-
-`FIREBASE_ETHERNET_MODULE_TIMEOUT` is the timeout in milliseconds to wait for network connection.
-
-For disabling predefined options instead of editing the [**FirebaseConfig.h**](src/FirebaseConfig.h) or using `#undef` in `UserConfig.h`, you can define these build flags with these names or macros in `UserConfig.h`.
-
-```cpp
-DISABLE_DATABASE // For disabling RTDB support
-DISABLE_FIRESTORE // For disabling Firestore support
-DISABLE_FIRESTORE_QUERY // For Firestore Query feature compilation
-DISABLE_MESSAGING // For disabling Firebase Cloud Messaging support
-DISABLE_STORAGE // For disabling Firebase Storage support
-DISABLE_CLOUD_STORAGE // For disabling Google Cloud Storage support
-DISABLE_FUNCTIONS // For disabling Google Cloud Functions support
-DISABLE_RULESETS // For disabling RuleSets support
-DISABLE_PSRAM // For disabling PSRAM support
-DISABLE_OTA // For disabling OTA updates support
-DISABLE_FS // For disabling filesystem support
-
-// For disabling authentication and token
-DISABLE_SERVICE_AUTH
-DISABLE_CUSTOM_AUTH
-DISABLE_USER_AUTH
-DISABLE_ACCESS_TOKEN
-DISABLE_CUSTOM_TOKEN
-DISABLE_ID_TOKEN
-DISABLE_LEGACY_TOKEN
-
-FIREBASE_DISABLE_ALL_OPTIONS // For disabling all predefined build options above
-```
-
-> [!NOTE]  
-> `UserConfig.h` for user config should be placed in the library installed folder inside the `src` folder.
-
-This `UserConfig.h` will not change or overwrite when update the library.
-
-The library code size is varied from 80k - 110k (WiFi and WiFiClientSecure excluded) depends on the build options.
-
-The code size is 170k lesser than ancestor Firebase libraries when perform the same task.
+If `ServiceAuth`, `CustomAuth` and `ESP_SSLClient` classes are not used in your code, you can remove or delete the `src/client` folder to reduce the Arduino IDE compilation time.  
 
 ## License
 
-The MIT License (MIT)
+The codes and examples in this repository are licensed under the MIT License. 
 
-Copyright (c) 2025 K. Suwatchai (Mobizt)
+Copyright (c) 2025, Suwatchai K. All rights reserved.
 
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
-Permission is hereby granted, free of charge, to any person returning a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
+*The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.*
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+`THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.`
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*Last updated 2025-08-09 UTC.*

@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 #ifndef CORE_ASYNC_RESULT_ASYNC_RESULT_H
 #define CORE_ASYNC_RESULT_ASYNC_RESULT_H
 
@@ -146,12 +152,12 @@ private:
             val[ares_ns::res_uid] = uid;
         else
         {
-            val[ares_ns::res_uid] = FPSTR("task_");
-            String ms = String(millis());
+            val[ares_ns::res_uid] = "task_";
+            String m = String(millis());
             // Roll over millis counter value (0-9999).
-            if (ms.length() > 4)
-                ms.remove(0, ms.length() - 4);
-            val[ares_ns::res_uid] += ms;
+            if (m.length() > 4)
+                m.remove(0, m.length() - 4);
+            val[ares_ns::res_uid] += m;
         }
     }
 

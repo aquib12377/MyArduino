@@ -9,6 +9,8 @@
 #undef CONFIG_BT_NIMBLE_ROLE_PERIPHERAL
 #undef CONFIG_BT_NIMBLE_ROLE_BROADCASTER
 #undef CONFIG_BT_NIMBLE_ROLE_OBSERVER
+#undef CONFIG_BT_ENABLED
+#define CONFIG_BT_ENABLED 1
 #endif
 
 #include "nimconfig_rename.h"
@@ -104,22 +106,22 @@
  /** @brief Un-comment if not using NimBLE Client functions \n
  *  Reduces flash size by approx. 7kB.
  */
-// #define CONFIG_BT_NIMBLE_ROLE_CENTRAL_DISABLED
+// #define CONFIG_BT_NIMBLE_ROLE_CENTRAL 0
 
 /** @brief Un-comment if not using NimBLE Scan functions \n
  *  Reduces flash size by approx. 26kB.
  */
-// #define CONFIG_BT_NIMBLE_ROLE_OBSERVER_DISABLED
+// #define CONFIG_BT_NIMBLE_ROLE_OBSERVER 0
 
 /** @brief Un-comment if not using NimBLE Server functions \n
  *  Reduces flash size by approx. 16kB.
  */
-// #define CONFIG_BT_NIMBLE_ROLE_PERIPHERAL_DISABLED
+// #define CONFIG_BT_NIMBLE_ROLE_PERIPHERAL 0
 
 /** @brief Un-comment if not using NimBLE Advertising functions \n
  *  Reduces flash size by approx. 5kB.
  */
-// #define CONFIG_BT_NIMBLE_ROLE_BROADCASTER_DISABLED
+// #define CONFIG_BT_NIMBLE_ROLE_BROADCASTER 0
 
 /** @brief Un-comment to change the number of devices allowed to store/bond with */
 // #define CONFIG_BT_NIMBLE_MAX_BONDS 3
@@ -146,12 +148,6 @@
 
 /** @brief Un-comment to change the stack size for the NimBLE host task */
 // #define CONFIG_BT_NIMBLE_HOST_TASK_STACK_SIZE 4096
-
-/**
- * @brief Un-comment to use memory pools for stack operations
- * @details this will use slightly more RAM but may provide more stability.
- */
-// #define CONFIG_NIMBLE_STACK_USE_MEM_POOLS 1
 
 /**
  * @brief Un-comment to change the bit used to block tasks during BLE operations
@@ -181,20 +177,36 @@
 **********************************/
 
 /* This section should not be altered */
+#ifndef CONFIG_BT_NIMBLE_ROLE_CENTRAL
 #ifndef CONFIG_BT_NIMBLE_ROLE_CENTRAL_DISABLED
 #define CONFIG_BT_NIMBLE_ROLE_CENTRAL 1
+#else
+#define CONFIG_BT_NIMBLE_ROLE_CENTRAL 0
+#endif
 #endif
 
+#ifndef CONFIG_BT_NIMBLE_ROLE_OBSERVER
 #ifndef CONFIG_BT_NIMBLE_ROLE_OBSERVER_DISABLED
 #define CONFIG_BT_NIMBLE_ROLE_OBSERVER 1
+#else
+#define CONFIG_BT_NIMBLE_ROLE_OBSERVER 0
+#endif
 #endif
 
+#ifndef CONFIG_BT_NIMBLE_ROLE_PERIPHERAL
 #ifndef CONFIG_BT_NIMBLE_ROLE_PERIPHERAL_DISABLED
 #define CONFIG_BT_NIMBLE_ROLE_PERIPHERAL 1
+#else
+#define CONFIG_BT_NIMBLE_ROLE_PERIPHERAL 0
+#endif
 #endif
 
+#ifndef CONFIG_BT_NIMBLE_ROLE_BROADCASTER
 #ifndef CONFIG_BT_NIMBLE_ROLE_BROADCASTER_DISABLED
 #define CONFIG_BT_NIMBLE_ROLE_BROADCASTER 1
+#else
+#define CONFIG_BT_NIMBLE_ROLE_BROADCASTER 0
+#endif
 #endif
 
 #ifndef CONFIG_BT_NIMBLE_PINNED_TO_CORE
@@ -211,6 +223,11 @@
 
 #ifndef CONFIG_BT_NIMBLE_MAX_CONNECTIONS
 #define CONFIG_BT_NIMBLE_MAX_CONNECTIONS 3
+#endif
+
+// bugfix: max connections macro renamed upstream
+#ifndef CONFIG_NIMBLE_MAX_CONNECTIONS
+#define CONFIG_NIMBLE_MAX_CONNECTIONS CONFIG_BT_NIMBLE_MAX_CONNECTIONS
 #endif
 
 #ifndef CONFIG_BT_NIMBLE_MAX_BONDS
@@ -234,9 +251,9 @@
 #endif
 
 #ifdef CONFIG_BT_NIMBLE_MSYS1_BLOCK_COUNT // backward compatibility
-#define CONFIG_BT_NIMBLE_MSYS_1_BLOCK_COUNT CONFIG_BT_NIMBLE_MSYS1_BLOCK_COUNT
-#elif !defined(CONFIG_BT_NIMBLE_MSYS_1_BLOCK_COUNT)
-#define CONFIG_BT_NIMBLE_MSYS_1_BLOCK_COUNT 12
+#define MYNEWT_VAL_MSYS_1_BLOCK_COUNT CONFIG_BT_NIMBLE_MSYS1_BLOCK_COUNT
+#else
+#define MYNEWT_VAL_MSYS_1_BLOCK_COUNT 12
 #endif
 
 #ifndef CONFIG_BT_NIMBLE_MSYS_1_BLOCK_SIZE
@@ -249,10 +266,6 @@
 
 #ifndef CONFIG_BT_NIMBLE_LOG_LEVEL
 #define CONFIG_BT_NIMBLE_LOG_LEVEL 5
-#endif
-
-#ifndef CONFIG_NIMBLE_STACK_USE_MEM_POOLS
-#define CONFIG_NIMBLE_STACK_USE_MEM_POOLS 0
 #endif
 
 /** @brief Maximum number of connection oriented channels */
@@ -273,7 +286,9 @@
 #define CONFIG_BT_NIMBLE_GAP_DEVICE_NAME_MAX_LEN 31
 
 /** @brief ACL Buffer count */
+#ifndef CONFIG_BT_NIMBLE_TRANSPORT_ACL_FROM_LL_COUNT
 #define CONFIG_BT_NIMBLE_TRANSPORT_ACL_FROM_LL_COUNT 12
+#endif
 
 /** @brief ACL Buffer size */
 #define CONFIG_BT_NIMBLE_TRANSPORT_ACL_SIZE 255
@@ -383,16 +398,6 @@ defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32S3)
 /* Must set max number of syncs if periodic advertising is enabled */
 #if CONFIG_BT_NIMBLE_ENABLE_PERIODIC_ADV && !defined(CONFIG_BT_NIMBLE_MAX_PERIODIC_SYNCS)
 #  define CONFIG_BT_NIMBLE_MAX_PERIODIC_SYNCS 1
-#endif
-
-/* Cannot use client without scan */
-#if defined(CONFIG_BT_NIMBLE_ROLE_CENTRAL) && !defined(CONFIG_BT_NIMBLE_ROLE_OBSERVER)
-#define CONFIG_BT_NIMBLE_ROLE_OBSERVER
-#endif
-
-/* Cannot use server without advertise */
-#if defined(CONFIG_BT_NIMBLE_ROLE_PERIPHERAL) && !defined(CONFIG_BT_NIMBLE_ROLE_BROADCASTER)
-#define CONFIG_BT_NIMBLE_ROLE_BROADCASTER
 #endif
 
 /* Enables the use of Arduino String class for attribute values */

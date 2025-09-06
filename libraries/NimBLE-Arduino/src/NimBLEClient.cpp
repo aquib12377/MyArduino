@@ -15,10 +15,9 @@
  * limitations under the License.
  */
 
-#include "nimconfig.h"
-#if defined(CONFIG_BT_ENABLED) && defined(CONFIG_BT_NIMBLE_ROLE_CENTRAL)
+#include "NimBLEClient.h"
+#if CONFIG_BT_ENABLED && CONFIG_BT_NIMBLE_ROLE_CENTRAL
 
-# include "NimBLEClient.h"
 # include "NimBLERemoteService.h"
 # include "NimBLERemoteCharacteristic.h"
 # include "NimBLEDevice.h"
@@ -126,6 +125,7 @@ size_t NimBLEClient::deleteService(const NimBLEUUID& uuid) {
     return m_svcVec.size();
 } // deleteService
 
+# if CONFIG_BT_NIMBLE_ROLE_OBSERVER
 /**
  * @brief Connect to an advertising device.
  * @param [in] pDevice A pointer to the advertised device instance to connect to.
@@ -141,6 +141,7 @@ bool NimBLEClient::connect(const NimBLEAdvertisedDevice* pDevice, bool deleteAtt
     NimBLEAddress address(pDevice->getAddress());
     return connect(address, deleteAttributes, asyncConnect, exchangeMTU);
 } // connect
+# endif
 
 /**
  * @brief Connect to the BLE Server using the address of the last connected device, or the address\n
@@ -227,10 +228,15 @@ bool NimBLEClient::connect(const NimBLEAddress& address, bool deleteAttributes, 
                 break;
 
             case BLE_HS_EBUSY:
+# if CONFIG_BT_NIMBLE_ROLE_OBSERVER
+
                 // Scan was active, stop it through the NimBLEScan API to release any tasks and call the callback.
                 if (!NimBLEDevice::getScan()->stop()) {
                     rc = BLE_HS_EUNKNOWN;
                 }
+# else
+                rc = BLE_HS_EUNKNOWN;
+# endif
                 break;
 
             case BLE_HS_EDONE:
@@ -927,9 +933,16 @@ int NimBLEClient::handleGapEvent(struct ble_gap_event* event, void* arg) {
 
     switch (event->type) {
         case BLE_GAP_EVENT_DISCONNECT: {
+
             // workaround for bug in NimBLE stack where disconnect event argument is not passed correctly
-            pClient = NimBLEDevice::getClientByHandle(event->disconnect.conn.conn_handle);
+            pClient = NimBLEDevice::getClientByPeerAddress(event->disconnect.conn.peer_ota_addr);
             if (pClient == nullptr) {
+                pClient = NimBLEDevice::getClientByPeerAddress(event->disconnect.conn.peer_id_addr);
+            }
+
+            if (pClient == nullptr) {
+                NIMBLE_LOGE(LOG_TAG, "Disconnected client not found, conn_handle=%d",
+                            event->disconnect.conn.conn_handle);
                 return 0;
             }
 
@@ -954,7 +967,9 @@ int NimBLEClient::handleGapEvent(struct ble_gap_event* event, void* arg) {
             pClient->m_asyncSecureAttempt = 0;
 
             // Don't call the disconnect callback if we are waiting for a connection to complete and it fails
-            if (rc != (BLE_HS_ERR_HCI_BASE + BLE_ERR_CONN_ESTABLISHMENT) || pClient->m_config.asyncConnect) {
+            if (rc == (BLE_HS_ERR_HCI_BASE + BLE_ERR_CONN_ESTABLISHMENT) && pClient->m_config.asyncConnect) {
+                pClient->m_pClientCallbacks->onConnectFail(pClient, rc);
+            } else {
                 pClient->m_pClientCallbacks->onDisconnect(pClient, rc);
             }
 
@@ -982,6 +997,10 @@ int NimBLEClient::handleGapEvent(struct ble_gap_event* event, void* arg) {
             }
 
             rc = event->connect.status;
+            if (rc == BLE_ERR_UNSUPP_REM_FEATURE) {
+                rc = 0; // Workaround: Ignore unsupported remote feature error as it is not a real error.
+            }
+
             if (rc == 0) {
                 pClient->m_connHandle = event->connect.conn_handle;
 
@@ -1301,4 +1320,4 @@ void NimBLEClientCallbacks::onPhyUpdate(NimBLEClient* pClient, uint8_t txPhy, ui
 } // onPhyUpdate
 #
 
-#endif /* CONFIG_BT_ENABLED && CONFIG_BT_NIMBLE_ROLE_CENTRAL */
+#endif // CONFIG_BT_ENABLED && CONFIG_BT_NIMBLE_ROLE_CENTRAL

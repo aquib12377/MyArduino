@@ -10,7 +10,7 @@ A fork of the NimBLE stack refactored for compilation in the Arduino IDE.
 > Check out the [1.x to 2.x Migration Guide](docs/1.x_to2.x_migration_guide.md) and [Release Notes](https://github.com/h2zero/NimBLE-Arduino/releases/latest)
 
 ## Supported MCU's
- - Espressif: ESP32, ESP32C3, ESP32S3
+ - Espressif: ESP32, ESP32C3, ESP32S3, ESP32C6, ESP32H2, ESP32C2, ESP32C5
  - Nordic: nRF51, nRF52 series (**Requires** using [n-able arduino core](https://github.com/h2zero/n-able-Arduino))
 
 **Note for ESP-IDF users: This repo will not compile correctly in ESP-IDF. An ESP-IDF component version of this library can be [found here.](https://github.com/h2zero/esp-nimble-cpp)**
@@ -47,8 +47,6 @@ If you already use this library and need to migrate your code to version 2.x see
 [Full API documentation and class list can be found here.](https://h2zero.github.io/NimBLE-Arduino/)
 
 For added performance and optimizations see [Usage tips](docs/Usage_tips.md).
-
-Check the Refactored_original_examples in the examples folder for highlights of the differences with the original library.
 
 More advanced examples highlighting many available features are in examples/ NimBLE_Server, NimBLE_Client.
 

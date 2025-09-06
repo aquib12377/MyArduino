@@ -1,32 +1,13 @@
-/**
- * 2025-02-08
+/*
+ * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
  *
- * The MIT License (MIT)
- * Copyright (c) 2025 K. Suwatchai (Mobizt)
- *
- *
- * Permission is hereby granted, free of charge, to any person returning a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- * the Software, and to permit persons to whom the Software is furnished to do so,
- * subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * SPDX-License-Identifier: MIT
  */
+
 #ifndef FIRESTORE_VALUES_H
 #define FIRESTORE_VALUES_H
 
 #include <Arduino.h>
-#include "./FirebaseConfig.h"
 #include "./core/Utils/ObjectWriter.h"
 
 #if defined(ENABLE_FIRESTORE)
@@ -81,7 +62,7 @@ namespace Values
         /**
          * A null value.
          */
-        NullValue() : buf(FPSTR("null")) { getVal(); }
+        NullValue() : buf("null") { getVal(); }
         const char *c_str() const { return buf.c_str(); }
         const char *val() { return getVal(); }
         size_t printTo(Print &p) const override { return p.print(str.c_str()); }
@@ -294,8 +275,8 @@ namespace Values
          */
         explicit GeoPointValue(double lat, double lng)
         {
-            jut.addObject(buf, FPSTR("latitude"), String(lat), false);
-            jut.addObject(buf, FPSTR("longitude"), String(lng), false, true);
+            jut.addObject(buf, "latitude", String(lat), false);
+            jut.addObject(buf, "longitude", String(lng), false, true);
             getVal();
         }
 
@@ -306,8 +287,8 @@ namespace Values
          */
         explicit GeoPointValue(const number_t &lat, const number_t &lng)
         {
-            jut.addObject(buf, FPSTR("latitude"), lat.c_str(), false);
-            jut.addObject(buf, FPSTR("longitude"), lng.c_str(), false, true);
+            jut.addObject(buf, "latitude", lat.c_str(), false);
+            jut.addObject(buf, "longitude", lng.c_str(), false, true);
             getVal();
         }
 
@@ -332,7 +313,7 @@ namespace Values
         template <typename T>
         void set(T value)
         {
-            owriter.setPair(buf, FPSTR("values"), value.val(), true);
+            owriter.setPair(buf, "values", value.val(), true);
         }
 
         const char *getVal() { return owriter.setPair(str, firestore_const_key[firestore_const_key_arrayValue].text, buf); }
@@ -399,7 +380,7 @@ namespace Values
         ObjectWriter owriter;
         StringUtil sut;
         template <typename T>
-        void set(const String &key, T value) { owriter.setPair(buf, FPSTR("fields"), MAP(key, value, true).c_str()); }
+        void set(const String &key, T value) { owriter.setPair(buf, "fields", MAP(key, value, true).c_str()); }
         const char *getVal() { return owriter.setPair(str, firestore_const_key[firestore_const_key_mapValue].text, buf); }
 
     public:

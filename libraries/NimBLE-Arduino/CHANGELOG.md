@@ -1,6 +1,48 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [2.3.5] 2025-09-02
+
+## Fixed
+- esp32c3/s3 max connections not being properly applied.
+
+## [2.3.4] 2025-08-10
+
+## Fixed
+- `NimBLEClientCallbacks::OnConnectFail` not called when connection not established.
+- Removed invalid reference to refactored original examples in README.md.
+- Cleanup redefinition warnings for arduino core 3.3+.
+
+## [2.3.3] 2025-07-27
+
+## Fixed
+- Multiple definition errors for some functions with esp32c6/h2/c2 with Arduino core 3.3+.
+
+## [2.3.2] 2025-06-27
+
+## Fixed
+- Max connections not being applied correctly above 4.
+- Build errors with arduino cores using IDF v4.x
+- `onConnect` callback not being called when the status is `BLE_ERR_UNSUPP_REM_FEATURE`, workaround for upstream issue.
+
+## Changed
+- FreeRTOS port uses the old porting layer for all but the latest esp32 mcus.
+- By default BLE secure connections is disabled now to reduce issues when it's enabled but not used by the application.
+- BLE mesh files are now only compiled if mesh is enabled in the project configuration.
+
+## [2.3.1] 2025-06-11
+
+## Fixed
+- EddystoneTLM example not setting the data.
+- Build errors when disabling BLE roles.
+- esp32c2 build issues due to multiple definitions of various functions.
+- `NimBLEClient::readValue` call not returning when the instance was created with a`NimBLEServer` and reading a secured characteristic.
+- `NimBLEScan` destructor potentially causing a crash.
+
+## Added
+- iBeacon example.
+- `NimBLEBeacon::BeaconData` `std::vector<uint8_t>` operator to allow it to be used as a parameter to `NimBLEAdvertisementData::setManufacturerData`.
+
 ## [2.3.0] 2025-05-19
 
 ## Fixed

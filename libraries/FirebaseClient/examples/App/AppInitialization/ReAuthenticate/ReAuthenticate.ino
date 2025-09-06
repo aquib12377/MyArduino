@@ -1,26 +1,11 @@
 /**
- * ABOUT:
- *
  * This is example for how to disable the re-authentication and force the authentication processes.
  *
- * The complete usage guidelines, please read README.md or visit https://github.com/mobizt/FirebaseClient
- *
- * SYNTAX:
- *
- * 1.------------------------
- *
- * FirebaseApp::autoRefresh(<enable>);
- *
- * <enable> - Set to true to enable auto-refresh and false for disable auto-refresh.
- *
- * 2.------------------------
- *
- * FirebaseApp::refreshToken();
- *
- * The complete usage guidelines, please visit https://github.com/mobizt/FirebaseClient
+ * For the complete usage guidelines, please read README.md or visit https://github.com/mobizt/FirebaseClient
  */
 
-#include <Arduino.h>
+#define ENABLE_USER_AUTH
+
 #include <FirebaseClient.h>
 #include "ExampleFunctions.h" // Provides the functions used in the examples.
 
@@ -37,8 +22,6 @@ FirebaseApp app;
 
 SSL_CLIENT ssl_client;
 
-// This uses built-in core WiFi/Ethernet for network connection.
-// See examples/App/NetworkInterfaces for more network examples.
 using AsyncClient = AsyncClientClass;
 AsyncClient aClient(ssl_client);
 

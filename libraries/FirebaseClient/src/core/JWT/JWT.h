@@ -1,8 +1,13 @@
+/*
+ * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 #ifndef CORE_JWT_JWT_H
 #define CORE_JWT_JWT_H
 
 #include <Arduino.h>
-#include "./FirebaseConfig.h"
 #include "./core/Utils/Memory.h"
 #include "./core/Auth/AuthConfig.h"
 #include "./core/Utils/Base64.h"
@@ -11,13 +16,14 @@
 #include "./core/Error.h"
 #include "./core/Core.h"
 #include "./core/Utils/Timer.h"
+#include "./core/Debug.h"
 
 #if defined(ENABLE_JWT)
 
-#if __has_include(<ESP_SSLClient.h>)
-#include <ESP_SSLClient.h>
-#else
-#include "./client/SSLClient/ESP_SSLClient.h"
+#if defined(ESP32)
+#include <mbedtls/entropy.h>
+#include <mbedtls/pk.h>
+#include <mbedtls/ctr_drbg.h>
 #endif
 
 using namespace firebase_ns;
@@ -80,6 +86,8 @@ namespace firebase_ns
          */
         bool loop(auth_data_t *auth_data);
     };
+
+    extern JWTClass JWT;
 }
 #endif
 #endif
