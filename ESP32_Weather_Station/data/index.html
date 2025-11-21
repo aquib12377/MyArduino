@@ -1,0 +1,80 @@
+<!-- Place this file in the 'data' folder inside your Arduino sketch folder -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Monitoring Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <div class="w-64 bg-gray-800 text-white p-5">
+            <h1 class="text-2xl font-bold mb-10">Weather Station</h1>
+            <nav>
+                <a href="/" class="block py-2.5 px-4 rounded transition duration-200 bg-gray-700">Live Data</a>
+                <a href="/history" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">Historical Data</a>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 p-10">
+            <h2 class="text-3xl font-bold mb-5">Live Weather Data</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Temperature Card -->
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-lg font-semibold text-gray-700">Temperature</h3>
+                    <p class="text-4xl font-bold text-gray-900 mt-2"><span id="temp">--</span> &deg;C</p>
+                </div>
+                <!-- Humidity Card -->
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-lg font-semibold text-gray-700">Humidity</h3>
+                    <p class="text-4xl font-bold text-gray-900 mt-2"><span id="hum">--</span> %</p>
+                </div>
+                <!-- Pressure Card -->
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-lg font-semibold text-gray-700">Pressure</h3>
+                    <p class="text-4xl font-bold text-gray-900 mt-2"><span id="pres">--</span> hPa</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const tempEl = document.getElementById('temp');
+        const humEl = document.getElementById('hum');
+        const presEl = document.getElementById('pres');
+
+        // Note the port is now 81 for WebSocket
+        const gateway = `ws://${window.location.hostname}:81/`;
+        let websocket;
+
+        function initWebSocket() {
+            console.log('Trying to open a WebSocket connection...');
+            websocket = new WebSocket(gateway);
+            websocket.onopen    = onOpen;
+            websocket.onclose   = onClose;
+            websocket.onmessage = onMessage;
+        }
+
+        function onOpen(event) {
+            console.log('Connection opened');
+        }
+
+        function onClose(event) {
+            console.log('Connection closed');
+            setTimeout(initWebSocket, 2000);
+        }
+
+        function onMessage(event) {
+            const data = JSON.parse(event.data);
+            tempEl.textContent = data.temperature.toFixed(2);
+            humEl.textContent = data.humidity.toFixed(2);
+            presEl.textContent = data.pressure.toFixed(2);
+        }
+
+        window.addEventListener('load', initWebSocket);
+    </script>
+</body>
+</html>

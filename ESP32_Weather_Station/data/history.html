@@ -1,0 +1,94 @@
+<!-- Place this file in the 'data' folder inside your Arduino sketch folder -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historical Weather Data</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <div class="w-64 bg-gray-800 text-white p-5">
+            <h1 class="text-2xl font-bold mb-10">Weather Station</h1>
+            <nav>
+                <a href="/" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">Live Data</a>
+                <a href="/history" class="block py-2.5 px-4 rounded transition duration-200 bg-gray-700">Historical Data</a>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 p-10">
+            <h2 class="text-3xl font-bold mb-5">Historical Data</h2>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr>
+                            <th class="py-2">Timestamp</th>
+                            <th class="py-2">Temperature (&deg;C)</th>
+                            <th class="py-2">Humidity (%)</th>
+                            <th class="py-2">Pressure (hPa)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-data">
+                        <!-- Data will be inserted here -->
+                    </tbody>
+                </table>
+                <div class="mt-4 flex justify-between items-center">
+                    <button id="prev-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Previous</button>
+                    <span id="page-num">Page 1</span>
+                    <button id="next-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Next</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const historyDataEl = document.getElementById('history-data');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const pageNumEl = document.getElementById('page-num');
+
+        let currentPage = 1;
+
+        async function loadHistory(page) {
+            const response = await fetch(`/data?page=${page}`);
+            const data = await response.json();
+            
+            historyDataEl.innerHTML = '';
+            
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                const timestamp = new Date(parseInt(row[0])).toLocaleString();
+                tr.innerHTML = `
+                    <td class="py-2">${timestamp}</td>
+                    <td class="py-2">${row[1]}</td>
+                    <td class="py-2">${row[2]}</td>
+                    <td class="py-2">${row[3]}</td>
+                `;
+                historyDataEl.appendChild(tr);
+            });
+            pageNumEl.textContent = `Page ${page}`;
+
+            prevBtn.disabled = page === 1;
+            nextBtn.disabled = data.length < 20;
+        }
+
+        prevBtn.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                loadHistory(currentPage);
+            }
+        });
+
+        nextBtn.addEventListener('click', () => {
+            currentPage++;
+            loadHistory(currentPage);
+        });
+        
+        window.addEventListener('load', () => loadHistory(currentPage));
+    </script>
+
+</body>
+</html>
