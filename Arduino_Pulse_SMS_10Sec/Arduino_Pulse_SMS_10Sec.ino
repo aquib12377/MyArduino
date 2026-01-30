@@ -1,119 +1,113 @@
-/*  
-  Getting_BPM_to_Monitor prints the BPM to the Serial Monitor and now to an I2C LCD.
-  It uses the PulseSensorPlayground Library and the LiquidCrystal_I2C Library.
-
-  Tutorial Webpage: https://pulsesensor.com/pages/getting-advanced
-*/
-
-#include <Wire.h>
-#include <LiquidCrystal_I2C.h>
-#include <PulseSensorPlayground.h>  // Includes the PulseSensorPlayground Library.
 #include <SoftwareSerial.h>
 
-SoftwareSerial mySerial(3, 2);  //SIM800L Tx & Rx is connected to Arduino #3 & #2
-// Variables
-const int PulseWire = 0;      // PulseSensor PURPLE WIRE connected to ANALOG PIN 0
-const int LED = LED_BUILTIN;  // The on-board Arduino LED
-int Threshold = 512;          // Adjust this threshold as needed
+/* ===== GSM ===== */
+SoftwareSerial gsm(7, 8);   // DO NOT CHANGE
 
-// Create instances of the PulseSensor and LCD objects
-PulseSensorPlayground pulseSensor;   // PulseSensor object
-LiquidCrystal_I2C lcd(0x27, 16, 2);  // Set the LCD address to 0x27 for a 16 chars and 2 line display
+/* ===== GPS ===== */
+SoftwareSerial gps(4, 5);
 
-// Variables for BPM display
-int myBPM = 0;                           // Variable to hold the current BPM value
-unsigned long lastUpdate = 0;            // Timer for LCD updates
-const unsigned long lcdInterval = 1000;  // Update LCD every 1 second
+/* ===== Pins ===== */
+#define BUTTON_PIN 2
+#define TRIG_PIN   9
+#define ECHO_PIN   10
+#define BUZZER_PIN 11
 
+bool smsSent = false;
+String gpsData = "GPS not fixed";
+
+/* ================= SETUP ================= */
 void setup() {
-  Serial.begin(115200);  // Initialize Serial communication for debugging
+  Serial.begin(115200);
 
-  // Initialize the LCD
-  lcd.begin();      // Initialize the LCD
-  lcd.backlight();  // Turn on the backlight
-  lcd.clear();      // Clear the display
-  lcd.setCursor(0, 0);
-  lcd.print("Initializing...");
+  gsm.begin(115200);   // SAME AS YOUR WORKING CODE
+  gps.begin(9600);
 
-  // Configure the PulseSensor object
-  pulseSensor.analogInput(PulseWire);
-  pulseSensor.blinkOnPulse(LED);  // Blink the LED on each heartbeat
-  pulseSensor.setThreshold(Threshold);
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
 
-  // Start the PulseSensor
-  if (pulseSensor.begin()) {
-    Serial.println("PulseSensor initialized successfully!");
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("PulseSensor Ready");
-  } else {
-    Serial.println("PulseSensor initialization failed.");
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Sensor Init Fail");
-    while (1)
-      ;  // Halt execution if sensor fails to initialize
-  }
+  Serial.println("System Init");
+  gsm.listen();
+  delay(2000);
+  gsm.println("AT");
+  updateGSM();
 
-  mySerial.begin(9600);
-
-  Serial.println("Initializing...");
-  delay(1000);
-
-  mySerial.println("AT");  //Once the handshake test is successful, it will back to OK
-  updateSerial();
-
-  mySerial.println("AT+CMGF=1");  // Configuring TEXT mode
-  updateSerial();
+  gsm.println("AT+CMGF=1");
+  updateGSM();
 }
 
-void sendSMS(String mob, String message) {
-  mySerial.println("AT+CMGS=\"" + mob + "\"");  //change ZZ with country code and xxxxxxxxxxx with phone number to sms
-  updateSerial();
-  mySerial.print(message);  //text content
-  updateSerial();
-  mySerial.write(26);
-}
-
+/* ================= LOOP ================= */
 void loop() {
-  sendSMS("+917977845638", "Test SMS");
-  // Check if a heartbeat was detected
-  if (pulseSensor.sawStartOfBeat()) {
-    myBPM = pulseSensor.getBeatsPerMinute();  // Get the BPM value
-    Serial.println("♥ A HeartBeat Happened!");
-    Serial.print("BPM: ");
-    Serial.println(myBPM);
+
+  readGPS();
+  obstacleCheck();
+  updateGSM();
+
+  if (digitalRead(BUTTON_PIN) == LOW && !smsSent) {
+    sendHelpSMS();
+    smsSent = true;
   }
+}
 
-  // Update the LCD every second
-  if (millis() - lastUpdate >= lcdInterval) {
-    lastUpdate = millis();
+/* ================= GSM ================= */
+void sendHelpSMS() {
 
-    // Update the LCD display
-    lcd.clear();
-    lcd.setCursor(0, 0);
+  Serial.println("Sending SMS...");
 
-    if (myBPM > 0) {
-      lcd.print("Heart Rate:");
-      lcd.setCursor(0, 1);
-      lcd.print("BPM: ");
-      lcd.print(myBPM);
+  gsm.print("AT+CMGS=\"+917977845638\"\r");
+  delay(1500);
+  updateGSM();   // WAIT FOR '>'
+
+  gsm.print("HELP! I need assistance.\nhttps://maps.app.goo.gl/dESg7tPaaRqBoE6R9");
+  //gsm.print(gpsData);
+  delay(500);
+
+  gsm.write(26); // CTRL+Z
+  delay(3000);
+  updateGSM();
+}
+
+void updateGSM() {
+  while (gsm.available()) {
+    Serial.write(gsm.read());   // PRINT GSM RESPONSE
+  }
+}
+
+/* ================= GPS ================= */
+void readGPS() {
+  static String line = "";
+
+  while (gps.available()) {
+    char c = gps.read();
+    if (c == '\n') {
+      if (line.startsWith("$GPRMC") || line.startsWith("$GPGGA")) {
+        gpsData = line;
+        Serial.println("GPS: " + gpsData);
+      }
+      line = "";
     } else {
-      lcd.print("No Heartbeat");
-      lcd.setCursor(0, 1);
-      lcd.print("Detected");
+      line += c;
     }
   }
-
-  delay(20);  // Small delay for stability
 }
 
-void updateSerial() {
-  delay(500);
-  while (Serial.available()) {
-    mySerial.write(Serial.read());  //Forward what Serial received to Software Serial Port
-  }
-  while (mySerial.available()) {
-    Serial.write(mySerial.read());  //Forward what Software Serial received to Serial Port
+/* ================= ULTRASONIC ================= */
+void obstacleCheck() {
+  long duration, distance;
+
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+
+  duration = pulseIn(ECHO_PIN, HIGH, 25000);
+  distance = duration * 0.034 / 2;
+
+  if (distance > 0 && distance < 40) {
+    digitalWrite(BUZZER_PIN, HIGH);
+  } else {
+    digitalWrite(BUZZER_PIN, LOW);
   }
 }

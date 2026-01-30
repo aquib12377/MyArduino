@@ -123,7 +123,7 @@ bool initCamera() {
   if (psramFound()) {
     // smoother: double buffer & higher res if you want
     config.frame_size   = FRAMESIZE_VGA; // 640x480 (good compromise)
-    config.jpeg_quality = 7;           // 0=high, 63=low, 10~12 smooth
+    config.jpeg_quality = 15;           // 0=high, 63=low, 10~12 smooth
     config.fb_count     = 2;
   } else {
     config.frame_size   = FRAMESIZE_QVGA; // 320x240
@@ -162,7 +162,7 @@ void setup() {
     ESP.restart();
   }
 
-  WiFi.mode(WIFI_STA);
+  WiFi.mode(WIFI_AP);
   WiFi.setSleep(false);  // smoother stream
   WiFi.begin(WIFI_SSID, WIFI_PASS);
 

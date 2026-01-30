@@ -4,6 +4,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <Servo.h>
+#include <SoftwareSerial.h>   // <-- GSM
 
 // -------------------- OLED CONFIG --------------------
 #define SCREEN_WIDTH 128
@@ -24,8 +25,22 @@ const int SERVO_UNLOCK_ANGLE = 90;   // adjust to your hardware
 Servo lockServo;
 int currentServoAngle = SERVO_LOCK_ANGLE;  // track current servo position
 
-// -------------------- AUTHORIZED CARD (CHANGE THIS) --------------------
-byte authorizedUID[4] = { 0x14, 0x97, 0x1A, 0x06 };  // <-- your card UID
+// -------------------- AUTHORIZED CARDS --------------------
+// Card 1: 14 97 1A 06
+byte authorizedUID1[4] = { 0x14, 0x97, 0x1A, 0x06 };
+// Card 2: 49 AD 01 04
+byte authorizedUID2[4] = { 0x49, 0xAD, 0x01, 0x04 };
+
+// -------------------- BUZZER --------------------
+#define BUZZER_PIN 2   // Beeps on unauthorized
+
+// -------------------- GSM CONFIG --------------------
+#define GSM_RX_PIN 7   // Nano D7  <-- GSM TX
+#define GSM_TX_PIN 8   // Nano D8  <-- GSM RX
+SoftwareSerial gsm(GSM_RX_PIN, GSM_TX_PIN);
+
+// CHANGE THIS TO YOUR NUMBER
+const char ALERT_NUMBER[] = "+919653215571";  // <-- put your mobile number here
 
 // -------------------- STATE --------------------
 bool isLocked = true;
@@ -155,7 +170,7 @@ void showTypingSplash() {
   }
 
   // Type "Electronz"
-  for (uint8_t i = 0; line2[i] != '\0'; i++) {
+  for (uint8_t i = 0; i < strlen(line2); i++) {
     display.setCursor(x + i * 12, y2);
     display.print(line2[i]);
     display.display();
@@ -169,10 +184,15 @@ void showTypingSplash() {
 bool isAuthorizedCard(byte *uid, byte uidSize) {
   if (uidSize != 4) return false;
 
+  bool match1 = true;
+  bool match2 = true;
+
   for (byte i = 0; i < 4; i++) {
-    if (uid[i] != authorizedUID[i]) return false;
+    if (uid[i] != authorizedUID1[i]) match1 = false;
+    if (uid[i] != authorizedUID2[i]) match2 = false;
   }
-  return true;
+
+  return (match1 || match2);
 }
 
 void printUID(byte *uid, byte uidSize) {
@@ -184,13 +204,104 @@ void printUID(byte *uid, byte uidSize) {
   Serial.println();
 }
 
+// Convert UID to hex string "14 97 1A 06"
+void uidToString(byte *uid, byte uidSize, char *out, size_t outSize) {
+  out[0] = '\0';
+  for (byte i = 0; i < uidSize; i++) {
+    char buf[4];
+    sprintf(buf, "%02X", uid[i]);
+    strcat(out, buf);
+    if (i < uidSize - 1) {
+      strcat(out, " ");
+    }
+  }
+}
+
+// -------------------- BUZZER HELPERS --------------------
+void beepUnauthorized() {
+  Serial.println(F("[BUZZER] Unauthorized beep"));
+  for (int i = 0; i < 3; i++) {
+    digitalWrite(BUZZER_PIN, HIGH);
+    delay(150);
+    digitalWrite(BUZZER_PIN, LOW);
+    delay(150);
+  }
+}
+
+// -------------------- GSM HELPERS --------------------
+void gsmFlushInput() {
+  while (gsm.available()) {
+    char c = gsm.read();
+    // Optionally echo GSM data to Serial for debugging
+    Serial.write(c);
+  }
+}
+
+void gsmSendCommand(const char *cmd, unsigned long waitMs = 500) {
+  Serial.print(F("[GSM] >> ")); Serial.println(cmd);
+  gsm.println(cmd);
+  delay(waitMs);
+  gsmFlushInput();
+}
+
+void initGSM() {
+  Serial.println(F("[GSM] Initializing GSM module..."));
+  delay(3000); // give module time to boot
+
+  // Basic handshake
+  gsmSendCommand("AT", 1000);
+  gsmSendCommand("ATE0", 500);        // echo off
+  gsmSendCommand("AT+CMGF=1", 500);   // SMS text mode
+  gsmSendCommand("AT+CSCS=\"GSM\"", 500);
+
+  Serial.println(F("[GSM] GSM init done (check Serial output for OKs)"));
+}
+
+void sendUnauthorizedSMS(byte *uid, byte uidSize) {
+  Serial.println(F("[GSM] Sending unauthorized card SMS..."));
+
+  char uidStr[3 * 10]; // enough for up to 10 bytes "XX " each
+  uidStr[0] = '\0';
+  uidToString(uid, uidSize, uidStr, sizeof(uidStr));
+
+  gsmFlushInput();
+
+  // Start SMS
+  gsm.print(F("AT+CMGS=\""));
+  gsm.print(ALERT_NUMBER);
+  gsm.println(F("\""));
+  Serial.print(F("[GSM] >> AT+CMGS=\""));
+  Serial.print(ALERT_NUMBER);
+  Serial.println(F("\""));
+
+  delay(500); // wait for '>' prompt (rough)
+
+  // SMS body
+  gsm.print(F("RFID ALERT: Unauthorized card UID="));
+  gsm.print(uidStr);
+  gsm.println(F(" detected at door."));
+
+  Serial.print(F("[GSM] >> SMS BODY: RFID ALERT: Unauthorized card UID="));
+  Serial.print(uidStr);
+  Serial.println(F(" detected at door."));
+
+  // End SMS with Ctrl+Z
+  gsm.write(26);
+  Serial.println(F("[GSM] >> Ctrl+Z sent"));
+
+  delay(3000); // wait for sending
+  gsmFlushInput();
+
+  Serial.println(F("[GSM] SMS send attempted."));
+}
+
 // -------------------- SET LOCK STATE --------------------
 // lock == false => unlock for 5 seconds, then auto lock again
 void setLockState(bool lock) {
   const int servoStepDelayMs = 10; // tune for speed (higher = slower)
 
   if (lock) {
-    // Explicit lock request (not used here, but kept)
+    // Explicit lock request
     moveServoSmooth(SERVO_LOCK_ANGLE, servoStepDelayMs);
     animateLock();
     isLocked = true;
@@ -216,7 +327,15 @@ void setLockState(bool lock) {
 // -------------------- SETUP --------------------
 void setup() {
   Serial.begin(9600);
-  Serial.println(F("\n=== RFID Door Lock ==="));
+  Serial.println(F("\n=== RFID Door Lock + GSM Alert ==="));
+
+  // Buzzer
+  pinMode(BUZZER_PIN, OUTPUT);
+  digitalWrite(BUZZER_PIN, LOW);
+
+  // GSM serial
+  gsm.begin(9600);
+  initGSM();
 
   // OLED init
   if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
@@ -265,6 +384,10 @@ void loop() {
     setLockState(false);
   } else {
     Serial.println(F("[RFID] Unauthorized card"));
+
+    // BEEP + SMS on unauthorized
+    beepUnauthorized();
+    sendUnauthorizedSMS(mfrc522.uid.uidByte, mfrc522.uid.size);
 
     // ACCESS DENIED screen + flashing X
     for (int i = 0; i < 4; i++) {

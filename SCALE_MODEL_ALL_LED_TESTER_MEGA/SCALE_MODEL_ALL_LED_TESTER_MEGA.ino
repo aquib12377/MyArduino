@@ -8,8 +8,8 @@
 #include <Adafruit_NeoPixel.h>
 
 // ===== CONFIG =====
-#define NUM_LEDS_PER_STRIP 106        // LEDs per strip
-#define FULL_BRIGHTNESS    255        // 255 = max (watch power!)
+#define NUM_LEDS_PER_STRIP 100        // LEDs per strip
+#define FULL_BRIGHTNESS    150        // 255 = max (watch power!)
 #define PIXEL_TYPE         (NEO_GRB + NEO_KHZ800)
 
 // Toggle these according to your wiring/usage:

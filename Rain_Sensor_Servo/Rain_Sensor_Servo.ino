@@ -4,7 +4,7 @@ Servo myServo;
 
 // Pins
 const int rainSensorPin = A0;  // digital input from rain sensor
-const int servoPin = A1;       // servo control pin
+const int servoPin = 5;       // servo control pin
 
 // Positions (angles in degrees)
 int servoDryPosition = 0;   // servo angle when no rain

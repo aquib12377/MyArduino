@@ -4,7 +4,7 @@
 #include <LiquidCrystal_I2C.h>
 
 // Pin Definitions
-#define VOLTAGE_SENSOR_PIN 34  // Voltage sensor output pin
+#define VOLTAGE_SENSOR_PIN 27  // Voltage sensor output pin
 #define RELAY_PIN 15           // Relay control pin
 #define IR_SENSOR_PIN 4        // IR sensor pin
 
@@ -12,8 +12,8 @@
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 // WiFi Credentials
-const char* ssid = "MyProject";
-const char* password = "12345678";
+const char* ssid = "AAA";
+const char* password = "Acube123";
 
 // Create a web server object
 WebServer server(80);
@@ -275,7 +275,7 @@ void setup() {
   Serial.begin(115200);
 
   // Initialize LCD
-  lcd.init(); 
+  lcd.begin(); 
   lcd.backlight(); 
   lcd.setCursor(0, 0);
   lcd.print("Initializing...");

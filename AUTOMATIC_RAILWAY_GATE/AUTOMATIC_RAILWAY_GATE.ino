@@ -7,6 +7,9 @@ const byte PIN_ECHO = 9;
 const byte PIN_LED_RED    = 6;
 const byte PIN_LED_YELLOW = 7;
 const byte PIN_LED_GREEN  = 5;
+const byte PIN_LED_RED1    = A0;
+const byte PIN_LED_YELLOW1 = A1;
+const byte PIN_LED_GREEN1  = A2;
 const byte PIN_SERVO      = 3;
 const byte PIN_SERVO2     = 10;
 
@@ -19,7 +22,7 @@ const uint16_t TRAIN_NEAR_CM  = 25;
 const uint16_t CLEAR_HYST_CM  = 50;
 const uint32_t DETECT_HOLD_MS = 250;
 const uint32_t CLEAR_HOLD_MS  = 400;
-const uint32_t RED_WAIT_MS    = 15000; // 15s hold after train passes
+const uint32_t RED_WAIT_MS    = 2000; // 15s hold after train passes
 
 const int SERVO_OPEN_DEG   = 92;
 const int SERVO_CLOSED_DEG = 2;
@@ -129,6 +132,9 @@ void leds(bool r, bool y, bool g) {
   digitalWrite(PIN_LED_RED,   r);
   digitalWrite(PIN_LED_YELLOW,y);
   digitalWrite(PIN_LED_GREEN, g);
+  digitalWrite(PIN_LED_RED1,   r);
+  digitalWrite(PIN_LED_YELLOW1,y);
+  digitalWrite(PIN_LED_GREEN1, g);
 }
 
 void updateLeds() {
@@ -220,6 +226,9 @@ void setup() {
   pinMode(PIN_LED_RED, OUTPUT);
   pinMode(PIN_LED_YELLOW, OUTPUT);
   pinMode(PIN_LED_GREEN, OUTPUT);
+  pinMode(PIN_LED_RED1, OUTPUT);
+  pinMode(PIN_LED_YELLOW1, OUTPUT);
+  pinMode(PIN_LED_GREEN1, OUTPUT);
   pinMode(PIN_BUZZER, OUTPUT);
 
   gate.attach(PIN_SERVO);
