@@ -223,9 +223,9 @@ static esp_err_t cmd_handler(httpd_req_t *req){
   else if(!strcmp(variable, "backward")) {
     Serial.println("Backward");
     digitalWrite(MOTOR_1_PIN_1, 0);
-    digitalWrite(MOTOR_1_PIN_2, 0);
+    digitalWrite(MOTOR_1_PIN_2, 1);
     digitalWrite(MOTOR_2_PIN_1, 0);
-    digitalWrite(MOTOR_2_PIN_2, 0);
+    digitalWrite(MOTOR_2_PIN_2, 1);
   }
   else if(!strcmp(variable, "stop")) {
     Serial.println("Stop");

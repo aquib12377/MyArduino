@@ -1,0 +1,66 @@
+#######################################
+# Syntax Coloring Map For FPM383C
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+FPM383C	KEYWORD1
+FingerprintMatchResult	KEYWORD1
+FingerprintEnrollResult	KEYWORD1
+FingerprintStorageInfo	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+begin	KEYWORD2
+setPassword	KEYWORD2
+heartbeat	KEYWORD2
+reset	KEYWORD2
+startEnrollment	KEYWORD2
+queryEnrollmentResult	KEYWORD2
+saveTemplate	KEYWORD2
+querySaveResult	KEYWORD2
+autoEnroll	KEYWORD2
+cancelOperation	KEYWORD2
+startMatch	KEYWORD2
+queryMatchResult	KEYWORD2
+matchSync	KEYWORD2
+deleteFingerprint	KEYWORD2
+deleteAllFingerprints	KEYWORD2
+checkFingerprintExists	KEYWORD2
+getStorageInfo	KEYWORD2
+getTemplateCount	KEYWORD2
+setSleepMode	KEYWORD2
+setEnrollCount	KEYWORD2
+setLED	KEYWORD2
+setBaudrate	KEYWORD2
+getModuleId	KEYWORD2
+updateFeature	KEYWORD2
+isFingerPresent	KEYWORD2
+waitForFinger	KEYWORD2
+waitForFingerRemoval	KEYWORD2
+getLastError	KEYWORD2
+getErrorString	KEYWORD2
+enableDebug	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+
+FP_ERROR_SUCCESS	LITERAL1
+FP_ERROR_UNKNOWN_CMD	LITERAL1
+FP_ERROR_INVALID_LENGTH	LITERAL1
+FP_ERROR_INVALID_DATA	LITERAL1
+FP_ERROR_SYSTEM_BUSY	LITERAL1
+FP_ERROR_TIMEOUT	LITERAL1
+FP_LED_OFF	LITERAL1
+FP_LED_GREEN	LITERAL1
+FP_LED_RED	LITERAL1
+FP_LED_BLUE	LITERAL1
+FP_LED_MODE_OFF	LITERAL1
+FP_LED_MODE_ON	LITERAL1
+FP_LED_MODE_AUTO	LITERAL1
+FP_LED_MODE_BLINK	LITERAL1

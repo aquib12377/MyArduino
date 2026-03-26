@@ -1,151 +1,122 @@
+// ============================================================
+//  HC-12 Receiver — LED & Buzzer Controller
+//  HC-12: RX->D2, TX->D3  |  LED->D7  |  Buzzer->D8
+// ============================================================
+
 #include <SoftwareSerial.h>
-#include <Servo.h>
 
-// HC-12 SoftwareSerial configuration (pins 2 & 3)
-#define HC12_TX 3  // Arduino TX to HC-12 RX
-#define HC12_RX 2  // Arduino RX from HC-12 TX
+// ── HC-12 (unchanged from your working code) ─────────────────
+SoftwareSerial HC12(2, 3); // (RX, TX)
+const int SET_PIN = 5;
 
-SoftwareSerial hc12(HC12_TX, HC12_RX);  // Create SoftwareSerial port
+// ── Outputs ───────────────────────────────────────────────────
+const int LED_PIN    = 7;
+const int BUZZER_PIN = 8;
 
-// Motor control pins (adjust as needed)
-const int leftMotorForward = 4;
-const int leftMotorBackward = 5;
-const int rightMotorForward = 6;
-const int rightMotorBackward = 7;
+// ── Packet parser (same logic as your working receiver) ───────
+String incomingBuffer = "";
+bool   packetStarted  = false;
 
-// Servo configuration
-const int servoPin = 9;
-Servo myServo;
+// ── Non-blocking auto-OFF timers ──────────────────────────────
+bool          ledActive    = false;
+unsigned long ledStart     = 0;
+const unsigned long LED_DUR = 5000; // LED stays ON 5s
 
-// Relay control pins (for DP commands)
-const int relayPin1 = 11;
-const int relayPin2 = 12;
-const int relayPin3 = A0;
+bool          buzzerActive  = false;
+unsigned long buzzerStart   = 0;
+const unsigned long BUZ_DUR = 2000; // Buzzer stays ON 2s
 
+// ── Setup ─────────────────────────────────────────────────────
 void setup() {
-  Serial.begin(9600);  // For debugging via Serial Monitor
-  hc12.begin(9600);    // HC-12 baud rate
+  Serial.begin(9600);
+  HC12.begin(9600);
 
-  Serial.println("HC-12 Receiver Ready");
+  pinMode(SET_PIN, OUTPUT);
+  digitalWrite(SET_PIN, HIGH);
 
-  // Set motor control pins as outputs
-  pinMode(leftMotorForward, OUTPUT);
-  pinMode(leftMotorBackward, OUTPUT);
-  pinMode(rightMotorForward, OUTPUT);
-  pinMode(rightMotorBackward, OUTPUT);
+  pinMode(LED_PIN,    OUTPUT);
+  pinMode(6,    OUTPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+  digitalWrite(LED_PIN,    LOW);
+  digitalWrite(BUZZER_PIN, LOW);
+  digitalWrite(6, LOW);
 
-  // Attach the servo
-  myServo.attach(servoPin);
-
-  // Set relay pins as outputs and initialize them to LOW
-  pinMode(relayPin1, OUTPUT);
-  pinMode(relayPin2, OUTPUT);
-  pinMode(relayPin3, OUTPUT);
-  digitalWrite(relayPin1, HIGH);
-  digitalWrite(relayPin2, HIGH);
-  digitalWrite(relayPin3, HIGH);
+  Serial.println("=== HC-12 Receiver Ready ===");
+  Serial.println("Waiting for commands...");
 }
 
-// --- Motor control helper functions ---
-void moveForward() {
-  digitalWrite(leftMotorForward, HIGH);
-  digitalWrite(leftMotorBackward, LOW);
-  digitalWrite(rightMotorForward, HIGH);
-  digitalWrite(rightMotorBackward, LOW);
+// ── Command handler ───────────────────────────────────────────
+void handleCommand(String cmd) {
+  cmd.trim();
+  Serial.print("[CMD] ");
+  Serial.println(cmd);
+
+  if (cmd == "LED_ON") {
+    digitalWrite(LED_PIN, HIGH);
+    ledActive = true;
+    ledStart  = millis();
+    Serial.println("[LED] ON — auto-off in 5s");
+
+  } else if (cmd == "BUZ_ON") {
+    digitalWrite(BUZZER_PIN, HIGH);
+    buzzerActive = true;
+    buzzerStart  = millis();
+    Serial.println("[BUZZER] ON — auto-off in 2s");
+
+  } else {
+    Serial.print("[UNKNOWN CMD] ");
+    Serial.println(cmd);
+  }
 }
 
-void turnLeft() {
-  // Example: run only the right motor for a left turn
-  digitalWrite(leftMotorForward, LOW);
-  digitalWrite(leftMotorBackward, LOW);
-  digitalWrite(rightMotorForward, HIGH);
-  digitalWrite(rightMotorBackward, LOW);
-}
-
-void turnRight() {
-  // Example: run only the left motor for a right turn
-  digitalWrite(leftMotorForward, HIGH);
-  digitalWrite(leftMotorBackward, LOW);
-  digitalWrite(rightMotorForward, LOW);
-  digitalWrite(rightMotorBackward, LOW);
-}
-
-void stopMotors() {
-  digitalWrite(leftMotorForward, LOW);
-  digitalWrite(leftMotorBackward, LOW);
-  digitalWrite(rightMotorForward, LOW);
-  digitalWrite(rightMotorBackward, LOW);
-}
-
+// ── Loop ──────────────────────────────────────────────────────
 void loop() {
-  if (hc12.available()) {
-    String receivedMessage = hc12.readStringUntil('\n');  // Read incoming message
-    receivedMessage.trim();                               // Remove stray whitespace/newlines
-    Serial.println(receivedMessage);
-    if (receivedMessage != "ST") {
-      Serial.print("Received: ");
-      Serial.println(receivedMessage);
-    }
-    if (receivedMessage.length() > 0) {
-      char cmd = receivedMessage.charAt(0);
 
-      // Check if it's a servo command (starts with 'S' and has a number)
-      if (cmd == 'A' && receivedMessage.length() > 1) {
-        int angle = receivedMessage.substring(1).toInt();
-        Serial.print("Setting servo to ");
-        Serial.println(angle);
-        myServo.write(angle);
-      } else {
-        // Process other commands with a switch-case
-        switch (cmd) {
-          case 'F':
-            Serial.println("Moving forward");
-            moveForward();
-            break;
-          case 'L':
-            Serial.println("Turning left");
-            turnLeft();
-            break;
-          case 'R':
-            Serial.println("Turning right");
-            turnRight();
-            break;
-          case 'S':
-            //Serial.println("Stopping motors");
-            stopMotors();
-            break;
-          case 'D':
-            Serial.println("Activating DP: Relay1 HIGH, Relay2 LOW");
-            digitalWrite(relayPin1, HIGH);
-            digitalWrite(relayPin2, LOW);
-            delay(2000);
-            digitalWrite(relayPin1, HIGH);
-            digitalWrite(relayPin2, HIGH);
-            break;
-          case 'P':
-            Serial.println("Activating DP: Relay1 LOW, Relay2 HIGH");
-            digitalWrite(relayPin1, LOW);
-            digitalWrite(relayPin2, HIGH);
-            delay(2000);
-            digitalWrite(relayPin1, HIGH);
-            digitalWrite(relayPin2, HIGH);
-            break;
+  // ── Auto-OFF timers ───────────────────────────────────────
+  if (ledActive && millis() - ledStart >= LED_DUR) {
+    digitalWrite(LED_PIN, LOW);
+    ledActive = false;
+    Serial.println("[LED] Auto OFF");
+  }
 
-          case 'O':
-            Serial.println("Activating DP: Relay1 HIGH, Relay2 LOW");
-            digitalWrite(relayPin3, HIGH);
-            delay(500);
-            break;
-          case 'C':
-            Serial.println("Activating DP: Relay1 LOW, Relay2 HIGH");
-            digitalWrite(relayPin3, LOW);
-            delay(500);
-            break;
-          default:
-            Serial.println("Unknown command");
-            break;
-        }
+  if (buzzerActive && millis() - buzzerStart >= BUZ_DUR) {
+    digitalWrite(BUZZER_PIN, LOW);
+    buzzerActive = false;
+    Serial.println("[BUZZER] Auto OFF");
+  }
+
+  // ── Read HC-12 (same parser as your working receiver) ─────
+  while (HC12.available()) {
+    char c = HC12.read();
+
+    if (c == '<') {
+      packetStarted  = true;
+      incomingBuffer = "";
+
+    } else if (c == '>') {
+      if (packetStarted) {
+        handleCommand(incomingBuffer);
       }
+      packetStarted  = false;
+      incomingBuffer = "";
+
+    } else if (packetStarted) {
+      incomingBuffer += c;
+      if (incomingBuffer.length() > 64) { // overflow guard (your original value)
+        packetStarted  = false;
+        incomingBuffer = "";
+      }
+    }
+  }
+
+  // ── Serial monitor passthrough (kept from your original) ──
+  if (Serial.available()) {
+    String msg = Serial.readStringUntil('\n');
+    msg.trim();
+    if (msg.length() > 0) {
+      HC12.println(msg);
+      Serial.print("[SENT BACK] ");
+      Serial.println(msg);
     }
   }
 }

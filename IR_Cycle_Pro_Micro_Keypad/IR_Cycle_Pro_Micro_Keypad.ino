@@ -27,7 +27,7 @@ if (currentState != lastInputState) {
     Serial.print(timeDifference);
     Serial.println(" ms");
     
-    // Increment state change count
+    //3333333333 Increment state change count1111111111111122222222244444444444444444
     stateChangeCount++;
     
     // Send the number '8' as a keystroke
@@ -35,9 +35,9 @@ if (currentState != lastInputState) {
     // Check if 5 state changes have occurred
     if (stateChangeCount % 2 == 0) {
       Serial.println("5 state changes detected!");
-      Keyboard.print('2');
+      Keyboard.print('4');
     delay(5);
-    Keyboard.release('2');
+    Keyboard.release('4');
     }
     
     // Update the last state and last change time
@@ -45,7 +45,7 @@ if (currentState != lastInputState) {
     lastChangeTime = currentTime;
   }
 
-  delay(10); // Debounce delay (adjust if needed)
+  delay(10); // Debounce delay (adjust if needed)222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222
 }
 
 void onInputChange(int newState) {

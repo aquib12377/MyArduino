@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "ESP32 Button Bridge",
+  "version": "1.0",
+  "description": "Listens for ESP32 commands and clicks page buttons",
+  "permissions": ["activeTab", "scripting"],
+  "host_permissions": ["<all_urls>"],
+  "content_scripts": [{
+    "matches": ["<all_urls>"],
+    "js": ["content.js"]
+  }]
+}

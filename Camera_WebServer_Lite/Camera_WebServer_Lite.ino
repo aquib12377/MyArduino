@@ -5,7 +5,7 @@
 
 /*********** WIFI CONFIG – CHANGE THIS ***********/
 const char* WIFI_SSID = "AAA";
-const char* WIFI_PASS = "Acube123";
+const char* WIFI_PASS = "Acube@123";
 
 /*********** CAMERA PINS – AI THINKER ***********/
 #define PWDN_GPIO_NUM     32
