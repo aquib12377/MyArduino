@@ -1,0 +1,1491 @@
+#include "AVRStepperPins.h"
+#include "FastAccelStepper.h"
+#include "test_seq.h"
+
+#ifdef SIM_TEST_INPUT
+#include <avr/sleep.h>
+#endif
+#if defined(ARDUINO_ARCH_ESP32) || defined(ESP_PLATFORM)
+#include <esp_task_wdt.h>
+#include <esp_log.h>
+#endif
+
+#define VERSION "post-4f2e1e4"
+
+#include "StepperConfig.h"
+#if defined(ARDUINO_ARCH_AVR)
+#include "StepperPins_avr.h"
+#elif defined(ARDUINO_ARCH_ESP32) || defined(ESP_PLATFORM)
+#if defined(CONFIG_IDF_TARGET_ESP32C3)
+#include "StepperPins_esp32C3.h"
+#elif defined(CONFIG_IDF_TARGET_ESP32C6)
+#include "StepperPins_esp32C6.h"
+#else
+#include "StepperPins_esp32.h"
+#endif
+#elif defined(ARDUINO_ARCH_SAM)
+#include "StepperPins_sam.h"
+#elif defined(ARDUINO_ARCH_SAMD)
+#include "StepperPins_samd.h"
+#elif defined(PICO_RP2040) || defined(PICO_RP2350)
+#include "StepperPins_pico.h"
+#endif
+
+FastAccelStepperEngine engine = FastAccelStepperEngine();
+FastAccelStepper* steppers[MAX_STEPPER];
+const struct stepper_config_s* active_stepper_config = NULL;
+
+enum { normal, test, config } mode = normal;
+bool test_ongoing = false;
+struct test_seq_s test_seq[MAX_STEPPER];
+
+// Forward declaration
+void usage();
+void output_info(bool only_running);
+
+#define _NL_ "\n"
+#define _SEP_ "|"
+#define _SEP_CHAR_ '|'
+
+// clang-format off
+const static char messages[] PROGMEM =
+#define _Move_ "\200"
+    "Move " _SEP_
+#define _Output_driver_ "\201"
+    "Output driver " _SEP_
+#define _Cannot_set_ "\202"
+    "Cannot set " _SEP_
+#define _pin_ "\203"
+    "pin " _SEP_
+#define _step "\204"
+    "step" _SEP_
+#define _to_ "\205"
+    "to " _SEP_
+#define _LOW_ "\206"
+    "LOW " _SEP_
+#define _HIGH_ "\207"
+    "HIGH " _SEP_
+#define _to_LOW_nl "\210"
+     _to_  _LOW_ _NL_ _SEP_
+#define _to_HIGH_nl "\211"
+     _to_  _HIGH_ _NL_ _SEP_
+#define _Toggle_ "\212"
+    "Toggle " _SEP_
+#define _ERROR_ "\213"
+    "ERROR " _SEP_
+#define _high_counts_ "\214"
+    "high counts " _SEP_
+#define _enable_ "\215"
+    "enable " _SEP_
+#define _disable "\216"
+    "disable" _SEP_
+#define _direction_ "\217"
+    "direction " _SEP_
+#define _pulse_counter_ "\220"
+    "pulse counter " _SEP_
+#define _attach "\221"
+    "attach" _SEP_
+#define _set_ "\222"
+    "set " _SEP_
+#define _time_to_ "\223"
+    "time" _to_ _SEP_
+#define _is_not_defined_nl "\224"
+    "is not defined" _NL_ _SEP_
+#define _run_ "\225"
+    "run " _SEP_
+#define _forward "\226"
+    "forward" _SEP_
+#define _backward "\227"
+    "backward" _SEP_
+#define _Stepped_ "\230"
+    "Stepped " _SEP_
+#define _acceleration_ "\231"
+    "acceleration " _SEP_
+#define _speed_ "\232"
+    "speed " _SEP_
+#define _test_ "\233"
+    "test " _SEP_
+#define _erroneous_ "\234"
+    "erroneous " _SEP_
+#define _digitalRead_ "\235"
+    "digitalRead() " _SEP_
+#define ____ "\236"
+    "    " _SEP_
+#define ________ "\237"
+	____ ____  _SEP_
+#define _ooo_ "\240"
+    " ... " _SEP_
+#define _Enter_ "\241"
+    "Enter " _SEP_
+#define _mode "\242"
+    "mode" _SEP_
+#define _clear_ "\243"
+    "clear " _SEP_
+#define _stepper "\244"
+    _step "per" _SEP_
+#define _select "\245"
+    "select" _SEP_
+#define _selected_stepper "\246"
+    _select "ed " _stepper _SEP_
+#define _usage_ "\247"
+    "usage " _SEP_
+#define _steps_ "\250"
+    _step "s " _SEP_
+#define _output_ "\251"
+    " output " _SEP_
+#define _test_sequence_ "\252"
+    _test_ "sequence " _SEP_
+#define _Perform_ "\253"
+    "Perform " _SEP_
+#define _configuration_ "\254"
+    "configuration " _SEP_
+#define _delay_ "\255"
+    "delay " _SEP_
+#define _step_pin_ "\256"
+    _step " " _pin_ _SEP_
+#define _one_step_ "\257"
+    "one " _step " " _SEP_
+#define _position_ "\260"
+    "position " _SEP_
+#define __of_the_ "\261"
+    " of the " _SEP_
+#define _Turn_ "\262"
+    "Turn " _SEP_
+#define _stop "\263"
+    "stop"  _SEP_
+#define _from_ "\264"
+    "from "  _SEP_
+#define _comma__counting_ "\265"
+    ", counting "  _SEP_
+#define __disable_auto_enable_nl "\266"
+    " " _disable " auto " _enable_ _NL_ _SEP_
+#define _ooo_set_selected_stepper_s_ "\267"
+   _ooo_ _set_ _selected_stepper "'s " _SEP_
+#define _m1_m2_to_select_stepper_ "\270"
+    ____ "M1/M2/.. " _ooo_ _to_ _select " " _stepper _NL_ _SEP_
+#define _print_this_usage_ "\271"
+    ____ "?" ________ _ooo_ "Print this usage" _NL_ _NL_ _SEP_
+#define _toggle_print_usage_after_stepper_stop "\272"
+    ____ "Q" ________ _ooo_ _Toggle_ "print " _usage_ "on " _stepper " " _stop _NL_ _SEP_
+#define _I_speed_I_ "\273"
+    "<speed> "  _SEP_
+#define _I_accel_I_ "\274"
+    "<accel> "  _SEP_
+#define _Enter_command_separated_by_space_carriage_return_or_newline_NL "\275"
+    _Enter_ "commands separated by space, carriage return or newline:" _NL_ _SEP_
+#define MSG_OFFSET 62
+#define MSG_SELECT_STEPPER 0+MSG_OFFSET
+    "Select " _stepper " " _SEP_
+#define MSG_TOGGLE_MOTOR_INFO 1+MSG_OFFSET
+    _Toggle_ _stepper " info" _NL_ _SEP_
+#define MSG_TOGGLE_USAGE_INFO 2+MSG_OFFSET
+    _Toggle_  _usage_ "info" _NL_ _SEP_
+#define MSG_ENTER_TEST_MODE 3+MSG_OFFSET
+    _Enter_ _test_ _mode _NL_ _SEP_
+#define MSG_SET_ACCELERATION_TO 4+MSG_OFFSET
+    _set_ _acceleration_ _to_ _SEP_
+#define MSG_SET_SPEED_TO_US 5+MSG_OFFSET
+    _set_ _speed_ "(us/" _step ") " _to_ _SEP_
+#define MSG_MOVE_STEPS 6+MSG_OFFSET
+    _Move_ _steps_ _SEP_
+#define MSG_MOVE_TO_POSITION 7+MSG_OFFSET
+    _Move_ _to_ _position_ _SEP_
+#define MSG_RETURN_CODE 8+MSG_OFFSET
+    "returncode = " _SEP_
+#define MSG_SET_POSITION 9+MSG_OFFSET
+    _set_ _position_ _SEP_
+#define MSG_SET_ENABLE_TIME 10+MSG_OFFSET
+    _set_ _enable_ _time_to_ _SEP_
+#define MSG_SET_DISABLE_TIME 11+MSG_OFFSET
+    _set_ _disable " " _time_to_ _SEP_
+#define MSG_OUTPUT_DRIVER_ON 12+MSG_OFFSET
+    _Output_driver_ "on" _NL_ _SEP_
+#define MSG_OUTPUT_DRIVER_OFF 13+MSG_OFFSET
+    _Output_driver_ "off" _NL_ _SEP_
+#define MSG_OUTPUT_DRIVER_AUTO 14+MSG_OFFSET
+    _Output_driver_ "automatic " _mode _NL_ _SEP_
+#define MSG_STOP 15+MSG_OFFSET
+    _stop _NL_ _SEP_
+#define MSG_KEEP_RUNNING 16+MSG_OFFSET
+    "Keep running" _NL_ _SEP_
+#define MSG_RUN_FORWARD 17+MSG_OFFSET
+    _run_ _forward _NL_ _SEP_
+#define MSG_RUN_BACKWARD 18+MSG_OFFSET
+    _run_ _backward _NL_ _SEP_
+#define MSG_IMMEDIATE_STOP 19+MSG_OFFSET
+    "immediate " _stop _NL_ _SEP_
+#define MSG_UPDATE_SPEED_ACCELERATION 20+MSG_OFFSET
+    "Update " _speed_ " / " _acceleration_ _NL_ _SEP_
+#define MSG_BLOCKING_WAIT 21+MSG_OFFSET
+    "Blocking wait for running " _stepper " " _to_ _stop _NL_ _SEP_
+#define MSG_TEST_DIRECT_DRIVE 22+MSG_OFFSET
+    _test_ "direct drive" _NL_ _SEP_
+#define MSG_STEPPED_FORWARD 23+MSG_OFFSET
+    _Stepped_ _forward _NL_ _SEP_
+#define MSG_STEPPED_BACKWARD 24+MSG_OFFSET
+    _Stepped_ _backward _NL_ _SEP_
+#define MSG_WAIT_MS 25+MSG_OFFSET
+    " ms wait" _NL_ _SEP_
+#define MSG_SELECT_TEST_SEQUENCE 26+MSG_OFFSET
+    "Select " _test_ "sequence: " _SEP_
+#define MSG_EXIT_TO_MAIN_MENU 27+MSG_OFFSET
+    "Exit " _to_ "main menu" _NL_ _SEP_
+#define MSG_RUN_TESTS 28+MSG_OFFSET
+    _run_ _test_ _NL_ _SEP_
+#define MSG_WAIT_COMPLETE 29+MSG_OFFSET
+    "Wait complete" _NL_ _SEP_
+#define MSG_FAILED_STATUS 30+MSG_OFFSET
+    "Failed status " _from_ _test_ _NL_ _SEP_
+#define MSG_ENABLE_LOW_PIN_IS_NOT_LOW 31+MSG_OFFSET
+    _Cannot_set_ _enable_  _LOW_  _pin_ _to_LOW_nl _SEP_
+#define MSG_ENABLE_LOW_PIN_IS_NOT_HIGH 32+MSG_OFFSET
+    _Cannot_set_ _enable_  _LOW_  _pin_ _to_HIGH_nl _SEP_
+#define MSG_ENABLE_HIGH_PIN_IS_NOT_LOW 33+MSG_OFFSET
+    _Cannot_set_ _enable_  _HIGH_  _pin_ _to_LOW_nl _SEP_
+#define MSG_ENABLE_HIGH_PIN_IS_NOT_HIGH 34+MSG_OFFSET
+    _Cannot_set_ _enable_  _HIGH_  _pin_ _to_HIGH_nl _SEP_
+#define MSG_STEP_PIN_IS_NOT_LOW 35+MSG_OFFSET
+    _Cannot_set_ _step_pin_ _to_LOW_nl _SEP_
+#define MSG_STEP_PIN_IS_NOT_HIGH 36+MSG_OFFSET
+    _Cannot_set_ _step_pin_ _to_HIGH_nl _SEP_
+#define MSG_CANNOT_SET_DIRECTION_PIN 37+MSG_OFFSET
+    _Cannot_set_ _direction_ _pin_ _to_ _SEP_
+#define MSG_STEPPER_VERSION 38+MSG_OFFSET
+    "StepperDemo Version " VERSION
+    _NL_ _SEP_
+#define MSG_ATTACH_PULSE_COUNTER 39+MSG_OFFSET
+    _attach " " _pulse_counter_ _SEP_
+#define MSG_ERROR_ATTACH_PULSE_COUNTER 40+MSG_OFFSET
+    _ERROR_ _attach "ing "  _pulse_counter_ _NL_ _SEP_
+#define MSG_ERROR_INVALID_VALUE 41+MSG_OFFSET
+    _ERROR_ "invalid value" _NL_ _SEP_
+#define MSG_ERROR_MOVE_ERR_ACCELERATION_IS_UNDEFINED__MINUS_3 42+MSG_OFFSET
+    _ERROR_ _acceleration_ _is_not_defined_nl _SEP_
+#define MSG_ERROR_MOVE_ERR_SPEED_IS_UNDEFINED__MINUS_2 43+MSG_OFFSET
+    _ERROR_ _speed_ _is_not_defined_nl _SEP_
+#define MSG_ERROR_MOVE_ERR_NO_DIRECTION_PIN__MINUS_1 44+MSG_OFFSET
+    _ERROR_ "no " _direction_  _pin_ "=> impossible move" _NL_ _SEP_
+#define MSG_MOVE_OK 45+MSG_OFFSET
+    "OK" _NL_ _SEP_
+#define MSG_STRAY_DIGITAL_READ_TOGGLE 46+MSG_OFFSET
+    _Toggle_ _erroneous_ _digitalRead_ _to_ _step_pin_ _NL_ _SEP_
+#define MSG_STRAY_DIGITAL_READ_ENABLED 47+MSG_OFFSET
+    _erroneous_ _digitalRead_ _to_ _step_pin_ "IS ON !!!" _NL_ _SEP_
+#define MSG_LONG_INTERRUPT_BLOCK_TOGGLE 48+MSG_OFFSET
+    _Toggle_ _erroneous_ "100 µs ISR block" _NL_ _SEP_
+#define MSG_LONG_INTERRUPT_BLOCK_ENABLED 49+MSG_OFFSET
+    _erroneous_ "100 µs ISR BLOCK IS ON" _NL_ _SEP_
+#define MSG_SET_UNIDIRECTIONAL_STEPPER 50+MSG_OFFSET
+    _set_ "unidirectional " _stepper _NL_ _SEP_
+#define MSG_CLEAR_PULSE_COUNTER 51+MSG_OFFSET
+    _clear_ _pulse_counter_ _NL_ _SEP_
+#define MSG_SET_SPEED_TO_HZ 52+MSG_OFFSET
+    _set_ _speed_ "(" _steps_ "/s) " _to_ _SEP_
+#define MSG_PASS_STATUS 53+MSG_OFFSET
+    _test_ "passed" _NL_ _SEP_
+#define MSG_TEST_COMPLETED 54+MSG_OFFSET
+    _test_ "completed" _NL_ _SEP_
+#define MSG_ENTER_CONFIG_MODE 55+MSG_OFFSET
+    _Enter_ "config " _mode _NL_ _SEP_
+#define MSG_DIRECTION_PIN 56+MSG_OFFSET
+    _direction_ _pin_ _SEP_
+#define MSG_SET_TO_PIN 57+MSG_OFFSET
+    _set_  _to_  _pin_ _SEP_
+#define MSG_DISABLED 58+MSG_OFFSET
+    _disable "d" _NL_ _SEP_
+#define MSG_HIGH_COUNT_UP 59+MSG_OFFSET
+    _high_counts_ "up" _SEP_
+#define MSG_HIGH_COUNT_DOWN 60+MSG_OFFSET
+    _high_counts_ "down" _SEP_
+#define MSG_DELAY 61+MSG_OFFSET
+    _delay_ "in us = " _SEP_
+#define MSG_UNKNOWN_COMMAND 62 + MSG_OFFSET
+    "Unknown command: " _SEP_
+#define MSG_SET_SPEED_TO_MILLI_HZ 63+MSG_OFFSET
+    _set_ _speed_ "(" _steps_ "/1000s) " _to_ _SEP_
+#define MSG_ACCELERATION_STATUS 64+MSG_OFFSET
+     " " _acceleration_ " [" _step "s/s^2]=" _SEP_
+#define MSG_SPEED_STATUS_FREQ 65+MSG_OFFSET
+     " " _speed_ "[m" _step "/s]=" _SEP_
+#define MSG_SPEED_STATUS_TIME 66+MSG_OFFSET
+     " " _speed_ "[us/" _step "]=" _SEP_
+#define MSG_LINEAR_ACCELERATION 67+MSG_OFFSET
+     "linear " _acceleration_ _step "s=" _SEP_
+#define MSG_JUMP_START 68+MSG_OFFSET
+     "jump start " _step "s=" _SEP_
+#define MSG_USAGE_NORMAL 69+MSG_OFFSET
+#define MSG_USAGE_TEST 70+MSG_OFFSET
+#define MSG_USAGE_CONFIG 71+MSG_OFFSET
+#if MSG_USAGE_CONFIG >= 128+32
+#error "TOO MANY ENTRIES"
+#endif
+    /* USAGE NORMAL */
+    _Enter_command_separated_by_space_carriage_return_or_newline_NL
+	_m1_m2_to_select_stepper_
+    ____ "c" ________ _ooo_ _Enter_ _configuration_ _mode _NL_
+    ____ "V" _I_speed_I_  _ooo_set_selected_stepper_s_ _speed_ "in us/" _step _NL_
+    ____ "H" _I_speed_I_  _ooo_set_selected_stepper_s_ _speed_ "in " _steps_ "/s" _NL_
+    ____ "h" _I_speed_I_  _ooo_set_selected_stepper_s_ _speed_ "in " _steps_ "/1000s" _NL_
+    ____ "A" _I_accel_I_  _ooo_set_selected_stepper_s_ _acceleration_ _NL_
+    ____ "a" _I_accel_I_  _ooo_ _acceleration_ "control with +/-" _acceleration_ "values" _NL_
+    ____ "J<" _step "s> " _ooo_set_selected_stepper_s_ "linear " _acceleration_  " for <" _step "s>" _NL_
+    ____ "j<" _step "s> " _ooo_set_selected_stepper_s_ "jump start to <" _step "s>" _NL_
+    ____ "U" ________ _ooo_ "Update " _selected_stepper "'s " _speed_ "/ " _acceleration_ "while "
+    "running" _NL_
+    ____ "P<pos>   " _ooo_ _Move_ _selected_stepper " " _to_ "+/- " _position_ _NL_
+    ____ "R<n> " ____ _ooo_ _Move_ _selected_stepper " by +/- n " _steps_ _NL_
+    ____ "f" ________ _ooo_ _run_ _forward _comma__counting_ "up" _NL_
+    ____ "b" ________ _ooo_ _run_ _backward _comma__counting_ "down" _NL_
+    ____ "K" ________ _ooo_ "Keep " _selected_stepper " running in current " _direction_ _NL_
+    ____ "@<pos>   " _ooo_ _set_ _selected_stepper " " _to_ _position_ "(can be "
+    "negative)" _NL_
+    ____ "E<us>" ____ _ooo_set_selected_stepper_s_ _delay_ _from_ _enable_ _to_ _steps_ _NL_
+    ____ "D<ms>" ____ _ooo_set_selected_stepper_s_ _delay_ _from_ _steps_ _to_ _disable _NL_
+    ____ "N" ________ _ooo_ _Turn_ _selected_stepper _output_ "on, " __disable_auto_enable_nl
+    ____ "F" ________ _ooo_ _Turn_ _selected_stepper _output_ "off," __disable_auto_enable_nl
+    ____ "O" ________ _ooo_ "Put " _selected_stepper " into auto " _enable_ _mode _NL_
+    ____ "S" ________ _ooo_ _stop " " _selected_stepper " with deceleration" _NL_
+    ____ "X" ________ _ooo_ "Immediately " _stop " " _stepper " and " _set_ "zero position" _NL_
+    ____ "I" ________ _ooo_ _Toggle_ _stepper " info, while any " _stepper " is running" _NL_
+#if !defined(__AVR_ATmega32U4__)
+    ____ "W" ________ _ooo_ "Blocking wait until " _selected_stepper " is " _stop "ped, will "
+    "deadlock if " _stepper " never " _stop "s" _NL_
+    ____ "w<ms>" ____ _ooo_ "Wait time in ms" _NL_
+    ____ "+" ________ _ooo_ _Perform_ _one_step_ _forward __of_the_ _selected_stepper _NL_
+    ____ "-" ________ _ooo_ _Perform_ _one_step_ _backward __of_the_ _selected_stepper _NL_
+    ____ "T" ________ _ooo_ _test_  _select "ed " _stepper " with direct port access" _NL_
+#endif
+#if defined(ARDUINO_ARCH_ESP32)
+    ____ "r" ________ _ooo_ "Call ESP.restart()" _NL_
+    ____ "reset" ____ _ooo_ _Perform_ "reset" _NL_
+    ____ "p<n> " ____ _ooo_ _attach " " _pulse_counter_ "n<=7" _NL_
+    ____ "p<n>,l,h " _ooo_ _attach " " _pulse_counter_ "n<=7 with low,high limits" _NL_
+    ____ "pi<n>" ____ _ooo_ "like p with inverted step pulse" _NL_
+    ____ "pi<n>,l,h" _NL_
+    ____ "pc   " ____ _ooo_ _clear_ _pulse_counter_ _NL_
+#endif
+#if !defined(__AVR_ATmega32U4__)
+    ____ "t" ________ _ooo_ _Enter_ _test_ _mode _NL_
+    ____ "u" ________ _ooo_ "Unidirectional " _mode " (need reset " _to_ "restore)" _NL_
+#endif
+#if defined(ARDUINO_ARCH_AVR)
+    ____ "r" ________ _ooo_ _Toggle_ _erroneous_ _digitalRead_ __of_the_ _stepper " pin" _NL_
+#endif
+    ____ "e" ________ _ooo_ _Toggle_ _erroneous_ "long 100us interrupt block" _NL_
+    _toggle_print_usage_after_stepper_stop
+	_print_this_usage_
+    _SEP_
+
+
+    /* USAGE TEST */
+#if !defined(SIM_TEST_INPUT) && !defined(__AVR_ATmega32U4__)
+    _Enter_command_separated_by_space_carriage_return_or_newline_NL
+	_m1_m2_to_select_stepper_
+    ____ "R" ________ _ooo_ "start all " _select "ed tests" _NL_
+    ____ "I" ________ _ooo_ _Toggle_ _stepper " info, while " _test_sequence_ "is running" _NL_
+    ____ "01   " ____ _ooo_ _select " " _test_sequence_ "01 for " _selected_stepper _NL_
+    ____ ":" _NL_
+    ____ "14   " ____ _ooo_ _select " " _test_sequence_ "14 for " _selected_stepper _NL_
+    ____ "W" ________ _ooo_ "Blocking wait until test is finished" _NL_
+    ____ "x" ________ _ooo_ "Exit test mode" _NL_
+    _toggle_print_usage_after_stepper_stop
+	_print_this_usage_
+#endif
+    _SEP_
+
+
+    /* USAGE CONFIG */
+#if !defined(SIM_TEST_INPUT) && !defined(__AVR_ATmega32U4__)
+    _Enter_command_separated_by_space_carriage_return_or_newline_NL
+	_m1_m2_to_select_stepper_
+    ____ "d<p> " ____ _ooo_ _set_ _direction_ _pin_ _NL_
+    ____ "d<p,n>" _NL_
+    ____ "d<p,n,t>" _NL_
+    ________ ________ ________ "p" _ooo_ _pin_ "number" _NL_
+    ________ ________ ________ "n" _ooo_ "1: " _high_counts_ "up 0: " _high_counts_ "down" _NL_
+    ________ ________ ________ "t" _ooo_ _delay_ _from_ "dir change " _to_ "step in us, 0 means "
+    "off" _NL_
+    ____ "dc   " ____ _ooo_ _clear_ _direction_ _pin_ "(unidirectional)" _NL_
+    ____ "x" ________ _ooo_ "Exit " _configuration_ _mode _NL_
+	_print_this_usage_
+#endif
+    _SEP_
+;
+// clang-format on
+
+// The preprocessor for .ino is buggy
+#include "generic.h"
+
+void output_msg(uint8_t x) {
+  char ch;
+  MSG_TYPE p = messages;
+  while (x > 0) {
+    ch = get_char(p);
+    p++;
+    if (ch == _SEP_CHAR_) {
+      x--;
+    }
+  }
+  for (;;) {
+    ch = get_char(p);
+    p++;
+    if (ch == _SEP_CHAR_) {
+      break;
+    }
+    uint8_t y = (uint8_t)(ch ^ 0x80);
+    if (y <= MSG_USAGE_CONFIG) {
+      output_msg(y);
+    } else {
+      PRINTCH(ch);
+    }
+  }
+}
+
+#if !defined(__AVR_ATmega32U4__)
+void delay10us() { DELAY_US(10); }
+void do3200Steps(uint8_t step) {
+  for (uint16_t i = 0; i < 3200; i++) {
+    digitalWrite(step, HIGH);
+    delay10us();
+    if (digitalRead(step) != HIGH) {
+      output_msg(MSG_STEP_PIN_IS_NOT_HIGH);
+    }
+    digitalWrite(step, LOW);
+    DELAY_US(190);
+    if (digitalRead(step) != LOW) {
+      output_msg(MSG_STEP_PIN_IS_NOT_LOW);
+    }
+  }
+}
+void setDirectionPin(uint8_t direction, bool polarity) {
+  // Pico resets the I/O-Port on pinMode(pin, OUTPUT)... feature ?
+  // so we move it to test_direct_drive
+  if (direction != PIN_UNDEFINED) {
+    digitalWrite(direction, polarity);
+    delay10us();
+    if (digitalRead(direction) != polarity) {
+      output_msg(MSG_CANNOT_SET_DIRECTION_PIN);
+      PRINTLN(polarity ? "HIGH" : "LOW");
+    }
+  }
+}
+void test_direct_drive(const struct stepper_config_s* stepper) {
+  // Check stepper motor+driver is operational
+  // This is not done via FastAccelStepper-Library for test purpose only
+  uint8_t step = stepper->step;
+  uint8_t enableLow = stepper->enable_low_active;
+  uint8_t enableHigh = stepper->enable_high_active;
+  uint8_t direction = stepper->direction;
+  bool direction_high_count_up = stepper->direction_high_count_up;
+
+  pinMode(step, OUTPUT);
+
+  if (enableLow != PIN_UNDEFINED) {
+    digitalWrite(enableLow, LOW);
+    pinMode(enableLow, OUTPUT);
+    delay10us();
+    if (digitalRead(enableLow) != LOW) {
+      output_msg(MSG_ENABLE_LOW_PIN_IS_NOT_LOW);
+    }
+  }
+  if (enableHigh != PIN_UNDEFINED) {
+    digitalWrite(enableHigh, HIGH);
+    pinMode(enableHigh, OUTPUT);
+    delay10us();
+    if (digitalRead(enableHigh) != HIGH) {
+      output_msg(MSG_ENABLE_HIGH_PIN_IS_NOT_HIGH);
+    }
+  }
+  if (direction != PIN_UNDEFINED) {
+    pinMode(direction, OUTPUT);
+    setDirectionPin(direction, direction_high_count_up);
+    do3200Steps(step);
+    setDirectionPin(direction, !direction_high_count_up);
+  }
+  do3200Steps(step);
+  if (enableLow != PIN_UNDEFINED) {
+    digitalWrite(enableLow, HIGH);
+    delay10us();
+    if (digitalRead(enableLow) != HIGH) {
+      output_msg(MSG_ENABLE_LOW_PIN_IS_NOT_HIGH);
+    }
+  }
+  if (enableHigh != PIN_UNDEFINED) {
+    digitalWrite(enableHigh, LOW);
+    delay10us();
+    if (digitalRead(enableHigh) != LOW) {
+      output_msg(MSG_ENABLE_HIGH_PIN_IS_NOT_LOW);
+    }
+  }
+  // Done
+}
+#endif
+
+void setup() {
+  PRINT_INIT();
+#if defined(ARDUINO_ARCH_ESP32) || defined(ESP_PLATFORM) || \
+    defined(PICO_RP2040) || defined(PICO_RP2350)
+  PRINTLN("Select pin configuration:");
+  for (uint8_t i = 0; i < NUM_CONFIGS; i++) {
+    PRINT("  ");
+    PRINTU8(i);
+    PRINT(": ");
+    PRINTLN(stepper_configs[i].name);
+  }
+  PRINTLN("Press number to select, else 0");
+  uint8_t selected_config = 0;
+  uint32_t start = MILLIS();
+  while (MILLIS() - start < 5000) {
+    char ch = 0;
+    POLL_CHAR_IF_ANY(ch);
+    if (ch >= '0' && ch <= '9') {
+      uint8_t n = ch - '0';
+      if (n < NUM_CONFIGS) {
+        selected_config = n;
+      }
+      break;
+    }
+#if defined(ESP_PLATFORM) && !defined(ARDUINO_ARCH_ESP32)
+    DELAY_MS(10);
+    esp_task_wdt_reset();
+#else
+    delay(10);
+#endif
+  }
+  active_stepper_config = stepper_configs[selected_config].config;
+  PRINT("Using config ");
+  PRINTU8(selected_config);
+  PRINT(": ");
+  PRINTLN(stepper_configs[selected_config].name);
+#else
+  active_stepper_config = stepper_config;
+#endif
+#if defined(ARDUINO_ARCH_ESP32)
+  printf("LOG start\n");
+  esp_log_level_set("*", ESP_LOG_INFO);
+  esp_log_level_set("rmt", ESP_LOG_INFO);
+  ESP_LOGI("StepperDemo", "Started INFO");
+  PRINTLN("");
+#endif
+#if defined(ARDUINO_ARCH_ESP32) || defined(ESP_PLATFORM)
+  PRINT("ESP-IDF: ");
+  PRINTI16((int16_t)ESP_IDF_VERSION_MAJOR);
+  PRINTCH('.');
+  PRINTI16((int16_t)ESP_IDF_VERSION_MINOR);
+  PRINTLN("");
+#endif
+
+#ifndef __AVR_ATmega32U4__
+  for (uint8_t i = 0; i < MAX_STEPPER; i++) {
+    test_seq[i].test = NULL;
+  }
+#endif
+
+  output_msg(MSG_STEPPER_VERSION);
+#ifdef F_CPU
+  PRINT("    F_CPU=");
+  PRINTU32(F_CPU);
+  PRINTLN("");
+#endif
+  PRINT("    TICKS_PER_S=");
+  PRINTU32((uint32_t)TICKS_PER_S);
+  PRINTLN("");
+  PRINT("    Steppers=");
+  PRINTU8(MAX_STEPPER);
+  PRINTLN("");
+
+  // If you are not sure, that the stepper hardware is working,
+  // then try first direct port manipulation and uncomment the next line.
+  // Alternatively use e.g. M1 T by serial command
+  // test_direct_drive(&active_stepper_config[0]);
+
+  // delay(10000);
+  engine.init();
+
+  if (led_pin != PIN_UNDEFINED) {
+    engine.setDebugLed(led_pin);
+  }
+
+  for (uint8_t i = 0; i < MAX_STEPPER; i++) {
+    FastAccelStepper* s = NULL;
+    const struct stepper_config_s* config = &active_stepper_config[i];
+    if (config->step != PIN_UNDEFINED) {
+#if defined(SUPPORT_SELECT_DRIVER_TYPE)
+      s = engine.stepperConnectToPin(config->step, config->driver_type);
+#else
+      s = engine.stepperConnectToPin(config->step);
+#endif
+      if (s) {
+        s->setDirectionPin(config->direction, config->direction_high_count_up,
+                           config->dir_change_delay);
+        s->setEnablePin(config->enable_low_active, true);
+        s->setEnablePin(config->enable_high_active, false);
+        s->setAutoEnable(config->auto_enable);
+        s->setDelayToEnable(config->on_delay_us);
+        s->setDelayToDisable(config->off_delay_ms);
+      } else {
+        break;
+      }
+    } else {
+      break;
+    }
+    steppers[i] = s;
+  }
+
+  usage();
+}
+
+#ifdef SIM_TEST_INPUT
+const char* input = SIM_TEST_INPUT
+    " ";  // final space is too easy forgotten in platformio.ini test
+#else
+const char* input = NULL;
+#endif
+uint8_t write_ptr = 0;
+uint8_t read_ptr = 0;
+char in_buffer[256];  // This allows to let in/out_ptr wrap around
+uint8_t out_ptr = 0;
+char out_buffer[256];
+bool stopped = true;
+bool verbose = true;
+bool usage_info = true;
+bool speed_in_milli_hz = false;
+uint32_t last_time = 0;
+int16_t selected = 0;
+uint32_t pause_ms = 0;
+uint32_t pause_start = 0;
+#if defined(ARDUINO_ARCH_AVR)
+bool simulate_digitalRead_error = false;
+#endif
+bool simulate_blocked_ISR = false;
+
+void info(FastAccelStepper* s, bool long_info) {
+  PRINTCH('@');
+#if defined(SUPPORT_ESP32_PULSE_COUNTER)
+  if (s->pulseCounterAttached()) {
+    int16_t pcnt_pos_1 = s->readPulseCounter();
+    int32_t pos = s->getCurrentPosition();
+    int16_t pcnt_pos_2 = s->readPulseCounter();
+    PRINTI32(pos);
+    PRINT(" [");
+    PRINTI16(pcnt_pos_1);
+    PRINTCH(']');
+    if (pcnt_pos_1 != pcnt_pos_2) {
+      PRINT(" [");
+      PRINTI16(pcnt_pos_2);
+      PRINTCH(']');
+    }
+  } else {
+    int32_t pos = s->getCurrentPosition();
+    PRINTI32(pos);
+  }
+#else
+  int32_t pos = s->getCurrentPosition();
+  PRINTI32(pos);
+#endif
+  if (s->isRunning()) {
+    if (s->isRunningContinuously()) {
+      PRINT(" nonstop");
+    } else {
+      PRINT(" => ");
+      PRINTI32(s->targetPos());
+    }
+    PRINT(" QueueEnd=");
+    PRINTI32(s->getPositionAfterCommandsCompleted());
+    PRINT(" v=");
+    if (speed_in_milli_hz) {
+      PRINTI32(s->getCurrentSpeedInMilliHz());
+      PRINT("mSteps/s");
+    } else {
+      PRINTU32(s->getPeriodInUsAfterCommandsCompleted());
+      PRINT("us/");
+      PRINTU32(s->getPeriodInTicksAfterCommandsCompleted());
+      PRINT("ticks");
+    }
+    if (s->isRampGeneratorActive()) {
+      switch (s->rampState() & RAMP_STATE_MASK) {
+        case RAMP_STATE_IDLE:
+          PRINT(" IDLE ");
+          break;
+        case RAMP_STATE_ACCELERATE:
+          PRINT(" ACC  ");
+          break;
+        case RAMP_STATE_DECELERATE:
+          PRINT(" RED  ");  // Reduce
+          break;
+        case RAMP_STATE_COAST:
+          PRINT(" COAST");
+          break;
+        case RAMP_STATE_REVERSE:
+          PRINT(" REV  ");
+          break;
+        default:
+          PRINTU8(s->rampState());
+      }
+    } else {
+      PRINT(" MANU");
+    }
+  } else {
+    if (long_info) {
+      output_msg(MSG_ACCELERATION_STATUS);
+      PRINTU32(s->getAcceleration());
+      if (speed_in_milli_hz) {
+        output_msg(MSG_SPEED_STATUS_FREQ);
+        PRINTU32(s->getSpeedInMilliHz());
+      } else {
+        output_msg(MSG_SPEED_STATUS_TIME);
+        PRINTU32(s->getSpeedInUs());
+      }
+    }
+  }
+  PRINTCH(' ');
+}
+
+void stepper_info() {
+  output_info(false);
+  if (simulate_blocked_ISR) {
+    output_msg(MSG_LONG_INTERRUPT_BLOCK_ENABLED);
+  }
+#if defined(ARDUINO_ARCH_AVR)
+  if (simulate_digitalRead_error) {
+    output_msg(MSG_STRAY_DIGITAL_READ_ENABLED);
+  }
+#endif
+}
+
+void usage() {
+  switch (mode) {
+    case normal:
+      output_msg(MSG_USAGE_NORMAL);
+      break;
+    case test:
+      output_msg(MSG_USAGE_TEST);
+      break;
+    case config:
+      output_msg(MSG_USAGE_CONFIG);
+      break;
+  }
+  stepper_info();
+}
+
+void output_info(bool only_running) {
+  bool need_ln = false;
+  for (uint8_t i = 0; i < MAX_STEPPER; i++) {
+    if (steppers[i]) {
+      if (!only_running) {
+        if (i == selected) {
+          PRINT(">> ");
+        } else {
+          PRINT("   ");
+        }
+      }
+      if (!only_running || steppers[i]->isRunning()) {
+        PRINTCH('M');
+        PRINTU8(i + 1);
+        PRINT(": ");
+        info(steppers[i], !only_running);
+#if defined(SUPPORT_SELECT_DRIVER_TYPE)
+        if (!steppers[i]->isRunning()) {
+          PRINT(" ");
+          PRINT(steppers[i]->driverTypeString());
+        }
+#endif
+        if (!only_running) {
+          PRINTLN("");
+        } else {
+          need_ln = true;
+        }
+      }
+    }
+  }
+  if (need_ln) {
+    PRINTLN("");
+  }
+}
+
+#if defined(ARDUINO_ARCH_ESP32) || defined(ESP_PLATFORM)
+void esp_reset() {
+#if ESP_IDF_VERSION_MAJOR >= 5
+  const esp_task_wdt_config_t wdt_config = {
+      .timeout_ms = 1, .idle_core_mask = 1, .trigger_panic = true};
+
+  esp_task_wdt_reconfigure(&wdt_config);
+#else
+  esp_task_wdt_init(1, true);
+  esp_task_wdt_add(NULL);
+#endif
+  while (true) {
+  }
+}
+#endif
+
+#define MODE(mode, CMD) ((mode << 8) + CMD)
+
+int32_t val_n[3];
+int8_t get_val1_val2_val3(const char* cmd) {
+  char* endptr;
+  for (uint8_t i = 0; i < 3; i++) {
+    val_n[i] = strtol(cmd, &endptr, 10);
+    if (endptr == cmd) {
+      return -1;
+    }
+    cmd = endptr;
+    if (*cmd == 0) {
+      return i + 1;
+    }
+    if ((i < 2) && (*cmd++ != ',')) {
+      return -1;
+    }
+  }
+  return -1;
+}
+
+bool process_cmd(const char* cmd) {
+  FastAccelStepper* stepper_selected = steppers[selected];
+  uint16_t s = *cmd++;
+  char* endptr;
+  int8_t res;
+#if !defined(__AVR_ATmega32U4__)
+  int8_t gv;
+#endif
+  switch (MODE(mode, s)) {
+    case MODE(normal, 'M'):
+    case MODE(test, 'M'):
+    case MODE(config, 'M'):
+      if (get_val1_val2_val3(cmd) == 1) {
+        if ((val_n[0] > 0) && (val_n[0] <= (int32_t)MAX_STEPPER) &&
+            steppers[val_n[0] - 1] != NULL) {
+          output_msg(MSG_SELECT_STEPPER);
+          selected = val_n[0] - 1;
+          PRINTI16(selected + 1);
+          PRINTLN("");
+          return true;
+        }
+      }
+      break;
+    case MODE(normal, 'r'):
+#if defined(ARDUINO_ARCH_ESP32) || defined(ESP_PLATFORM)
+      if (strcmp(cmd, "eset") == 0) {
+        PRINTLN("ESP reset");
+        esp_reset();
+      }
+      if (*cmd == 0) {
+#if defined(ARDUINO_ARCH_ESP32)
+        PRINTLN("ESP restart");
+        ESP.restart();
+#else
+        esp_reset();
+#endif
+      }
+#endif
+#if defined(ARDUINO_ARCH_AVR)
+      if (*cmd == 0) {
+        output_msg(MSG_STRAY_DIGITAL_READ_TOGGLE);
+        simulate_digitalRead_error ^= true;
+        return true;
+      }
+#endif
+      break;
+    case MODE(normal, 'I'):
+    case MODE(test, 'I'):
+      if (*cmd == 0) {
+        output_msg(MSG_TOGGLE_MOTOR_INFO);
+        verbose = !verbose;
+        return true;
+      }
+      break;
+    case MODE(normal, 'Q'):
+    case MODE(test, 'Q'):
+      if (*cmd == 0) {
+        output_msg(MSG_TOGGLE_USAGE_INFO);
+        usage_info = !usage_info;
+        return true;
+      }
+      break;
+    case MODE(normal, '?'):
+    case MODE(test, '?'):
+    case MODE(config, '?'):
+      if (*cmd == 0) {
+        usage();
+        return true;
+      }
+      break;
+    case MODE(normal, 't'):
+      if (*cmd == 0) {
+        output_msg(MSG_ENTER_TEST_MODE);
+        mode = test;
+        usage();
+        return true;
+      }
+      break;
+    case MODE(normal, 'c'):
+      if (*cmd == 0) {
+        output_msg(MSG_ENTER_CONFIG_MODE);
+        mode = config;
+        usage();
+        return true;
+      }
+      break;
+    case MODE(normal, 'e'):
+      if (*cmd == 0) {
+        output_msg(MSG_LONG_INTERRUPT_BLOCK_TOGGLE);
+        simulate_blocked_ISR ^= true;
+        return true;
+      }
+      break;
+    case MODE(normal, 'A'):
+      val_n[0] = strtol(cmd, &endptr, 10);
+      if (*endptr == 0) {
+        output_msg(MSG_SET_ACCELERATION_TO);
+        PRINTI32(val_n[0]);
+        PRINTLN("");
+        res = stepper_selected->setAcceleration(val_n[0]);
+        if (res < 0) {
+          output_msg(MSG_ERROR_INVALID_VALUE);
+        }
+        return true;
+      }
+      break;
+    case MODE(normal, 'J'):
+      val_n[0] = strtol(cmd, &endptr, 10);
+      if (*endptr == 0) {
+        output_msg(MSG_LINEAR_ACCELERATION);
+        PRINTI32(val_n[0]);
+        PRINTLN("");
+        stepper_selected->setLinearAcceleration(val_n[0]);
+        return true;
+      }
+      break;
+    case MODE(normal, 'j'):
+      val_n[0] = strtol(cmd, &endptr, 10);
+      if (*endptr == 0) {
+        output_msg(MSG_JUMP_START);
+        PRINTI32(val_n[0]);
+        PRINTLN("");
+        stepper_selected->setJumpStart(val_n[0]);
+        return true;
+      }
+      break;
+    case MODE(normal, 'V'):
+      val_n[0] = strtol(cmd, &endptr, 10);
+      if (*endptr == 0) {
+        speed_in_milli_hz = false;
+        output_msg(MSG_SET_SPEED_TO_US);
+        PRINTI32(val_n[0]);
+        PRINTLN("");
+        res = stepper_selected->setSpeedInUs(val_n[0]);
+        if (res < 0) {
+          output_msg(MSG_ERROR_INVALID_VALUE);
+        }
+        return true;
+      }
+      break;
+    case MODE(normal, 'H'):
+      val_n[0] = strtol(cmd, &endptr, 10);
+      if (*endptr == 0) {
+        speed_in_milli_hz = true;
+        output_msg(MSG_SET_SPEED_TO_HZ);
+        PRINTI32(val_n[0]);
+        PRINTLN("");
+        res = stepper_selected->setSpeedInHz(val_n[0]);
+        if (res < 0) {
+          output_msg(MSG_ERROR_INVALID_VALUE);
+        }
+        return true;
+      }
+      break;
+    case MODE(normal, 'h'):
+      val_n[0] = strtol(cmd, &endptr, 10);
+      if (*endptr == 0) {
+        speed_in_milli_hz = true;
+        output_msg(MSG_SET_SPEED_TO_MILLI_HZ);
+        PRINTI32(val_n[0]);
+        PRINTLN("");
+        res = stepper_selected->setSpeedInMilliHz(val_n[0]);
+        if (res < 0) {
+          output_msg(MSG_ERROR_INVALID_VALUE);
+        }
+        return true;
+      }
+      break;
+    case MODE(normal, 'a'):
+      val_n[0] = strtol(cmd, &endptr, 10);
+      if (*endptr == 0) {
+        output_msg(MSG_SET_ACCELERATION_TO);
+        PRINTI32(val_n[0]);
+        PRINTLN("");
+        res =
+            static_cast<int8_t>(stepper_selected->moveByAcceleration(val_n[0]));
+        output_msg(MSG_MOVE_OK + res);
+        return true;
+      }
+      break;
+    case MODE(normal, 'R'):
+      val_n[0] = strtol(cmd, &endptr, 10);
+      if (*endptr == 0) {
+        output_msg(MSG_MOVE_STEPS);
+        PRINTI32(val_n[0]);
+        PRINTLN("");
+        res = static_cast<int8_t>(stepper_selected->move(val_n[0]));
+        output_msg(MSG_MOVE_OK + res);
+        return true;
+      }
+      break;
+    case MODE(normal, 'P'):
+      val_n[0] = strtol(cmd, &endptr, 10);
+      if (*endptr == 0) {
+        output_msg(MSG_MOVE_TO_POSITION);
+        PRINTI32(val_n[0]);
+        PRINTLN("");
+        res = static_cast<int8_t>(stepper_selected->moveTo(val_n[0]));
+        output_msg(MSG_MOVE_OK + res);
+        return true;
+      }
+      break;
+    case MODE(normal, '@'):
+      val_n[0] = strtol(cmd, &endptr, 10);
+      if (*endptr == 0) {
+        output_msg(MSG_SET_POSITION);
+        PRINTI32(val_n[0]);
+        PRINTLN("");
+        stepper_selected->setCurrentPosition(val_n[0]);
+        return true;
+      }
+      break;
+    case MODE(normal, 'E'):
+      val_n[0] = strtol(cmd, &endptr, 10);
+      if (*endptr == 0) {
+        output_msg(MSG_SET_ENABLE_TIME);
+        PRINTI32(val_n[0]);
+        PRINTLN("");
+        res = static_cast<int8_t>(stepper_selected->setDelayToEnable(val_n[0]));
+        output_msg(MSG_RETURN_CODE);
+        PRINTU8(res);
+        PRINTLN("");
+        return true;
+      }
+      break;
+    case MODE(normal, 'D'):
+      val_n[0] = strtol(cmd, &endptr, 10);
+      if (*endptr == 0) {
+        output_msg(MSG_SET_DISABLE_TIME);
+        PRINTI32(val_n[0]);
+        PRINTLN("");
+        stepper_selected->setDelayToDisable(val_n[0]);
+        return true;
+      }
+      break;
+    case MODE(normal, 'w'):
+      val_n[0] = strtol(cmd, &endptr, 10);
+      if (*endptr == 0) {
+        PRINTI32(val_n[0]);
+        output_msg(MSG_WAIT_MS);
+        pause_ms = val_n[0];
+        pause_start = MILLIS();
+        return true;
+      }
+      break;
+#if !defined(__AVR_ATmega32U4__)
+    case MODE(config, 'd'):
+      if (strcmp(cmd, "c") == 0) {
+        output_msg(MSG_DISABLED);
+        stepper_selected->setDirectionPin(PIN_UNDEFINED);
+        return true;
+      }
+      gv = get_val1_val2_val3(cmd);
+      switch (gv) {
+        case 1:
+          output_msg(MSG_DIRECTION_PIN);
+          output_msg(MSG_SET_TO_PIN);
+          PRINTI32(val_n[0]);
+          PRINTLN("");
+          stepper_selected->setDirectionPin(val_n[0]);
+          return true;
+        case 2:
+        case 3:
+          output_msg(MSG_DIRECTION_PIN);
+          output_msg(MSG_SET_TO_PIN);
+          PRINTI32(val_n[0]);
+          PRINTLN("");
+          output_msg(MSG_DIRECTION_PIN);
+          if (val_n[1] != 0) {
+            output_msg(MSG_HIGH_COUNT_DOWN);
+          } else {
+            output_msg(MSG_HIGH_COUNT_UP);
+          }
+          PRINTLN("");
+          if (gv == 2) {
+            stepper_selected->setDirectionPin(val_n[0], val_n[1]);
+          } else {
+            output_msg(MSG_DELAY);
+            PRINTI32(val_n[2]);
+            PRINTLN("");
+            stepper_selected->setDirectionPin(val_n[0], val_n[1], val_n[2]);
+          }
+          return true;
+        default:
+          break;
+      }
+      break;
+#endif
+    case MODE(normal, 'N'):
+      if (*cmd == 0) {
+        output_msg(MSG_OUTPUT_DRIVER_ON);
+        stepper_selected->setAutoEnable(false);
+        stepper_selected->enableOutputs();
+        return true;
+      }
+      break;
+    case MODE(normal, 'F'):
+      if (*cmd == 0) {
+        output_msg(MSG_OUTPUT_DRIVER_OFF);
+        stepper_selected->setAutoEnable(false);
+        stepper_selected->disableOutputs();
+        return true;
+      }
+      break;
+    case MODE(normal, 'O'):
+      if (*cmd == 0) {
+        output_msg(MSG_OUTPUT_DRIVER_AUTO);
+        stepper_selected->setAutoEnable(true);
+        return true;
+      }
+      break;
+    case MODE(normal, 'S'):
+      if (*cmd == 0) {
+        output_msg(MSG_STOP);
+        stepper_selected->stopMove();
+        return true;
+      }
+      break;
+    case MODE(normal, 'K'):
+      if (*cmd == 0) {
+        output_msg(MSG_KEEP_RUNNING);
+        stepper_selected->keepRunning();
+        return true;
+      }
+      break;
+    case MODE(normal, 'f'):
+      if (*cmd == 0) {
+        output_msg(MSG_RUN_FORWARD);
+        res = static_cast<int8_t>(stepper_selected->runForward());
+        output_msg(MSG_RETURN_CODE);
+        PRINTU8(res);
+        PRINTLN("");
+        return true;
+      }
+      break;
+    case MODE(normal, 'b'):
+      if (*cmd == 0) {
+        output_msg(MSG_RUN_BACKWARD);
+        res = static_cast<int8_t>(stepper_selected->runBackward());
+        output_msg(MSG_RETURN_CODE);
+        PRINTU8(res);
+        PRINTLN("");
+        return true;
+      }
+      break;
+    case MODE(normal, 'X'):
+      if (*cmd == 0) {
+        output_msg(MSG_IMMEDIATE_STOP);
+        stepper_selected->forceStopAndNewPosition(0);
+        return true;
+      }
+      break;
+    case MODE(normal, 'U'):
+      if (*cmd == 0) {
+        output_msg(MSG_UPDATE_SPEED_ACCELERATION);
+        stepper_selected->applySpeedAcceleration();
+        return true;
+      }
+      break;
+    case MODE(normal, 'u'):
+      if (*cmd == 0) {
+        output_msg(MSG_SET_UNIDIRECTIONAL_STEPPER);
+        stepper_selected->setDirectionPin(PIN_UNDEFINED);
+        return true;
+      }
+      break;
+    case MODE(normal, 'W'):
+    case MODE(test, 'W'):
+      if (*cmd == 0) {
+#ifdef SIM_TEST_INPUT
+        if (stepper_selected->isRunning() || test_ongoing) {
+          read_ptr -= 2;
+        }
+#else
+        output_msg(MSG_BLOCKING_WAIT);
+        if (!stepper_selected->isRunningContinuously() ||
+            stepper_selected->isStopping()) {
+          // Wait for stepper stop
+          while (stepper_selected->isRunning()) {
+            // do nothing
+#if !defined(ARDUINO_ARCH_ESP32) && defined(ESP_PLATFORM)
+            esp_task_wdt_reset();
+            DELAY_MS(2);
+#endif
+          }
+          PRINTLN("STOPPED");
+        }
+#endif
+        return true;
+      }
+      break;
+#if !defined(__AVR_ATmega32U4__)
+    case MODE(normal, 'T'):
+      if (*cmd == 0) {
+        if (!stepper_selected->isRunning()) {
+          output_msg(MSG_TEST_DIRECT_DRIVE);
+          stepper_selected->detachFromPin();
+          test_direct_drive(&active_stepper_config[selected]);
+          stepper_selected->reAttachToPin();
+        }
+        return true;
+      }
+      break;
+#endif
+    case MODE(normal, '+'):
+      if (*cmd == 0) {
+        if (!stepper_selected->isRunning()) {
+          stepper_selected->forwardStep(true);
+          output_msg(MSG_STEPPED_FORWARD);
+        }
+        return true;
+      }
+      break;
+    case MODE(normal, '-'):
+      if (*cmd == 0) {
+        if (!stepper_selected->isRunning()) {
+          stepper_selected->backwardStep(true);
+          output_msg(MSG_STEPPED_BACKWARD);
+        }
+        return true;
+      }
+      break;
+    case MODE(test, 'x'):
+    case MODE(config, 'x'):
+      if (*cmd == 0) {
+        output_msg(MSG_EXIT_TO_MAIN_MENU);
+        test_ongoing = false;
+        mode = normal;
+        usage();
+        return true;
+      }
+      break;
+    case MODE(test, 'R'):
+      if (*cmd == 0) {
+        output_msg(MSG_RUN_TESTS);
+        test_ongoing = true;
+        return true;
+      }
+      break;
+#if defined(SUPPORT_ESP32_PULSE_COUNTER)
+    case MODE(normal, 'p'):
+      if (strcmp(cmd, "c") == 0) {
+        output_msg(MSG_CLEAR_PULSE_COUNTER);
+        stepper_selected->clearPulseCounter();
+        return true;
+      }
+      gv = 0;
+      if (*cmd == 'i') {
+        gv = 1;
+        cmd++;
+      }
+      if (get_val1_val2_val3(cmd) == 3) {
+        output_msg(MSG_ATTACH_PULSE_COUNTER);
+        PRINTI32(val_n[0]);
+        PRINTLN("");
+        if (!stepper_selected->attachToPulseCounter(
+                val_n[0], val_n[1], val_n[2], PIN_UNDEFINED, gv != 0)) {
+          output_msg(MSG_ERROR_ATTACH_PULSE_COUNTER);
+        }
+        return true;
+      }
+      if (get_val1_val2_val3(cmd) == 1) {
+        output_msg(MSG_ATTACH_PULSE_COUNTER);
+        PRINTI32(val_n[0]);
+        PRINTLN("");
+        if (!stepper_selected->attachToPulseCounter(val_n[0], -16384, 16384,
+                                                    PIN_UNDEFINED, gv != 0)) {
+          output_msg(MSG_ERROR_ATTACH_PULSE_COUNTER);
+        }
+        return true;
+      }
+      break;
+#endif
+    case MODE(test, '0'):
+    case MODE(test, '1'):
+      for (uint8_t i = 0; i < NUM_TEST_SEQUENCE; i++) {
+        const struct test_seq_def_s* ts = &test_sequence[i];
+        if (strcmp(out_buffer, ts->code) == 0) {
+          output_msg(MSG_SELECT_TEST_SEQUENCE);
+          PRINTLN(out_buffer);
+          test_seq[selected].test = ts->test;
+          test_seq[selected].state = 0;
+          return true;
+        }
+      }
+      break;
+  }
+
+  return false;
+}
+
+void loop() {
+  char ch = 0;
+  if (input == NULL) {
+    POLL_CHAR_IF_ANY(ch)
+  } else {
+    ch = *input;
+    if (ch == 0) {
+      if (read_ptr == write_ptr) {
+        input = NULL;
+#ifdef SIM_TEST_INPUT
+        delay(1000);
+        noInterrupts();
+        sleep_cpu();
+#endif
+      }
+    } else {
+      input++;
+    }
+  }
+
+  if (ch != 0) {
+    if ((uint8_t)(write_ptr + 1) == read_ptr) {
+      read_ptr++;
+    }
+    in_buffer[write_ptr++] = ch;
+  }
+  if (pause_ms > 0) {
+    if ((uint32_t)(MILLIS() - pause_start) >= pause_ms) {
+      pause_ms = 0;
+      output_msg(MSG_WAIT_COMPLETE);
+    }
+  } else if (read_ptr != write_ptr) {
+    ch = in_buffer[read_ptr++];
+    if ((ch != ' ') && (ch != '\n') && (ch != '\r')) {
+      if (out_ptr == 255) {
+        out_ptr = 0;
+      }
+      out_buffer[out_ptr++] = ch;
+    } else if ((ch == ' ') || (ch == '\n') || (ch == '\r')) {
+      out_buffer[out_ptr] = 0;
+
+      if (out_ptr > 0) {
+        if (!process_cmd(out_buffer)) {
+          output_msg(MSG_UNKNOWN_COMMAND);
+          PRINTLN(out_buffer);
+        }
+      }
+      out_ptr = 0;
+    }
+  }
+
+  uint32_t ms = MILLIS();
+
+#if defined(ARDUINO_ARCH_AVR)
+  if (simulate_digitalRead_error) {
+    digitalRead(stepPinStepperA);
+    digitalRead(stepPinStepperB);
+#ifdef stepPinStepperC
+    digitalRead(stepPinStepperC);
+#endif
+  }
+#endif
+  if (simulate_blocked_ISR) {
+    if ((ms & 0xff) < 0x40) {
+      fasDisableInterrupts();
+      DELAY_US(100);
+      fasEnableInterrupts();
+    }
+  }
+
+  if (mode == test) {
+    if (test_ongoing) {
+      bool finished = true;
+      for (uint8_t i = 0; i < MAX_STEPPER; i++) {
+        struct test_seq_s* s = &test_seq[i];
+        if ((s->test != NULL) && (s->state != TEST_STATE_ERROR)) {
+          bool res = s->test(steppers[i], &test_seq[i], ms);
+          if (res) {
+            s->test = NULL;
+          }
+          finished &= res;
+        }
+      }
+      if (finished) {
+        test_ongoing = false;
+        bool test_failed = false;
+        stepper_info();
+        for (uint8_t i = 0; i < MAX_STEPPER; i++) {
+          struct test_seq_s* s = &test_seq[i];
+          s->test = NULL;
+          if (s->state == TEST_STATE_ERROR) {
+            test_failed = true;
+          }
+        }
+        if (test_failed) {
+          output_msg(MSG_FAILED_STATUS);
+        } else {
+          output_msg(MSG_PASS_STATUS);
+        }
+        output_msg(MSG_TEST_COMPLETED);
+      } else {
+        uint32_t now = MILLIS();
+        if (now - last_time >= 100) {
+          if (verbose) {
+            output_info(true);
+          }
+          last_time = now;
+        }
+      }
+    }
+  } else {
+    bool running = false;
+    for (uint8_t i = 0; i < MAX_STEPPER; i++) {
+      if (steppers[i]) {
+        running |= steppers[i]->isRunning();
+      }
+    }
+    if (running) {
+      if (ms - last_time >= 100) {
+        if (verbose) {
+          output_info(true);
+        }
+        last_time = ms;
+      }
+    }
+    if (!stopped && !running) {
+      output_info(true);
+      if (usage_info) {
+        usage();
+      }
+    }
+    stopped = !running;
+  }
+}
+
+#ifdef NEED_APP_MAIN
+#include "hal/wdt_hal.h"
+extern "C" void app_main() {
+#if ESP_IDF_VERSION_MAJOR >= 5
+  esp_task_wdt_deinit();
+  esp_task_wdt_config_t config = {
+      .timeout_ms = 1000, .idle_core_mask = 0, .trigger_panic = true};
+  esp_task_wdt_init(&config);
+#else
+  esp_task_wdt_init(1000, true);
+  esp_task_wdt_add(NULL);
+#endif
+  esp_task_wdt_add(NULL);
+
+  printf("Non-arduino version\n");
+  setup();
+  while (true) {
+    loop();
+    esp_task_wdt_reset();
+    DELAY_MS(2);
+  }
+}
+#endif

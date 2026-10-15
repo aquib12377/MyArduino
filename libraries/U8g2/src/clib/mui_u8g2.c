@@ -221,6 +221,16 @@ u8g2_uint_t mui_get_y(mui_t *ui)
   return ui->y;
 }
 
+u8g2_uint_t mui_get_arg(mui_t *ui)
+{
+  return ui->arg;
+}
+
+char *mui_get_text(mui_t *ui)
+{
+  return ui->text;
+}
+
 u8g2_t *mui_get_U8g2(mui_t *ui)
 {
   return (u8g2_t *)(ui->graphics_data);
@@ -660,7 +670,7 @@ uint8_t mui_u8g2_btn_back_wm_fi(mui_t *ui, uint8_t msg)
   switch(msg)
   {
     case MUIF_MSG_DRAW:
-      mui_u8g2_draw_button_utf(ui, U8G2_BTN_HCENTER |mui_u8g2_get_fi_flags(ui), 0, 1, MUI_U8G2_V_PADDING, ui->text);
+      mui_u8g2_draw_button_utf(ui, U8G2_BTN_HCENTER |mui_u8g2_get_fi_flags(ui), 0, 1, MUI_U8G2_V_PADDING, ui->text);    /* wm_fi */
       break;
     case MUIF_MSG_FORM_START:
       break;
@@ -688,7 +698,7 @@ uint8_t mui_u8g2_btn_back_wm_if(mui_t *ui, uint8_t msg)
   switch(msg)
   {
     case MUIF_MSG_DRAW:
-      mui_u8g2_draw_button_utf(ui, U8G2_BTN_HCENTER |mui_u8g2_get_if_flags(ui), 0, 1, MUI_U8G2_V_PADDING, ui->text);
+      mui_u8g2_draw_button_utf(ui, U8G2_BTN_HCENTER |mui_u8g2_get_if_flags(ui), 0, 1, MUI_U8G2_V_PADDING, ui->text);    /* wm_if */
       break;
     case MUIF_MSG_FORM_START:
       break;
@@ -717,7 +727,7 @@ uint8_t mui_u8g2_btn_back_w2_fi(mui_t *ui, uint8_t msg)
   switch(msg)
   {
     case MUIF_MSG_DRAW:
-      mui_u8g2_draw_button_utf(ui, U8G2_BTN_HCENTER | mui_u8g2_get_fi_flags(ui), u8g2_GetDisplayWidth(u8g2)/2 - 10, 0, MUI_U8G2_V_PADDING, ui->text);
+      mui_u8g2_draw_button_utf(ui, U8G2_BTN_HCENTER | mui_u8g2_get_fi_flags(ui), u8g2_GetDisplayWidth(u8g2)/2 - 10, 0, MUI_U8G2_V_PADDING, ui->text); /* w2_fi */
       break;
     case MUIF_MSG_FORM_START:
       break;
@@ -745,7 +755,7 @@ uint8_t mui_u8g2_btn_back_w2_if(mui_t *ui, uint8_t msg)
   switch(msg)
   {
     case MUIF_MSG_DRAW:
-      mui_u8g2_draw_button_utf(ui, U8G2_BTN_HCENTER | mui_u8g2_get_if_flags(ui), u8g2_GetDisplayWidth(u8g2)/2 - 10, 0, MUI_U8G2_V_PADDING, ui->text);
+      mui_u8g2_draw_button_utf(ui, U8G2_BTN_HCENTER | mui_u8g2_get_if_flags(ui), u8g2_GetDisplayWidth(u8g2)/2 - 10, 0, MUI_U8G2_V_PADDING, ui->text); /* w2_if */
       break;
     case MUIF_MSG_FORM_START:
       break;
@@ -773,7 +783,7 @@ uint8_t mui_u8g2_btn_back_w1_pi(mui_t *ui, uint8_t msg)
   switch(msg)
   {
     case MUIF_MSG_DRAW:
-      mui_u8g2_draw_button_pi(ui, u8g2_GetDisplayWidth(u8g2)-mui_get_x(ui)*2, mui_get_x(ui) , ui->text);
+      mui_u8g2_draw_button_pi(ui, u8g2_GetDisplayWidth(u8g2)-mui_get_x(ui)*2, mui_get_x(ui) , ui->text);  /* w1_pi */
       //mui_u8g2_draw_button_utf(ui, mui_u8g2_get_pi_flags(ui), u8g2_GetDisplayWidth(u8g2)-mui_get_x(ui)*2, mui_get_x(ui) , MUI_U8G2_V_PADDING, ui->text);
       break;
     case MUIF_MSG_FORM_START:
@@ -802,7 +812,7 @@ uint8_t mui_u8g2_btn_back_w1_fi(mui_t *ui, uint8_t msg)
   switch(msg)
   {
     case MUIF_MSG_DRAW:
-      mui_u8g2_draw_button_fi(ui, u8g2_GetDisplayWidth(u8g2)-mui_get_x(ui)*2, mui_get_x(ui)-1 , ui->text);
+      mui_u8g2_draw_button_fi(ui, u8g2_GetDisplayWidth(u8g2)-mui_get_x(ui)*2, mui_get_x(ui)-1 , ui->text);  /* w1_fi */
       //mui_u8g2_draw_button_utf(ui, mui_u8g2_get_pi_flags(ui), u8g2_GetDisplayWidth(u8g2)-mui_get_x(ui)*2, mui_get_x(ui) , MUI_U8G2_V_PADDING, ui->text);
       break;
     case MUIF_MSG_FORM_START:
@@ -861,6 +871,7 @@ uint8_t mui_u8g2_btn_exit_wm_fi(mui_t *ui, uint8_t msg)
   {
     case MUIF_MSG_DRAW:
       mui_u8g2_draw_button_utf(ui, U8G2_BTN_HCENTER |mui_u8g2_get_fi_flags(ui), 0, 1, MUI_U8G2_V_PADDING, ui->text);
+      //mui_u8g2_draw_button_utf(ui, U8G2_BTN_HCENTER |mui_u8g2_get_fi_flags(ui), 0, 1, MUI_U8G2_V_PADDING, ui->text);    /* wm_fi */
       break;
     case MUIF_MSG_FORM_START:
       break;
@@ -888,6 +899,184 @@ uint8_t mui_u8g2_btn_exit_wm_fi(mui_t *ui, uint8_t msg)
   }
   return 0;
 }
+
+uint8_t mui_u8g2_btn_exit_wm_if(mui_t *ui, uint8_t msg)
+{
+  switch(msg)
+  {
+    case MUIF_MSG_DRAW:
+      mui_u8g2_draw_button_utf(ui, U8G2_BTN_HCENTER |mui_u8g2_get_if_flags(ui), 0, 1, MUI_U8G2_V_PADDING, ui->text);    /* wm_if */
+      break;
+    case MUIF_MSG_FORM_START:
+      break;
+    case MUIF_MSG_FORM_END:
+      break;
+    case MUIF_MSG_CURSOR_ENTER:
+      break;
+    case MUIF_MSG_CURSOR_SELECT:
+    case MUIF_MSG_VALUE_INCREMENT:
+    case MUIF_MSG_VALUE_DECREMENT:
+      {
+        uint8_t *value = (uint8_t *)muif_get_data(ui->uif);
+        if ( value != NULL )
+          *value = ui->arg;
+      }
+      mui_SaveForm(ui);          // store the current form and position so that the child can jump back
+      mui_LeaveForm(ui);
+      return 1;
+    case MUIF_MSG_CURSOR_LEAVE:
+      break;
+    case MUIF_MSG_TOUCH_DOWN:
+      break;
+    case MUIF_MSG_TOUCH_UP:
+      break;    
+  }
+  return 0;
+}
+
+uint8_t mui_u8g2_btn_exit_w2_fi(mui_t *ui, uint8_t msg)
+{
+  u8g2_t *u8g2 = mui_get_U8g2(ui);
+  switch(msg)
+  {
+    case MUIF_MSG_DRAW:
+      mui_u8g2_draw_button_utf(ui, U8G2_BTN_HCENTER | mui_u8g2_get_fi_flags(ui), u8g2_GetDisplayWidth(u8g2)/2 - 10, 0, MUI_U8G2_V_PADDING, ui->text); /* w2_fi */
+      break;
+    case MUIF_MSG_FORM_START:
+      break;
+    case MUIF_MSG_FORM_END:
+      break;
+    case MUIF_MSG_CURSOR_ENTER:
+      break;
+    case MUIF_MSG_CURSOR_SELECT:
+    case MUIF_MSG_VALUE_INCREMENT:
+    case MUIF_MSG_VALUE_DECREMENT:
+      {
+        uint8_t *value = (uint8_t *)muif_get_data(ui->uif);
+        if ( value != NULL )
+          *value = ui->arg;
+      }
+      mui_SaveForm(ui);          // store the current form and position so that the child can jump back
+      mui_LeaveForm(ui);
+      return 1;
+    case MUIF_MSG_CURSOR_LEAVE:
+      break;
+    case MUIF_MSG_TOUCH_DOWN:
+      break;
+    case MUIF_MSG_TOUCH_UP:
+      break;    
+  }
+  return 0;
+}
+
+uint8_t mui_u8g2_btn_exit_w2_if(mui_t *ui, uint8_t msg)
+{
+  u8g2_t *u8g2 = mui_get_U8g2(ui);
+  switch(msg)
+  {
+    case MUIF_MSG_DRAW:
+      mui_u8g2_draw_button_utf(ui, U8G2_BTN_HCENTER | mui_u8g2_get_if_flags(ui), u8g2_GetDisplayWidth(u8g2)/2 - 10, 0, MUI_U8G2_V_PADDING, ui->text); /* w2_if */
+      break;
+    case MUIF_MSG_FORM_START:
+      break;
+    case MUIF_MSG_FORM_END:
+      break;
+    case MUIF_MSG_CURSOR_ENTER:
+      break;
+    case MUIF_MSG_CURSOR_SELECT:
+    case MUIF_MSG_VALUE_INCREMENT:
+    case MUIF_MSG_VALUE_DECREMENT:
+      {
+        uint8_t *value = (uint8_t *)muif_get_data(ui->uif);
+        if ( value != NULL )
+          *value = ui->arg;
+      }
+      mui_SaveForm(ui);          // store the current form and position so that the child can jump back
+      mui_LeaveForm(ui);
+      return 1;
+    case MUIF_MSG_CURSOR_LEAVE:
+      break;
+    case MUIF_MSG_TOUCH_DOWN:
+      break;
+    case MUIF_MSG_TOUCH_UP:
+      break;    
+  }
+  return 0;
+}
+
+uint8_t mui_u8g2_btn_exit_w1_pi(mui_t *ui, uint8_t msg)
+{
+  u8g2_t *u8g2 = mui_get_U8g2(ui);
+  switch(msg)
+  {
+    case MUIF_MSG_DRAW:
+      mui_u8g2_draw_button_pi(ui, u8g2_GetDisplayWidth(u8g2)-mui_get_x(ui)*2, mui_get_x(ui) , ui->text);  /* w1_pi */
+      break;
+    case MUIF_MSG_FORM_START:
+      break;
+    case MUIF_MSG_FORM_END:
+      break;
+    case MUIF_MSG_CURSOR_ENTER:
+      break;
+    case MUIF_MSG_CURSOR_SELECT:
+    case MUIF_MSG_VALUE_INCREMENT:
+    case MUIF_MSG_VALUE_DECREMENT:
+      {
+        uint8_t *value = (uint8_t *)muif_get_data(ui->uif);
+        if ( value != NULL )
+          *value = ui->arg;
+      }
+      mui_SaveForm(ui);          // store the current form and position so that the child can jump back
+      mui_LeaveForm(ui);
+      return 1;
+    case MUIF_MSG_CURSOR_LEAVE:
+      break;
+    case MUIF_MSG_TOUCH_DOWN:
+      break;
+    case MUIF_MSG_TOUCH_UP:
+      break;    
+  }
+  return 0;
+}
+
+uint8_t mui_u8g2_btn_exit_w1_fi(mui_t *ui, uint8_t msg)
+{
+  u8g2_t *u8g2 = mui_get_U8g2(ui);
+  switch(msg)
+  {
+    case MUIF_MSG_DRAW:
+      mui_u8g2_draw_button_fi(ui, u8g2_GetDisplayWidth(u8g2)-mui_get_x(ui)*2, mui_get_x(ui)-1 , ui->text); /* w1_fi */
+      break;
+    case MUIF_MSG_FORM_START:
+      break;
+    case MUIF_MSG_FORM_END:
+      break;
+    case MUIF_MSG_CURSOR_ENTER:
+      break;
+    case MUIF_MSG_CURSOR_SELECT:
+    case MUIF_MSG_VALUE_INCREMENT:
+    case MUIF_MSG_VALUE_DECREMENT:
+      {
+        uint8_t *value = (uint8_t *)muif_get_data(ui->uif);
+        if ( value != NULL )
+          *value = ui->arg;
+      }
+      mui_SaveForm(ui);          // store the current form and position so that the child can jump back
+      mui_LeaveForm(ui);
+      return 1;
+    case MUIF_MSG_CURSOR_LEAVE:
+      break;
+    case MUIF_MSG_TOUCH_DOWN:
+      break;
+    case MUIF_MSG_TOUCH_UP:
+      break;    
+  }
+  return 0;
+}
+
+
+   
+    
 
 
 /*===============================================================================*/
@@ -1253,7 +1442,7 @@ static void mui_u8g2_s8_vmm_draw_wm_pf(mui_t *ui)
   u8g2_t *u8g2 = mui_get_U8g2(ui);
   mui_u8g2_s8_min_max_t *vmm= (mui_u8g2_s8_min_max_t *)muif_get_data(ui->uif);
   char buf[4] = "999";
-  char *s = buf;
+  // char *s = buf;
   int8_t *value = mui_u8g2_s8mm_get_valptr(vmm);
   int8_t min = mui_u8g2_s8mm_get_min(vmm);
   int8_t max = mui_u8g2_s8mm_get_max(vmm);
@@ -1360,6 +1549,234 @@ uint8_t mui_u8g2_s8_min_max_wm_mud_pf(mui_t *ui, uint8_t msg)
 }
 
 
+/*===============================================================================*/
+/* x8 min max */
+
+static void mui_u8g2_x8_vmm_draw_wm_pi(mui_t *ui) MUI_NOINLINE;
+static void mui_u8g2_x8_vmm_draw_wm_pi(mui_t *ui)
+{
+  u8g2_t *u8g2 = mui_get_U8g2(ui);
+  mui_u8g2_u8_min_max_t *vmm= (mui_u8g2_u8_min_max_t *)muif_get_data(ui->uif);
+  char buf[3] = "FF";
+  char *s = buf;
+  uint8_t *value = mui_u8g2_u8mm_get_valptr(vmm);
+  uint8_t min = mui_u8g2_u8mm_get_min(vmm);
+  uint8_t max = mui_u8g2_u8mm_get_max(vmm);
+  uint8_t cnt = 2;
+
+  if ( *value > max )
+    *value = max;
+  if ( *value <= min )
+    *value = min;
+  if ( max < 16 )
+  {
+    s++;
+    cnt--;
+  }
+  mui_u8g2_draw_button_pi(ui, u8g2_GetStrWidth(u8g2, s)+1, 1, u8x8_u8tox(*value, cnt));
+}
+
+
+uint8_t mui_x8g2_x8_min_max_wm_mse_pi(mui_t *ui, uint8_t msg)
+{
+  mui_u8g2_u8_min_max_t *vmm= (mui_u8g2_u8_min_max_t *)muif_get_data(ui->uif);
+  uint8_t *value = mui_u8g2_u8mm_get_valptr(vmm);
+  uint8_t min = mui_u8g2_u8mm_get_min(vmm);
+  uint8_t max = mui_u8g2_u8mm_get_max(vmm);
+  switch(msg)
+  {
+    case MUIF_MSG_DRAW:
+      mui_u8g2_x8_vmm_draw_wm_pi(ui);
+      break;
+    case MUIF_MSG_FORM_START:
+      break;
+    case MUIF_MSG_FORM_END:
+      break;
+    case MUIF_MSG_CURSOR_ENTER:
+      break;
+    case MUIF_MSG_CURSOR_SELECT:
+    case MUIF_MSG_VALUE_INCREMENT:
+      (*value)++;
+      if ( *value > max ) *value = min;
+      break;
+    case MUIF_MSG_VALUE_DECREMENT:
+      if ( *value > min ) (*value)--; else *value = max;
+      break;
+    case MUIF_MSG_CURSOR_LEAVE:
+      break;
+    case MUIF_MSG_TOUCH_DOWN:
+      break;
+    case MUIF_MSG_TOUCH_UP:
+      break;
+  }
+  return 0;
+}
+
+uint8_t mui_u8g2_x8_min_max_wm_mud_pi(mui_t *ui, uint8_t msg)
+{
+  mui_u8g2_u8_min_max_t *vmm= (mui_u8g2_u8_min_max_t *)muif_get_data(ui->uif);
+  uint8_t *value = mui_u8g2_u8mm_get_valptr(vmm);
+  uint8_t min = mui_u8g2_u8mm_get_min(vmm);
+  uint8_t max = mui_u8g2_u8mm_get_max(vmm);
+  switch(msg)
+  {
+    case MUIF_MSG_DRAW:
+      mui_u8g2_x8_vmm_draw_wm_pi(ui);
+      break;
+    case MUIF_MSG_FORM_START:
+      break;
+    case MUIF_MSG_FORM_END:
+      break;
+    case MUIF_MSG_CURSOR_ENTER:
+      break;
+    case MUIF_MSG_CURSOR_SELECT:
+    case MUIF_MSG_VALUE_INCREMENT:
+    case MUIF_MSG_VALUE_DECREMENT:
+     /* toggle between normal mode and capture next/prev mode */
+      ui->is_mud = !ui->is_mud;
+      break;
+    case MUIF_MSG_CURSOR_LEAVE:
+      break;
+    case MUIF_MSG_TOUCH_DOWN:
+      break;
+    case MUIF_MSG_TOUCH_UP:
+      break;
+    case MUIF_MSG_EVENT_NEXT:
+      if ( ui->is_mud )
+      {
+        (*value)++;
+        if ( *value > max )
+          *value = min;
+        return 1;
+      }
+      break;
+    case MUIF_MSG_EVENT_PREV:
+      if ( ui->is_mud )
+      {
+        if ( *value <= min )
+          *value = max;
+        else
+          (*value)--;
+        return 1;
+      }
+      break;
+  }
+  return 0;
+}
+
+
+
+static void mui_u8g2_x8_vmm_draw_wm_pf(mui_t *ui) MUI_NOINLINE;
+static void mui_u8g2_x8_vmm_draw_wm_pf(mui_t *ui)
+{
+  u8g2_t *u8g2 = mui_get_U8g2(ui);
+  mui_u8g2_u8_min_max_t *vmm= (mui_u8g2_u8_min_max_t *)muif_get_data(ui->uif);
+  char buf[3] = "FF";
+  char *s = buf;
+  uint8_t *value = mui_u8g2_u8mm_get_valptr(vmm);
+  uint8_t min = mui_u8g2_u8mm_get_min(vmm);
+  uint8_t max = mui_u8g2_u8mm_get_max(vmm);
+  uint8_t cnt = 2;
+
+  if ( *value > max )
+    *value = max;
+  if ( *value <= min )
+    *value = min;
+  if ( max < 16 )
+  {
+    s++;
+    cnt--;
+  }
+  mui_u8g2_draw_button_pf(ui, u8g2_GetStrWidth(u8g2, s)+1, 1, u8x8_u8tox(*value, cnt));
+}
+
+
+uint8_t mui_u8g2_x8_min_max_wm_mse_pf(mui_t *ui, uint8_t msg)
+{
+  mui_u8g2_u8_min_max_t *vmm= (mui_u8g2_u8_min_max_t *)muif_get_data(ui->uif);
+  uint8_t *value = mui_u8g2_u8mm_get_valptr(vmm);
+  uint8_t min = mui_u8g2_u8mm_get_min(vmm);
+  uint8_t max = mui_u8g2_u8mm_get_max(vmm);
+  switch(msg)
+  {
+    case MUIF_MSG_DRAW:
+      mui_u8g2_x8_vmm_draw_wm_pf(ui);
+      break;
+    case MUIF_MSG_FORM_START:
+      break;
+    case MUIF_MSG_FORM_END:
+      break;
+    case MUIF_MSG_CURSOR_ENTER:
+      break;
+    case MUIF_MSG_CURSOR_SELECT:
+    case MUIF_MSG_VALUE_INCREMENT:
+      (*value)++;
+      if ( *value > max ) *value = min;
+      break;
+    case MUIF_MSG_VALUE_DECREMENT:
+      if ( *value > min ) (*value)--; else *value = max;
+      break;
+    case MUIF_MSG_CURSOR_LEAVE:
+      break;
+    case MUIF_MSG_TOUCH_DOWN:
+      break;
+    case MUIF_MSG_TOUCH_UP:
+      break;
+  }
+  return 0;
+}
+
+uint8_t mui_u8g2_x8_min_max_wm_mud_pf(mui_t *ui, uint8_t msg)
+{
+  mui_u8g2_u8_min_max_t *vmm= (mui_u8g2_u8_min_max_t *)muif_get_data(ui->uif);
+  uint8_t *value = mui_u8g2_u8mm_get_valptr(vmm);
+  uint8_t min = mui_u8g2_u8mm_get_min(vmm);
+  uint8_t max = mui_u8g2_u8mm_get_max(vmm);
+  switch(msg)
+  {
+    case MUIF_MSG_DRAW:
+      mui_u8g2_x8_vmm_draw_wm_pf(ui);
+      break;
+    case MUIF_MSG_FORM_START:
+      break;
+    case MUIF_MSG_FORM_END:
+      break;
+    case MUIF_MSG_CURSOR_ENTER:
+      break;
+    case MUIF_MSG_CURSOR_SELECT:
+    case MUIF_MSG_VALUE_INCREMENT:
+    case MUIF_MSG_VALUE_DECREMENT:
+      /* toggle between normal mode and capture next/prev mode */
+      ui->is_mud = !ui->is_mud;
+      break;
+    case MUIF_MSG_CURSOR_LEAVE:
+      break;
+    case MUIF_MSG_TOUCH_DOWN:
+      break;
+    case MUIF_MSG_TOUCH_UP:
+      break;
+    case MUIF_MSG_EVENT_NEXT:
+      if ( ui->is_mud )
+      {
+        (*value)++;
+        if ( *value > max )
+          *value = min;
+        return 1;
+      }
+      break;
+    case MUIF_MSG_EVENT_PREV:
+      if ( ui->is_mud )
+      {
+        if ( *value <= min )
+          *value = max;
+        else
+          (*value)--;
+        return 1;
+      }
+      break;
+  }
+  return 0;
+}
 
 
 

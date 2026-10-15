@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Profile · SmartRide{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">ACCOUNT</span><h1>Edit profile</h1><p>Keep contact and emergency information current.</p></div></div>
+<form method="post" class="panel profile-form"><div class="form-grid"><label>Full name<input name="name" value="{{ user.name }}" required></label><label>Email address<input value="{{ user.email }}" disabled></label><label>Phone number<input name="phone" value="{{ user.phone }}" placeholder="+91..."></label><label>Emergency contact<input name="emergency_phone" value="{{ user.emergency_phone }}" placeholder="+91..."></label><label>New password <small>(optional)</small><input type="password" name="password" minlength="8" placeholder="Leave blank to keep current password"></label><label>Account role<input value="{{ user.role|title }}" disabled></label></div><button class="btn primary" type="submit">Save changes</button></form>
+{% endblock %}
+

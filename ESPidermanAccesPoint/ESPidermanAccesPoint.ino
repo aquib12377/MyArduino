@@ -13,13 +13,13 @@
 // Credential for the Wifi access point
 //feel free to change that
 const char* ssid = "ESPiderman";
-const char* password = "delta3robotics";
+const char* password = "12345678";
 //Instatntiation of communication variables, this was made for Alpha 
 //most of them are not used for ESPiderman and can be deleted carefully
 bool lightOn=false;
 bool lightStrobe=false;
 bool strobeOn=false;
-bool arm=false;
+bool arm=true;
 bool wave=false;
 int ch_1=1500;
 int ch_2=1500;
@@ -52,8 +52,8 @@ String distFrR=" ";
 String distBott=" ";
 
 //Tell the program which pins shall be used for the I2C communication
-#define i2c_sda 1
-#define i2c_scl 3
+#define i2c_sda 14
+#define i2c_scl 15
 
 //Instantiation of varables used for ESPiderman walking gaits
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
@@ -68,14 +68,14 @@ int korr =25; //0for calibration 25 for usage
 int korr2 = 5; //0 for calibration 5 for usage
 
 //Compensation values to calibrate the servos
-int comp0=3;
-int comp1=-5;
-int comp2=3;
+int comp0=0;
+int comp1=0;
+int comp2=0;
 int comp3=0;
-int comp4=3;
+int comp4=0;
 int comp5=0;
 int comp6=0;
-int comp7=-12;
+int comp7=0;
 //negative fullscale and positive fullscale,  this is used to tell the PCA9685 at which pulse 
 //a servo is set to 0° and at which to 180°, maybe you need to change the values if other servos
 //are used
@@ -859,7 +859,7 @@ static esp_err_t cmd_handler(httpd_req_t *req){
 
   sensor_t * s = esp_camera_sensor_get();
   //flip the camera vertically
-  //s->set_vflip(s, 1);          // 0 = disable , 1 = enable
+  s->set_vflip(s, 1);          // 0 = disable , 1 = enable
   // mirror effect
   //s->set_hmirror(s, 1);          // 0 = disable , 1 = enable
 
@@ -1162,7 +1162,7 @@ void setup() {
   config.pixel_format = PIXFORMAT_JPEG; 
   
   if(psramFound()){
-    config.frame_size = FRAMESIZE_VGA;
+    config.frame_size = FRAMESIZE_XGA;
     config.jpeg_quality = 10;
     config.fb_count = 2;
   } else {

@@ -5,6 +5,9 @@
  * See examples/App/AppInitialization for more authentication examples.
  *
  * You can test this example with Firebase Cloud Messaging Web Client App in /examples/Messaging/WebClient.
+ * 
+ * For Google REST API reference documentation, please visit
+ * https://firebase.google.com/docs/reference/fcm/rest/v1/projects.messages/send
  *
  * For the complete usage guidelines, please read README.md or visit https://github.com/mobizt/FirebaseClient
  */
@@ -128,8 +131,11 @@ void processData(AsyncResult &aResult)
 
 void getMsg(Messages::Message &msg)
 {
-    msg.topic("test");
-    // msg.token("DEVICE_TOKEN"); // Registration token to send a message to
+    // To subscribe the App Instance Token to the topic,
+    // see examples/Messaging/Instances/AddRemove/AddRemove.ino
+    
+    msg.topic("test_topic");
+    // msg.token("APP_INSTANCE_TOKEN"); // Registration token to send a message to
     // msg.condition("'foo' in topics && 'bar' in topics");
 
     // Basic notification

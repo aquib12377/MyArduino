@@ -1,0 +1,28 @@
+{
+    "name": "PZEM003_Fud",
+    "frameworks": "arduino",
+    "keywords": "peacefair, pzem, powermeter, 003",
+    "description": "A library for reading data from the PZEM-003 sensor using RS485 Auto.",
+    "url": "https://github.com/MuhammadMakhfud/PZEM003_Fud",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Makhfud",
+            "url": "https://github.com/MuhammadMakhfud/"
+        }
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/MuhammadMakhfud/PZEM003_Fud"
+    },
+    "platforms": "atmelavr, ststm32, espressif8266, espressif32",
+    "version": "1.0.7",
+    "export": {
+        "include": [
+            "README.md",
+            "LICENSE",
+            "src/*",
+            "examples/*"
+        ]
+    }
+}

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Work in progress to generate doxygen via a script instead of a GitHub action.
 """
@@ -5,12 +6,14 @@ Work in progress to generate doxygen via a script instead of a GitHub action.
 import os
 import platform
 import shutil
-import subprocess
 import warnings
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
-from download import download  # type: ignore
+from download import download  # type: ignore[import-untyped]
+from running_process import PIPE, CalledProcessError, RunningProcess
+
+from ci.util.global_interrupt_handler import handle_keyboard_interrupt
 
 
 # Configs
@@ -39,8 +42,16 @@ def run(
     capture: bool = True,
 ) -> str:
     print(f"Running: {cmd}")
-    result = subprocess.run(
-        cmd, shell=shell, cwd=cwd, check=False, capture_output=capture, text=False
+    # stdout/stderr are kept separate (both PIPE) so the failure message can
+    # report them individually; text=False keeps the bytes decode below.
+    result = RunningProcess.run(
+        cmd,
+        shell=shell,
+        cwd=cwd,
+        check=False,
+        stdout=PIPE if capture else None,
+        stderr=PIPE if capture else None,
+        text=False,
     )
     if capture:
         stdout = result.stdout.decode("utf-8") if result.stdout else ""
@@ -52,19 +63,17 @@ def run(
         msg = f"Command failed with exit code {result.returncode}:\nstdout:\n{stdout}\n\nstderr:\n{stderr}"
         warnings.warn(msg)
         if check:
-            raise subprocess.CalledProcessError(
-                result.returncode, cmd, output=result.stdout
-            )
+            raise CalledProcessError(result.returncode, cmd, output=result.stdout)
     return stdout.strip()
 
 
-def get_git_info() -> Tuple[str, str]:
+def get_git_info() -> tuple[str, str]:
     release_tag = os.environ.get("RELEASE_TAG", "")
 
     try:
         latest_tag = run("git tag | grep -E '^[0-9]' | sort -V | tail -1")
         latest_tag = latest_tag if latest_tag else ""
-    except subprocess.CalledProcessError:
+    except CalledProcessError:
         latest_tag = ""
 
     git_sha_short = run("git rev-parse --short HEAD")
@@ -165,6 +174,9 @@ def main() -> None:
     try:
         dot_version = run("dot -V", check=False)
         print(f"Graphviz detected: {dot_version}")
+    except KeyboardInterrupt as ki:
+        handle_keyboard_interrupt(ki)
+        raise
     except Exception:
         warnings.warn(
             "Graphviz (dot) not found in PATH. Diagrams may not be generated."

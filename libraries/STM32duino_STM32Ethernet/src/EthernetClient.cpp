@@ -39,7 +39,7 @@ int EthernetClient::connect(const char *host, uint16_t port)
   if (ret == 1) {
     return connect(remote_addr, port);
   } else {
-    return ret;
+    return 0;
   }
 }
 
@@ -171,7 +171,7 @@ int EthernetClient::peek()
   if (!available()) {
     return -1;
   }
-  b = pbuf_get_at(_tcp_client->data.p, 0);
+  b = pbuf_get_at(_tcp_client->data.p, _tcp_client->data.p->tot_len - _tcp_client->data.available);
   return b;
 }
 
@@ -186,15 +186,18 @@ void EthernetClient::flush()
 
 void EthernetClient::stop()
 {
-  if (_tcp_client == NULL) {
-    return;
+  if (_tcp_client != NULL) {
+    // close tcp connection if not closed yet
+    if (status() != TCP_CLOSING) {
+      if (_tcp_client->pcb == NULL) {
+        _tcp_client->state = TCP_CLOSING;
+      } else {
+        tcp_connection_close(_tcp_client->pcb, _tcp_client);
+      }
+    }
+    mem_free(_tcp_client);
+    _tcp_client = NULL;
   }
-
-  // close tcp connection if not closed yet
-  if (status() != TCP_CLOSING) {
-    tcp_connection_close(_tcp_client->pcb, _tcp_client);
-  }
-  mem_free(_tcp_client);
 }
 
 uint8_t EthernetClient::connected()

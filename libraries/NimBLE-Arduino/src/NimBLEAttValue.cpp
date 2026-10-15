@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2025 Ryan Powell <ryan@nable-embedded.io> and
+ * Copyright 2020-2026 Ryan Powell <ryan@nable-embedded.io> and
  * esp-nimble-cpp, NimBLE-Arduino contributors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,10 +18,10 @@
 #include "NimBLEAttValue.h"
 #if CONFIG_BT_ENABLED
 
-# if defined(CONFIG_NIMBLE_CPP_IDF)
-#  include "nimble/nimble_npl.h"
-# else
+# ifdef USING_NIMBLE_ARDUINO_HEADERS
 #  include "nimble/nimble/include/nimble/nimble_npl.h"
+# else
+#  include "nimble/nimble_npl.h"
 # endif
 
 # include "NimBLELog.h"
@@ -123,14 +123,18 @@ NimBLEAttValue& NimBLEAttValue::append(const uint8_t* value, uint16_t len) {
 
     uint8_t* res     = m_attr_value;
     uint16_t new_len = m_attr_len + len;
-    if (new_len > m_capacity) {
-        res        = static_cast<uint8_t*>(realloc(m_attr_value, (new_len + 1)));
-        m_capacity = new_len;
+    bool     grow    = new_len > m_capacity;
+    if (grow) {
+        res = static_cast<uint8_t*>(realloc(m_attr_value, (new_len + 1)));
     }
     NIMBLE_CPP_DEBUG_ASSERT(res);
     if (res == nullptr) {
         NIMBLE_LOGE(LOG_TAG, "Failed to realloc append");
         return *this;
+    }
+
+    if (grow) {
+        m_capacity = new_len;
     }
 
 # if CONFIG_NIMBLE_CPP_ATT_VALUE_TIMESTAMP_ENABLED

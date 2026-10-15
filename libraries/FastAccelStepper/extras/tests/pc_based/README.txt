@@ -1,0 +1,401 @@
+Tests;
+
+- test_01
+  check queue functionality
+
+- test_02
+  checks ramp timing
+
+- log2_test
+  checks Log2Representation implementation
+
+- test_04
+  one test case with speed change during ramp
+
+- test_05
+  check for move/moveTo while ramp is processing
+  Introduce concept of interrupt generation during noInterrupts call
+
+- test_06
+  check for stop during move
+
+- test_07
+  test case with varying speed
+
+- test_08
+  ramp to max speed with step wise increased length
+
+- test_09
+  simple test case for V30 A1000000 R53 W R53
+
+- test_10
+  test case for V30 a17164 w2000 a-1000
+
+- test 11
+  test case for M1 A1000 V10000 f w300 V100000 U
+  This is stuck in state RED.
+  Revised test: M1 A1000 V10000 P100 w300 V100000 U
+
+- test 12
+  ramp up with 1 step/s^2 to 1000us/step
+
+- test 13
+  tests with maximum high acceleration
+
+- test 14
+  test case for issue #178: Speed jump instead of decrease
+
+- test 15
+  test case for setForwardPlanningTimeInMs()
+
+- test 16
+  tests for moveTimed()
+
+- test 17
+  test to specifically test for esp32 rmt implementation
+
+- test 18
+  RMT fill buffer test with comprehensive validation
+  Tests rmt_fill_buffer() with various command patterns and PART_SIZE values
+  
+  Part 1: Fixed Command Inputs
+  - Single step at different tick values (16000, 32000, 65535, 8000)
+  - Multi-step commands (10@1000, 20@500, 10@8000)
+  - Pause and step combinations
+  - Mixed command sequences
+  - Ramp generator outputs (from ramp_helper)
+  Validates: step count, total ticks, high/low ratio, min symbol period
+  
+  Part 2: Step Count Limits (0-255 steps)
+  - Tests 0-255 steps at MIN_CMD_TICKS (3200 ticks = 5 kHz)
+  - Tests 0-255 steps at 16000 ticks (1000 us = 1 kHz)
+  - Tests 0-255 steps at 32000 ticks (2000 us = 500 Hz)
+  - Tests 0-255 steps at 65535 ticks (4095 us = ~244 Hz, special case)
+  
+  Part 3: High/Low Ratio Check
+  - Validates 50% duty cycle for step commands
+  - Tests tick values: 1000, 5000, 8000, 10000, 16000, 32000, 65535
+  - Ratio must be between 30-200% for valid step generation
+  
+  Part 4: Reported Hardware Failure Analysis
+  - Tests cases reported to fail on real hardware:
+    * v=1000us (16000 ticks) => no pulses on real hardware
+    * v=2000us (32000 ticks) => no pulses on real hardware  
+    * v=500us (8000 ticks) => pulses but incorrect pattern (2:1 high:low ratio)
+  - Compares simulation results with hardware reports
+  
+  Part 5: Additional Validation
+  - Steps 0-255 with MIN_CMD_TICKS (3200 ticks) - comprehensive test
+  - Steps 0-255 with period 65535 ticks - edge case validation
+  - 200 kHz (80 ticks) with steps 1-255 - max frequency test
+    Note: 80 ticks may be below stretching threshold for some PART_SIZE values
+  
+  Test runs with multiple even PART_SIZE values: 22, 24, 30, 32
+  - ESP32C6 uses PART_SIZE=24 (RMT_SIZE=48)
+  - ESP32/ESP32S3 use PART_SIZE=32 (RMT_SIZE=64)
+  - PART_SIZE must be even (enforced by preprocessor check)
+  
+  Preprocessor options:
+  - DUMP_RMT_SYMBOLS: Set to true/false to enable/disable condensed RMT symbol
+    dumps for each test (default: true)
+  
+  Key validation criteria:
+  1. Step count must match command steps
+  2. Total ticks must match command ticks
+  3. High/Low ratio should be ~1:1 (50% duty cycle) for step commands
+  4. Minimum RMT symbol period must be >= 2 ticks (hardware limit)
+  5. For ticks=65535, special encoding uses 2 RMT entries per step
+
+- test 19
+  ramp up with 100 step/s^2 to max speed. should not coast (#347)
+
+- test 20
+  test case for motor stopping at low speed with acceleration=8164, speed=81Hz
+  
+  Part 1: Motor stops at low speed
+  - Tests motor movement with accel=8164, speed=81Hz, target=1720 steps
+  - Verifies motor does not stop prematurely due to empty queue
+  
+  Part 2: Speed change from high to low
+  - Tests speed reduction from 89Hz to 81Hz during movement
+  - Reproduces reported bug where motor stops after speed reduction
+  
+  Part 3: Multiple speed changes
+  - Tests sequence: 73Hz -> 81Hz -> 89Hz -> 97Hz -> 81Hz
+  - Verifies motor continues through all speed changes
+  
+  Part 4: Reduced acceleration
+  - Tests with acceleration=8164/3 (user-reported workaround)
+  - Verifies motor reaches target with reduced acceleration
+
+- test 21
+  ESP32 I2S low-level DMA simulation test
+   
+  Focus: Pure DMA infrastructure tests - callbacks, triple buffering, 
+  bit stream analysis. No driver code involved.
+   
+  Part 1: DMA Callback Tests
+  - Callback invocation on consume
+   
+  Part 2: DMA Block Management
+  - Block rotation (0 -> 1 -> 2 -> 0)
+  - Write block advance
+  - Buffer clearing on consume
+  - Write block availability with DMA synchronization
+   
+  Part 3: Bit Stream Analysis
+  - Single pulse detection (rising/falling edges)
+  - Multiple pulses (7 pulses at constant period)
+  - Total ticks per block verification
+   
+  Part 4: DMA Round Tests
+  - 10 rounds with 7 pulses each (70 total pulses)
+  - Buffer content verification
+   
+  Key validation criteria:
+  1. Callbacks must be invoked on each DMA consume
+  2. Triple buffer must rotate correctly (0->1->2->0)
+  3. Write block availability depends on DMA position
+  4. Bit stream analyzer must correctly detect pulses
+  5. Buffer must be cleared after DMA consume
+
+- test_23
+  Direction pin and external pin handling tests
+  
+  Part 1: MIN_DIR_DELAY_US / MAX_DIR_DELAY_US tests
+  - MIN_DIR_DELAY_US value verification (platform-specific minimum)
+  - MAX_DIR_DELAY_US value verification (4095us max delay)
+  - Clamping of delays below minimum to MIN_DIR_DELAY_US
+  - Clamping of delays above maximum to MAX_DIR_DELAY_US
+  
+  Part 2: dir_change_delay_us tests for regular direction pins
+  - Pause insertion on direction change with delay configured
+  - No pause on pause-only commands (steps=0)
+  - Behavior with/without delay configured
+  - No extra delay if prior pause has sufficient ticks
+  - No extra delay if prior single step has sufficient ticks
+  - getDirChangeBeforeTicks / getDirChangeAfterTicks match driver
+    before/after and user delay
+  
+  Part 3: External direction pin behavior tests
+  - External dir pin (pin >= 128) with empty queue succeeds
+  - External dir pin with steps in queue returns AQE_DIR_PIN_2MS_PAUSE_ADDED
+  - Queue drain and retry mechanism for external pins
+  - 2ms pause insertion allows queue to drain
+  
+  Part 4: External enable pin behavior tests
+  - External enable pin callback invocation
+  - External enable pin disable callback
+  
+  Part 5: Integration tests
+  - Queue ticks tracking across multiple commands
+  - hasStepsInQueue() detection (steps vs pause commands)
+  - Realistic direction change scenario with delays
+  
+   Key validation criteria:
+   1. Direction delays must be clamped to valid range
+   2. Pause commands inserted on direction change (non-external pins)
+   3. External pins return AQE_DIR_PIN_2MS_PAUSE_ADDED if queue has steps
+   4. External pins succeed when queue is empty of steps
+   5. Callback mechanism works for external enable/disable
+
+- test_24
+  moveTimedFill() command generation test for issue #370
+
+  Uses the macro-overridable moveTimedFill() extracted from
+  FastAccelStepper::moveTimed() (see src/fas_moveTimed/move_timed.h) and
+  redirects queue access to a local 16-entry StepperQueue (MT_ADD_ENTRY is
+  bound to an enqueue() that mirrors addQueueEntry(), including queue_end
+  position and toggle handling). This tests the pure command-generation and
+  queue bookkeeping logic of moveTimed() with no hardware dependency.
+
+  Phase 1 replays the exact Issue370 runCycles() feed (87-command profile,
+  net 0 steps/cycle, baseTicks=105960) over 3 cycles: commands are prefilled
+  without starting until the 16-entry queue is full, then the queue is
+  started and feeding continues with the same drift compensation as the
+  Issue370 firmware. When a command cannot be enqueued (MOVE_TIMED_BUSY,
+  which drops the move in the real code), the RMT ISR is simulated by
+  draining one chunk with the real rmt_fill_buffer() and the command is
+  retried. Checks:
+    1. every cycle nets to the commanded sum (= 0)
+    2. all 3 cycles generate identical command streams (steps + count_up)
+    3. the queued position (queue_end.pos) returns to zero
+
+  A failure here would mean moveTimed() itself corrupts the step accounting
+  and would explain the -2 library-position drift seen in the Issue370
+  reproduction. A pass means the command stream is faithful and position
+  neutral.
+
+  Phase 2 feeds the SAME captured command stream through the real ESP32 RMT
+  fill buffer translation (pd_esp32/StepperISR_rmt_v1.cpp, the same
+  code compiled on the ESP32). The commands are placed into a real
+  StepperQueue via the same enqueue() (toggle_dir set on direction changes)
+  and drained via rmt_fill_buffer(). The resulting RMT symbols are analyzed
+  for step-pulse count and total ticks, and the queue_end position is
+  checked again. rmt_fill_buffer inserts a MIN_CMD_TICKS pause when a
+  direction change follows a chunk that contained steps; toggles that follow
+  a pause chunk do not get one, and that difference is validated against the
+  captured stream. This checks that the RMT encoding layer is faithful: no
+  step pulses are lost or added at the direction-change pause boundaries.
+
+  Note that the on-chip PCNT and queue_end both agree with the commands
+  while the external driver counts -2 per cycle at the dangerous reversal
+  (first cycle clean). Since Phase 1 and Phase 2 prove the command stream
+  and its RMT translation to be position neutral, that -2 lives in the
+  wire-level DIR-toggle alignment, not in the library.
+
+  Key validation criteria:
+  1. The 87-command profile must net to zero steps per cycle
+  2. moveTimedFill() must preserve the commanded step sum across all three
+     code paths (pause-only, slow-with-pauses, fast-packed)
+  3. A busy return (modeled as running out of free entries) must not drop
+     the command: it is resent after the queue drains
+  4. Run 2 cycles, matching the Issue370 reproduction
+  5. Phase 2: RMT step-pulse count must equal the commanded |steps| sum
+  6. Phase 2: RMT total ticks must equal the base command ticks plus the
+     pause parts inserted at direction changes, and the number of pause
+     parts must match the toggle analysis of the command stream
+
+- test_25
+  moveTimed() pause reporting via *actual_duration
+
+  When a direction change forces the queue driver to inject a pause, the
+  moveTimed() call returns AQE_DIR_CHANGE_PAUSE_INJECTED / 
+  AQE_DIR_PIN_2MS_PAUSE_ADDED and the command was NOT enqueued. In this case
+  *actual_duration carries the ticks of the one injected pause; the caller
+  accumulates the value (extra) across retries and computes the drift only
+  after the move is accepted: drift = duration - (actual + extra).
+
+  Scenario A: per-call zeroing - actual_duration is never cumulative.
+  Scenario B: regular dir pin with before+after dir-change pause - exactly
+    one pause is injected per failing call (before, then after on retries),
+    and each failing call reports its pause ticks in *actual_duration.
+  Scenario C: external dir pin - the 2ms pause mechanism reports its ticks
+    (US_TO_TICKS(2000)) in the failing call.
+
+  Key validation criteria:
+  1. actual_duration must be per-call, not cumulative
+  2. A pause-injected return must report exactly the injected pause ticks
+  3. Each failing moveTimed() call must enqueue at most one entry
+  4. The final drift must account for all injected pause ticks (actual+extra)
+
+- test_26
+  FasNAxis TDD suite — multi-axis stepper planner built against the
+  white-paper steps in extras/doc/n_axes_whitepaper.md.
+  See extras/tests/pc_based/README_naxes.md for a full description of the
+  F1…F21 fixtures (ramp map kernel, remaining-steps lookahead, DDA walk,
+  Linear interpolator through SimPort, long polyline, rotordynamic plant).
+
+- test 27
+  PhysicalStepper rotordynamic plant test drive — exercises the opt-in
+  PhysicalStepper class (physical_stepper.h) against a shared 8-second
+  rest-to-rest profile:
+    accelerate 0 → 2000 step/s    (0.5 s), hold 2000 (1 s),
+    accelerate 2000 → 10000 step/s (0.5 s), coast 10000 (1 s),
+    coast 10000 (1 s) [stall case: half/full-step rotor slip],
+    decelerate 10000 → 2000, hold 2000 (3 s), decelerate 2000 → 0.
+
+  Core tests:
+   T1 – single pause (dwell): no stall, speed decays near zero
+   T2 – single slow step: rotor settles onto the command
+   T3 – gentle burst (64 steps @ 16000 ticks): never stalls
+   T4 – too-fast burst (80 steps @ 1 tick): reported as stall
+   T5 – forward-then-reversal position correct, no stall
+   T6 – canonical profile: never stalls, sim time matches, rotor lands
+        on commanded position, wav renders the whole move
+   T7 – weak motor (Fmax=2e-3) loses synchronism under same profile
+   T8 – over-drive outruns the rotor (emergent stall)
+   T9 – re-engagement latches onto a whole-step detent after stall
+   T10 – wav synthesis: RIFF header valid for moving and stalled plant
+   T12 – half-step slip (-32 steps) mid-coast stalls, then re-joins
+         the field at small speed and stops with it
+   T13 – full-step slip (-64 steps) loses exactly one step; rotor
+         keeps tracking (no runaway)
+
+  Output: gnuplot traces (test_27_trapezoid.dat / test_27_coast_stall.dat),
+  PNG plots, and .wav audio of the motor behaviour.
+
+- test 28
+  NEMA-17 / A4988 pull-out fit — calibrates the opt-in PhysicalStepper plant
+  (physical_stepper.h) against measured hardware pull-out data and checks the
+  model against the whitepaper §14 benchmark.
+
+  Hardware (whitepaper §14): NEMA-17 (200 full steps/rev, 1.8°), A4988 at
+  16× microstepping (3200 microsteps/rev, D = 16), ESP32 MCPWM/PCNT, ≈19 V.
+  Every measurement started from standstill and ran forward.
+  The stepperdemo reports getCurrentSpeedInMilliHz(), so the sweep values are
+  in millisteps/s (μstep/s = mstep/s / 1000); full-step rate = μstep/s / 16.
+
+  P1 – find the motor parameters: runs the plant from standstill and bisects
+       friction_viscous so the A = 10⁶ μstep/s² pull-out matches the measured
+       ≈123 000 μstep/s (steady-state friction balance), then bisects the
+       plant inertia J_plant so the A = 10⁷ collapse matches ≈21 000 μstep/s
+       (acceleration limit Fmax/J). Reports J_plant, J_eff = J_plant/θ_μ and
+       v_max. Since only the ratio Fmax/J is constrained and the motor was
+       unloaded, it also reports the bare-rotor equivalent (J≈54 g·cm² =>
+       Fmax_eff≈0.15 N·m), which is the physically relevant reading.
+  P2 – simulated vs measured pull-out boundary for A = 10⁴…10⁷ μstep/s²
+       (all within tolerance; the 10⁷ point within 35 %, the rest within 20 %).
+  P3 – asserts the high-acceleration collapse: A = 10⁷ pull-out is < 45 % of
+       the A = 10⁶ pull-out (measured ≈6× drop).
+  P4 – concrete scenarios: A = 10⁶ @110 k runs / @140 k stalls; A = 10⁷ @10 k
+       runs / @45 k stalls; A = 10⁴ @120 k runs.
+  P5 – unit-conversion sanity (123 k μstep/s = 7688 full-steps/s = 2306 RPM).
+  P6 – physical artifacts, with real assertions on their content:
+         * test_28_run.dat / _stall.dat / _collapse.dat: six-panel plant
+           traces (t x x_c delta w a tau friction stall phase) for three
+           scenarios — a clean run (A=10⁶@110 k), a steady-state stall
+           (A=10⁶@140 k) and a high-acceleration collapse (A=10⁷@45 k).
+           The scenarios are run to the end of the coast even after slipping,
+           so the run-away divergence is visible.
+         * test_28_run.wav / _stall.wav / _collapse.wav: 16-bit PCM audio of
+           each scenario (the stalled ones carry the stall buzz).
+         * test_28_boundary.dat + test_28.gnuplot -> test_28.png: the
+           simulated-vs-measured pull-out boundary over A = 10⁴…10⁷.
+       Asserts the run trace does not stall, the other two do, every file is
+       non-empty, and each wav is valid non-silent PCM.
+
+  The plant is header-only and self-contained; the test links with g++ (uses
+  std::vector) and needs no library objects.
+
+- test_29
+  FasTimed — faithful timed trajectory, separate from FasNAxis.
+  A waypoint is per-axis delta steps in [-128, 128] and one shared
+  duration in [MIN_CMD_TICKS, 65535] driver ticks. One call is one
+  constant rate. SimPort only.
+
+  Covers rejected ranges, dwells, an exact two-axis cruise, a split
+  slave, duration quantization onto legal queue commands, too-fast
+  and ramp-step failures, reversal only from ramp-step 0, a held
+  QueueFull retry, underrun on a short queue, horizon backpressure,
+  an external stop, and an injected DIR pause reported as Error.
+
+  The closing fixture streams a square through a ring of 8 chunks. Each
+  side rises from about 440 Hz to 2500 Hz over about a second, then falls
+  back to a stop over about a second. The ladder is
+  examples/NaxesTimed/NaxesTimed_ramp.h.
+  It writes test_29.dat,
+  test_29.gnuplot (path, position, speed), and test_29.wav (stereo: first
+  motor left, second motor right).
+
+- test_30
+  IDF5/6 RMT translator (StepperISR_rmt_v2_encode.cpp).
+  A pause is exactly PART_SIZE symbols. A step is one symbol, or two
+  when ticks is 65535, and is started only when two symbols are free.
+  A partial entry writes the remaining steps back. A direction toggle
+  is not encoded in the same call as the drain pauses before it.
+  PART_SIZE 24 and 32.
+
+- ramp_helper
+  Helper tool to generate and dump ramp commands for given speed and acceleration
+  Usage: make ramp_helper && ./ramp_helper <speed_us> <acceleration> <steps>
+  Example: ./ramp_helper 1000 10000 1000
+  Outputs commands until coasting reached, useful for creating test inputs
+
+- ESP32 RMT Notes:
+  * queue_entry.ticks is uint16_t, max value 65535 ticks (4095us at 16MHz)
+  * For periods >65535 ticks, ramp generator uses pause commands
+  * ticks=65535 is special case in rmt_fill_buffer (uses 2 entries per step)
+  * ESP32C6 has PART_SIZE=24, ESP32/ESP32S3 use PART_SIZE=32
+  * PART_SIZE must be even (enforced by preprocessor check)
+  * Minimum RMT symbol period is 2 ticks (hardware limit)

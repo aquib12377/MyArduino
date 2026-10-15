@@ -1,3 +1,6 @@
+from ci.util.global_interrupt_handler import handle_keyboard_interrupt
+
+
 # pyright: reportUnknownMemberType=false
 """
 Tools for working with build info and tool paths.
@@ -8,7 +11,10 @@ import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
+
+from running_process import RunningProcess
+from running_process.command_render import list2cmdline
 
 from ci.util.paths import BUILD
 
@@ -24,15 +30,28 @@ class Tools:
 
 
 def load_tools(build_info_path: Path) -> Tools:
-    build_info: Dict[str, Any] = json.loads(build_info_path.read_text())
-    board_info: Dict[str, Any] = build_info[next(iter(build_info))]
-    aliases: Dict[str, str] = board_info["aliases"]
-    as_path = Path(aliases["as"])
-    ld_path = Path(aliases["ld"])
-    objcopy_path = Path(aliases["objcopy"])
-    objdump_path = Path(aliases["objdump"])
-    cpp_filt_path = Path(aliases["c++filt"])
-    nm_path = Path(aliases["nm"])
+    build_info: dict[str, Any] = json.loads(build_info_path.read_text())
+    board_info: dict[str, Any] = build_info[next(iter(build_info))]
+    aliases: dict[str, str | None] = board_info["aliases"]
+
+    def _alias(name: str) -> Path:
+        # fbuild writes ``null`` when the toolchain ships no such tool (for
+        # example an LLVM toolchain has no ``as``). Say which one is missing
+        # instead of failing inside ``Path(None)``.
+        value = aliases.get(name)
+        if not isinstance(value, str) or not value:
+            raise FileNotFoundError(
+                f"build_info {build_info_path} has no '{name}' tool alias for "
+                f"this toolchain"
+            )
+        return Path(value)
+
+    as_path = _alias("as")
+    ld_path = _alias("ld")
+    objcopy_path = _alias("objcopy")
+    objdump_path = _alias("objdump")
+    cpp_filt_path = _alias("c++filt")
+    nm_path = _alias("nm")
     if sys.platform == "win32":
         as_path = as_path.with_suffix(".exe")
         ld_path = ld_path.with_suffix(".exe")
@@ -57,10 +76,10 @@ def _list_builds() -> list[Path]:
 
 def _check_build(build: Path) -> bool:
     # 1. should contain a build_info.json file
-    # 2. should contain a .pio/build directory
+    # 2. should contain a .fbuild/build directory
     has_build_info = (build / "build_info.json").exists()
-    has_pio_build = (build / ".pio" / "build").exists()
-    return has_build_info and has_pio_build
+    has_fbuild_build = (build / ".fbuild" / "build").exists()
+    return has_build_info and has_fbuild_build
 
 
 def _prompt_build() -> Path:
@@ -88,8 +107,8 @@ def _prompt_build() -> Path:
 
 
 def _prompt_object_file(build: Path) -> Path:
-    # Look for object files in .pio/build directory
-    build_dir = build / ".pio" / "build"
+    # Look for object files in .fbuild/build directory
+    build_dir = build / ".fbuild" / "build"
     object_files: list[Path] = []
 
     # Walk through build directory to find .o files
@@ -182,22 +201,14 @@ def cli() -> None:
 
     object_file = _prompt_object_file(build_path)
     if symbols:
-        import subprocess
-
-        cmd_str = subprocess.list2cmdline(
-            [str(tools.objdump_path), str(object_file), "--syms"]
-        )
+        cmd_str = list2cmdline([str(tools.objdump_path), str(object_file), "--syms"])
         print(f"Running command: {cmd_str}")
-        subprocess.run([str(tools.objdump_path), str(object_file)])
+        RunningProcess.run([str(tools.objdump_path), str(object_file)])
 
     if disassemble:
-        import subprocess
-
-        cmd_str = subprocess.list2cmdline(
-            [str(tools.objdump_path), "-d", str(object_file)]
-        )
+        cmd_str = list2cmdline([str(tools.objdump_path), "-d", str(object_file)])
         print(f"Running command: {cmd_str}")
-        subprocess.run([str(tools.objdump_path), "-d", str(object_file)])
+        RunningProcess.run([str(tools.objdump_path), "-d", str(object_file)])
 
     if not (symbols or disassemble):
         parser.print_help()
@@ -206,6 +217,8 @@ def cli() -> None:
 if __name__ == "__main__":
     try:
         cli()
-    except KeyboardInterrupt:
+    except KeyboardInterrupt as ki:
+        handle_keyboard_interrupt(ki)
+        raise
         print("Exiting...")
         sys.exit(1)

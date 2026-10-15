@@ -6,6 +6,9 @@
  * See examples/App/AppInitialization for more authentication examples.
  *
  * The OAuth2.0 authentication or access token authorization is required for Cloud Functions operations.
+ * 
+ * For Google REST API reference documentation, please visit
+ * https://cloud.google.com/functions/docs/reference/rest/v2/projects.locations.functions/create
  *
  * For the complete usage guidelines, please read README.md or visit https://github.com/mobizt/FirebaseClient
  */
@@ -118,10 +121,10 @@ void loop()
         Serial.println("Createing a new function...");
 
         // Async call with callback function.
-        cfunctions.create(aClient, GoogleCloudFunctions::Parent(FIREBASE_PROJECT_ID, PROJECT_LOCATION), "test" /* function name */, function, processData, "createTask");
+        cfunctions.create(aClient, GoogleCloudFunctions::Parent(FIREBASE_PROJECT_ID, PROJECT_LOCATION), "helloHttp" /* function name */, function, processData, "createTask");
 
         // Async call with AsyncResult for returning result.
-        cfunctions.create(aClient, GoogleCloudFunctions::Parent(FIREBASE_PROJECT_ID, PROJECT_LOCATION), "test" /* function name */, function, cloudFunctionsResult);
+        cfunctions.create(aClient, GoogleCloudFunctions::Parent(FIREBASE_PROJECT_ID, PROJECT_LOCATION), "helloHttp" /* function name */, function, cloudFunctionsResult);
 
         // Sync call which waits until the payload was received.
         String payload = cfunctions.create(aClient, GoogleCloudFunctions::Parent(FIREBASE_PROJECT_ID, PROJECT_LOCATION), "test" /* function name */, function);

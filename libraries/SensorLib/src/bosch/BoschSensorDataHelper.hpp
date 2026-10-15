@@ -28,9 +28,10 @@
  *
  */
 #pragma once
-#include "../SensorBHI260AP.hpp"
-#include "bhy2_defs.h"
-#include <math.h>
+#include "BoschSensorBase.hpp"
+#include "bhi260x/bhy2_defs.h"
+#include "bosch/bhi36x/bhi360_event_data.h"
+#include "bosch/bhi36x/bhi360_multi_tap_param_defs.h"
 
 class BoschSensorDataHelperBase
 {
@@ -40,6 +41,7 @@ public:
         float humidity;
         float pressure;
         float altitude;
+        unified_air_quality_t iaq;
         bhy2_data_quaternion quaternion;
         bhy2_data_orientation orientation;
         bhy2_data_xyz vector;
@@ -47,10 +49,11 @@ public:
         uint32_t gas;
         uint16_t activity_bitmap;
         uint8_t dev_ori;
+        bhi360_event_data_multi_tap multi_tap;
         bool detected;
     } SensorData;
 
-    BoschSensorDataHelperBase(SensorBHI260AP::BoschSensorID sensor_id, SensorBHI260AP &handle)
+    BoschSensorDataHelperBase(uint16_t sensor_id, BoschSensorBase &handle)
         : _sensor_id(sensor_id), _handle(handle)
     {
         _scaling_factor = _handle.getScaling(_sensor_id);
@@ -149,30 +152,79 @@ protected:
             break;
         case BHY2_SENSOR_ID_STC:
         case BHY2_SENSOR_ID_STC_WU:
+        case BHY2_SENSOR_ID_STC_LP:
             result.step_counter = bhy2_parse_step_counter(data);
             break;
         case  BHY2_SENSOR_ID_STD:
+        case BHY2_SENSOR_ID_STD_LP:
             result.detected = true;
             break;
         case BHY2_SENSOR_ID_AR:
             result.activity_bitmap = (data[1] << 8) | data[0];
             break;
+        case BHY2_SENSOR_ID_AIR_QUALITY:
+            if (_handle.getChipID() == BHI260_CHIP_ID) {
+                bhy2_bsec_air_quality raw;
+                bhy2_bsec_parse_air_quality(data, &raw);
+                result.iaq.co2 = raw.e_co2;
+                result.iaq.humidity = raw.comp_hum;
+                result.iaq.iaq_accuracy = raw.iaq_accuracy;
+                result.iaq.temperature = raw.comp_temp;
+                result.iaq.voc = raw.voc;
+                result.iaq.static_iaq = raw.static_iaq;
+                result.iaq.gas_resistance = raw.comp_gas;
+            } else {
+                /*SCALE FACTOR from BHI3 data sheet, IAQ data format*/
+                const float  SCALE_IAQ_VOC  = 100.0;
+                const float  SCALE_IAQ_TEMP = 256.0;
+                const float  SCALE_IAQ_HUMI = 500.0;
+                bhi360_event_data_iaq_output_t raw;
+                bhi360_event_data_parse_air_quality(data, &raw);
+                result.iaq.co2 = raw.co2;
+                result.iaq.humidity = raw.comp_humidity / SCALE_IAQ_HUMI;
+                result.iaq.iaq_accuracy = raw.iaq_accuracy;
+                result.iaq.temperature = raw.comp_temperature / SCALE_IAQ_TEMP;
+                result.iaq.voc = raw.voc / SCALE_IAQ_VOC;
+                result.iaq.static_iaq = raw.siaq;
+                result.iaq.gas_resistance = raw.raw_gas;
+            }
+            break;
+        case BHY2_SENSOR_ID_ANY_MOTION_LP:
+        case BHY2_SENSOR_ID_ANY_MOTION_LP_WU:
+            result.detected = true;
+            break;
+        case BHI360_SENSOR_ID_MULTI_TAP:
+            result.multi_tap = static_cast<bhi360_event_data_multi_tap>(data[0]);
+            break;
+        case BHI360_SENSOR_ID_AR_WEAR_WU:
+            SENSORLIB_LOG_D("AR wear detected");
+            break;
+        case BHI360_SENSOR_ID_WRIST_GEST_DETECT_LP_WU:
+            SENSORLIB_LOG_D("Wrist gesture detected");
+            break;
+        case BHI360_SENSOR_ID_WRIST_WEAR_LP_WU:
+            SENSORLIB_LOG_D("Wrist wear detected");
+            break;
+        case BHI360_SENSOR_ID_NO_MOTION_LP_WU:
+            SENSORLIB_LOG_D("No motion detected");
+            result.detected = true;
+            break;
         default:
-            log_e("Sensor ID Undefined");
+            SENSORLIB_LOG_E("Sensor ID Undefined : %d", sensor_id);
             break;
         }
         return result;
     }
-    SensorBHI260AP::BoschSensorID _sensor_id;
+    uint16_t _sensor_id;
     float _scaling_factor;
-    SensorBHI260AP &_handle;
+    BoschSensorBase &_handle;
 };
 
 template <typename DataType>
 class SensorTemplateBase : public BoschSensorDataHelperBase
 {
 public:
-    SensorTemplateBase(SensorBHI260AP::BoschSensorID sensor_id, SensorBHI260AP &handle)
+    SensorTemplateBase(uint16_t sensor_id, BoschSensorBase &handle)
         : BoschSensorDataHelperBase(sensor_id, handle)
     {
     }
@@ -200,8 +252,10 @@ public:
 
     bool hasUpdated()
     {
-        bool result =  _lastUpdateTime != _currentTime;
-        _lastUpdateTime = _currentTime;
+        // bool result =  _lastUpdateTime != _currentTime;
+        // _lastUpdateTime = _currentTime;
+        bool result = _hasNewData;
+        _hasNewData = false;
         return result;
     }
 
@@ -235,26 +289,28 @@ protected:
     DataType _value;
     uint64_t _lastUpdateTime;
     uint64_t _currentTime;
+    bool _hasNewData;
 private:
     uint64_t getNanosecondsFromCurrentTime() const
     {
         return _currentTime * 15625;
     }
-    static void staticCallback(uint8_t sensor_id, uint8_t *data, uint32_t size, uint64_t *timestamp, void *user_data)
+    static void staticCallback(uint8_t sensor_id, const uint8_t *data, uint32_t size, uint64_t *timestamp, void *user_data)
     {
         auto self = static_cast<SensorTemplateBase<DataType>*>(user_data);
         SensorData parsedData = self->parse_data(sensor_id, data);
         self->updateValue(parsedData);
         self->_lastUpdateTime = self->_currentTime;
         self->_currentTime = *timestamp;
+        self->_hasNewData = true;
     }
 };
 
 class SensorTemperature : public SensorTemplateBase<float>
 {
 public:
-    SensorTemperature(SensorBHI260AP &handle)
-        : SensorTemplateBase<float>(SensorBHI260AP::TEMPERATURE, handle) {}
+    SensorTemperature(BoschSensorBase &handle)
+        : SensorTemplateBase<float>(BoschSensorID::TEMPERATURE, handle) {}
 
     float getCelsius() const
     {
@@ -286,8 +342,8 @@ protected:
 class SensorHumidity : public SensorTemplateBase<float>
 {
 public:
-    SensorHumidity(SensorBHI260AP &handle)
-        : SensorTemplateBase<float>(SensorBHI260AP::HUMIDITY, handle) {}
+    SensorHumidity(BoschSensorBase &handle)
+        : SensorTemplateBase<float>(BoschSensorID::HUMIDITY, handle) {}
 
     float getHumidity() const
     {
@@ -309,12 +365,25 @@ protected:
 class SensorPressure : public SensorTemplateBase<float>
 {
 public:
-    SensorPressure(SensorBHI260AP &handle)
-        : SensorTemplateBase<float>(SensorBHI260AP::BAROMETER, handle) {}
+    SensorPressure(BoschSensorBase &handle)
+        : SensorTemplateBase<float>(BoschSensorID::BAROMETER, handle) {}
 
+    // Pressure in Pa (pascals)
     float getPressure() const
     {
         return getValue();
+    }
+
+    // Pressure in hPa (hectopascals)
+    float getPressureHPa() const
+    {
+        return getPressure() / 100.0f;
+    }
+
+    // Pressure in kPa (kilopascals)
+    float getPressureKPa() const
+    {
+        return getPressure() / 1000.0f;
     }
 
 protected:
@@ -328,8 +397,8 @@ protected:
 class SensorGas : public SensorTemplateBase<uint32_t>
 {
 public:
-    SensorGas(SensorBHI260AP &handle)
-        : SensorTemplateBase<uint32_t>(SensorBHI260AP::GAS, handle) {}
+    SensorGas(BoschSensorBase &handle)
+        : SensorTemplateBase<uint32_t>(BoschSensorID::GAS, handle) {}
 
     uint32_t getGas() const
     {
@@ -346,8 +415,8 @@ protected:
 class SensorOrientation : public SensorTemplateBase<uint8_t>
 {
 public:
-    SensorOrientation(SensorBHI260AP &handle)
-        : SensorTemplateBase<uint8_t>(SensorBHI260AP::DEVICE_ORIENTATION, handle) {}
+    SensorOrientation(BoschSensorBase &handle)
+        : SensorTemplateBase<uint8_t>(BoschSensorID::DEVICE_ORIENTATION, handle) {}
 
     uint32_t getOrientation() const
     {
@@ -363,8 +432,8 @@ protected:
 class SensorEuler : public SensorTemplateBase<bhy2_data_orientation>
 {
 public:
-    SensorEuler(SensorBHI260AP &handle)
-        : SensorTemplateBase<bhy2_data_orientation>(SensorBHI260AP::ORIENTATION, handle) {}
+    SensorEuler(BoschSensorBase &handle)
+        : SensorTemplateBase<bhy2_data_orientation>(BoschSensorID::ORIENTATION, handle) {}
 
     float getHeading() const
     {
@@ -391,8 +460,8 @@ protected:
 class SensorQuaternion : public SensorTemplateBase<bhy2_data_quaternion>
 {
 public:
-    SensorQuaternion(SensorBHI260AP &handle)
-        : SensorTemplateBase<bhy2_data_quaternion>(SensorBHI260AP::GAME_ROTATION_VECTOR, handle) {}
+    SensorQuaternion(BoschSensorBase &handle)
+        : SensorTemplateBase<bhy2_data_quaternion>(BoschSensorID::GAME_ROTATION_VECTOR, handle) {}
 
     float getX() const
     {
@@ -455,8 +524,17 @@ protected:
 class SensorStepCounter : public SensorTemplateBase<uint32_t>
 {
 public:
-    SensorStepCounter(SensorBHI260AP &handle)
-        : SensorTemplateBase<uint32_t>(SensorBHI260AP::STEP_COUNTER, handle) {}
+    SensorStepCounter(BoschSensorBase &handle)
+        : SensorTemplateBase<uint32_t>(BoschSensorID::STEP_COUNTER, handle)
+    {
+        if (_handle.getChipID() == BHI360_CHIP_ID) {
+            _sensor_id = BoschSensorID::STEP_COUNTER_LOW_POWER;
+        } else if (_handle.getChipID() == BHI260_CHIP_ID) {
+            _sensor_id = BoschSensorID::STEP_COUNTER;
+        } else {
+            SENSORLIB_LOG_E("Unknown chip ID 0x%" PRIx32 ". Step Counter sensor may not function correctly.", _handle.getChipID());
+        }
+    }
 
     uint32_t getStepCount() const
     {
@@ -473,8 +551,17 @@ protected:
 class SensorStepDetector : public SensorTemplateBase<bool>
 {
 public:
-    SensorStepDetector(SensorBHI260AP &handle)
-        : SensorTemplateBase<bool>(SensorBHI260AP::STEP_DETECTOR, handle) {}
+    SensorStepDetector(BoschSensorBase &handle)
+        : SensorTemplateBase<bool>(BoschSensorID::STEP_DETECTOR, handle)
+    {
+        if (_handle.getChipID() == BHI360_CHIP_ID) {
+            _sensor_id = BoschSensorID::STEP_DETECTOR_LOW_POWER;
+        } else if (_handle.getChipID() == BHI260_CHIP_ID) {
+            _sensor_id = BoschSensorID::STEP_DETECTOR;
+        } else {
+            SENSORLIB_LOG_E("Unknown chip ID 0x%" PRIx32 ". Step Detector sensor may not function correctly.", _handle.getChipID());
+        }
+    }
 
     bool isDetected()
     {
@@ -493,7 +580,7 @@ protected:
 class SensorXYZ : public SensorTemplateBase<bhy2_data_xyz>
 {
 public:
-    SensorXYZ(SensorBHI260AP::BoschSensorID sensor_id, SensorBHI260AP &handle)
+    SensorXYZ(uint16_t sensor_id, BoschSensorBase &handle)
         : SensorTemplateBase<bhy2_data_xyz>(sensor_id, handle) {}
 
     float getX() const
@@ -512,6 +599,73 @@ protected:
     void updateValue(const SensorData &data) override
     {
         _value = data.vector;
+    }
+};
+
+
+class SensorAcceleration : public SensorXYZ
+{
+public:
+    SensorAcceleration(BoschSensorBase &handle)
+        : SensorXYZ(BoschSensorID::ACCEL_PASSTHROUGH, handle) {}
+
+    bool readData(AccelerometerData &data)
+    {
+        if (hasUpdated()) {
+            data.temperature = NAN;
+            data.mps2.x = getX();
+            data.mps2.y = getY();
+            data.mps2.z = getZ();
+            data.raw.x = getValue().x;
+            data.raw.y = getValue().y;
+            data.raw.z = getValue().z;
+            return true;
+        }
+        return false;
+    }
+};
+
+class SensorGyroscope : public SensorXYZ
+{
+public:
+    SensorGyroscope(BoschSensorBase &handle)
+        : SensorXYZ(BoschSensorID::GYRO_PASSTHROUGH, handle) {}
+
+    bool readData(GyroscopeData &data)
+    {
+        if (hasUpdated()) {
+            data.temperature = NAN;
+            data.dps.x = getX();
+            data.dps.y = getY();
+            data.dps.z = getZ();
+            data.raw.x = getValue().x;
+            data.raw.y = getValue().y;
+            data.raw.z = getValue().z;
+            return true;
+        }
+        return false;
+    }
+};
+
+class SensorMagnetometer : public SensorXYZ
+{
+public:
+    SensorMagnetometer(BoschSensorBase &handle)
+        : SensorXYZ(BoschSensorID::MAGNETOMETER_PASSTHROUGH, handle) {}
+
+    bool readData(MagnetometerData &data)
+    {
+        if (hasUpdated()) {
+            data.temperature = NAN;
+            data.magnetic_field.x = getX();
+            data.magnetic_field.y = getY();
+            data.magnetic_field.z = getZ();
+            data.raw.x = getValue().x;
+            data.raw.y = getValue().y;
+            data.raw.z = getValue().z;
+            return true;
+        }
+        return false;
     }
 };
 
@@ -538,8 +692,8 @@ public:
         IN_VEHICLE_STILL_STARTED,
         RESERVED_HIGH
     };
-    SensorActivity(SensorBHI260AP &handle)
-        : SensorTemplateBase<uint16_t>(SensorBHI260AP::ACTIVITY_RECOGNITION, handle) {}
+    SensorActivity(BoschSensorBase &handle)
+        : SensorTemplateBase<uint16_t>(BoschSensorID::ACTIVITY_RECOGNITION, handle) {}
 
     /**
      * @brief Check if a specific activity status is set in the activity bitmap.
@@ -573,3 +727,225 @@ protected:
     }
 };
 
+class SensorIAQ : public SensorTemplateBase<unified_air_quality_t>
+{
+public:
+    SensorIAQ(BoschSensorBase &handle)
+        : SensorTemplateBase<unified_air_quality_t>(BoschSensorID::IAQ, handle) {}
+
+    float getCelsius() const
+    {
+        return getValue().temperature;
+    }
+
+    float getFahrenheit() const
+    {
+        return getCelsius() * 9.0f / 5.0f + 32;
+    }
+    float getKelvin()     const
+    {
+        return getCelsius() + 273.15f;
+    }
+
+    float getVOC() const
+    {
+        return getValue().voc;
+    }
+
+    float getHumidity() const
+    {
+        return getValue().humidity;
+    }
+
+    uint16_t getIAQ() const
+    {
+        return getValue().iaq;
+    }
+
+    uint16_t getSIAQ() const
+    {
+        return getValue().static_iaq;
+    }
+
+    uint32_t getCO2() const
+    {
+        return getValue().co2;
+    }
+
+    uint8_t getIAQAccuracy() const
+    {
+        return getValue().iaq_accuracy;
+    }
+
+    uint32_t getRawGas() const
+    {
+        return getValue().gas_resistance;
+    }
+
+    uint8_t getIAQLevel() const
+    {
+        uint16_t iaq = getIAQ();
+        if (iaq <= 50) {
+            return 0; // Excellent
+        } else if (iaq <= 100) {
+            return 1; // Good
+        } else if (iaq <= 150) {
+            return 2; // Lightly Polluted
+        } else if (iaq <= 200) {
+            return 3; // Moderately Polluted
+        } else if (iaq <= 300) {
+            return 4; // Heavily Polluted
+        } else {
+            return 5; // Severely Polluted
+        }
+    }
+
+    uint8_t getIAQLevelText(char *buffer, size_t buffer_size) const
+    {
+        uint16_t iaq = getIAQ();
+        const char *level_text;
+        if (iaq <= 50) {
+            level_text = "Excellent";
+        } else if (iaq <= 100) {
+            level_text = "Good";
+        } else if (iaq <= 150) {
+            level_text = "Lightly Polluted";
+        } else if (iaq <= 200) {
+            level_text = "Moderately Polluted";
+        } else if (iaq <= 300) {
+            level_text = "Heavily Polluted";
+        } else {
+            level_text = "Severely Polluted";
+        }
+        strncpy(buffer, level_text, buffer_size - 1);
+        buffer[buffer_size - 1] = '\0'; // Ensure null-termination
+        return getIAQLevel();
+    }
+
+    uint8_t getIAQAccuracyText(char *buffer, size_t buffer_size) const
+    {
+        uint8_t accuracy = getIAQAccuracy();
+        const char *accuracy_text;
+        switch (accuracy) {
+        case 0:
+            accuracy_text = "Unreliable";
+            break;
+        case 1:
+            accuracy_text = "Low Accuracy";
+            break;
+        case 2:
+            accuracy_text = "Medium Accuracy";
+            break;
+        case 3:
+            accuracy_text = "High Accuracy";
+            break;
+        default:
+            accuracy_text = "Unknown Accuracy";
+            break;
+        }
+        strncpy(buffer, accuracy_text, buffer_size - 1);
+        buffer[buffer_size - 1] = '\0'; // Ensure null-termination
+        return accuracy;
+    }
+
+    bool enable()
+    {
+        return SensorTemplateBase::enable(1, 0);
+    }
+
+protected:
+    void updateValue(const SensorData &data) override
+    {
+        _value = data.iaq;
+    }
+};
+
+
+class SensorMultiTap : public SensorTemplateBase<bhi360_event_data_multi_tap>
+{
+public:
+    SensorMultiTap(BoschSensorBase &handle)
+        : SensorTemplateBase<bhi360_event_data_multi_tap>(BoschSensorID::MULTI_TAP, handle)
+    {
+        if (_handle.getChipID() == BHI260_CHIP_ID) {
+            SENSORLIB_LOG_E("BHI260 does not support Multi Tap sensor.");
+        }
+    }
+protected:
+    void updateValue(const SensorData &data) override
+    {
+        _value = data.multi_tap;
+    }
+};
+
+
+enum class MotionMode : uint8_t {
+    OFF,
+    ONCE,
+    CONTINUOUS
+};
+
+template<typename Derived, uint16_t SensorID>
+class SensorMotionBase : public SensorTemplateBase<bool>
+{
+public:
+    SensorMotionBase(BoschSensorBase &handle)
+        : SensorTemplateBase<bool>(SensorID, handle), _mode(MotionMode::OFF)
+    {
+        if (_handle.getChipID() == BHI260_CHIP_ID) {
+            SENSORLIB_LOG_E("BHI260 does not support this motion sensor.");
+        }
+        _handle.onEvent(staticEventCallback, SensorID, this);
+    }
+
+    bool enable(MotionMode mode)
+    {
+        _mode = mode;
+        return SensorTemplateBase<bool>::enable(1, 0);
+    }
+
+    bool isEnabled() const
+    {
+        return _mode != MotionMode::OFF;
+    }
+
+    void setOnMotionCallback(std::function<void()> cb)
+    {
+        onMotion = std::move(cb);
+    }
+
+protected:
+    void updateValue(const SensorData &data) override
+    {
+        if (data.detected && onMotion) {
+            onMotion();
+        }
+        _value = data.detected;
+    }
+
+private:
+    static void staticEventCallback(uint8_t sensor_id, uint8_t event_id, uint8_t event_data, void *user_data)
+    {
+        auto self = static_cast<Derived *>(user_data);
+        if (sensor_id == static_cast<uint8_t>(SensorID) && event_data == 0x01) {
+            if (self->_mode != MotionMode::CONTINUOUS) {
+                self->_mode = MotionMode::OFF;
+            } else {
+                self->SensorTemplateBase<bool>::enable(1, 0);
+            }
+        }
+    }
+
+    MotionMode _mode;
+    std::function<void()> onMotion;
+};
+
+class SensorAnyMotion : public SensorMotionBase<SensorAnyMotion, BoschSensorID::ANY_MOTION_LOW_POWER_WAKE_UP>
+{
+    using SensorMotionBase::SensorMotionBase;
+};
+
+class SensorNoMotion : public SensorMotionBase<SensorNoMotion, BoschSensorID::NO_MOTION_LOW_POWER_WAKE_UP>
+{
+    using SensorMotionBase::SensorMotionBase;
+};

@@ -3,6 +3,9 @@
  *
  * This example uses the UserAuth class for authentication.
  * See examples/App/AppInitialization for more authentication examples.
+ * 
+ * For Google REST API reference documentation, please visit
+ * https://firebase.google.com/docs/firestore/reference/rest/v1/projects.databases.documents/commit
  *
  * For the complete usage guidelines, please read README.md or visit https://github.com/mobizt/FirebaseClient
  */
@@ -22,8 +25,8 @@
 #define FIREBASE_PROJECT_ID "PROJECT_ID"
 
 void processData(AsyncResult &aResult);
-void append_array_async();
-void append_array_async2();
+void append_array_async(Writes &writes);
+void append_array_async2(Writes &writes);
 void append_array_await();
 
 SSL_CLIENT ssl_client;

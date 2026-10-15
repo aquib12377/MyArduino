@@ -13,7 +13,7 @@ The FastLED compiler cli can be invoked at the project root.
 ```bash (MacOS/Linux, windows us git-bsh or compile.bat)
 git clone https://github.com/fastled/fastled
 cd fastled
-./compile uno --examples Blink  # linux/macos/git-bash
+./compile uno  # Compiles Blink by default (linux/macos/git-bash)
 # compile.bat  # Windows.
 ```
 
@@ -23,18 +23,26 @@ cd fastled
 ./lint
 ./test  # runs unit tests
 # Note that you do NOT need to install the C++ compiler toolchain
-# for compiling + running unit tests via ./test. If `gcc` is not
-# found in your system `PATH` then the `ziglang` clang compiler
-# will be swapped in automatically.
+# for compiling + running unit tests via ./test. The clang-tool-chain
+# compiler will be automatically installed when you run the tests.
 ````
 
 
-### Testing a bunch of platforms at once.
+### Testing platforms and examples
 
-```
-./compile teensy41,teensy40 --examples Blink
+By default, `./compile <board>` compiles the Blink example. You can specify different examples or use the `all` keyword to compile all examples:
+
+```bash
+# Compile Blink (default)
+./compile uno
+
+# Compile specific examples
+./compile teensy41,teensy40 --examples ColorPalette
 ./compile esp32dev,esp32s3,esp32c3,esp32c6,esp32s2 --examples Blink,Apa102HD
-./compiles uno,digix,attiny85 --examples Blink,Apa102HD 
+
+# Compile ALL examples (use 'all' keyword)
+./compile uno all
+./compile esp32dev all
 ```
 
 ## Unit Tests
@@ -43,29 +51,56 @@ Shared code is unit-tested on the host machine. They can be found at `tests/` at
 
 The easiest way to run the tests is just use `./test`
 
-Alternatively, tests can be built and run for your development machine with CMake:
+## QEMU Emulation Testing
+
+FastLED validates ESP32 examples end-to-end with fbuild's native QEMU runner. The exact CI invocation lives in `.github/workflows/qemu_template.yml`.
+
+### Running ESP32 Examples in QEMU locally
 
 ```bash
-cmake -S tests -B tests/.build
-ctest --test-dir tests/.build --output-on-failure
-# Not that this will fail if you do not have gcc installed. When in doubt
-# use ./test to compile the unit tests, as a compiler is guaranteed to be
-# available via this tool.
+# 1. Stage source/config only; fbuild performs the build in the next command.
+uv run ci/stage_fbuild_project.py \
+    --board esp32s3 \
+    --example BlinkParallel \
+    --define FASTLED_ESP32_IS_QEMU \
+    --build-dir .build/fbuild/esp32s3
+
+# 2. Emulate with fbuild (auto-downloads the Espressif QEMU binary on first run).
+uv run fbuild test-emu \
+    --emulator qemu \
+    --environment esp32s3 \
+    --timeout 120 \
+    --halt-on-success "Initialized 4 LED strips with 256 LEDs each" \
+    --halt-on-error "Guru Meditation|abort\\(\\)|Backtrace:|TEST_SUITE_COMPLETE: FAIL|QEMU_LCD_CLOCKLESS_REGISTRATION: FAIL" \
+    .build/fbuild/esp32s3
 ```
+
+Swap `esp32s3` for `esp32dev`, `esp32c3`, or any other QEMU-supported target. CI runs the same two-step sequence in `qemu_template.yml`.
 
 ## VSCode
 
-We also support VSCode and IntelliSense auto-completion when the free [platformio](https://marketplace.visualstudio.com/items?itemName=platformio.platformio-ide) extension is installed. The development sketch to test library changes can be found at [dev/dev.ino](dev/dev.ino).
+We support VSCode with powerful IntelliSense auto-completion via the [clangd](https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.vscode-clangd) extension.
 
- * Make sure you have [platformio](https://marketplace.visualstudio.com/items?itemName=platformio.platformio-ide) installed.
- * Click the compile button.
+### Setup
 
-![image](https://github.com/user-attachments/assets/616cc35b-1736-4bb0-b53c-468580be66f4)
+Run the installation script to automatically install the clangd extension and generate IntelliSense configuration:
+
+```bash
+bash install
+```
+
+This will:
+- Auto-install the clangd extension for VSCode/Cursor
+- Generate `compile_commands.json` for IntelliSense
+- Set up debugging capabilities
+
 *Changes in non platform specific code can be tested quickly in our webcompiler by invoking the script `./wasm` at the project root*
 
 ## VSCode Debugging Guide
 
-FastLED includes comprehensive VSCode debugging support with GDB and Clang-generated debug symbols, providing professional-grade step-through debugging capabilities for the test suite.
+FastLED includes comprehensive VSCode debugging support with LLDB and Clang-generated debug symbols, providing professional-grade step-through debugging capabilities for the test suite.
+
+**Note:** FastLED also includes built-in crash handlers that automatically provide excellent stack traces with function names, line numbers, and full call stacks. For many debugging scenarios, the automatic crash output is sufficient.
 
 ### Quick Start
 
@@ -148,16 +183,18 @@ Access via `Ctrl+Shift+P` → "Tasks: Run Task":
 
 ### Technical Setup
 
-#### Clang + GDB Benefits
+#### Clang + LLDB Benefits
 This setup provides the **best of both worlds**:
 - **Clang's superior symbol generation**: Better template debugging, modern C++ support
-- **GDB's mature debugging features**: Robust breakpoint handling, memory inspection
+- **LLDB's native LLVM integration**: Seamless debugging with Clang-compiled binaries
 - **Cross-platform compatibility**: Works on Linux, macOS, Windows
-- **FastLED optimization**: Unified compilation testing with `FASTLED_ALL_SRC=1`
+- **Advanced features**: Python scripting, data formatters, modern C++ support
+
+For detailed LLDB usage, see `agents/docs/lldb-debugging.md`.
 
 #### Debug Build Configuration
 The FastLED test system automatically uses optimal debug settings:
-- **Compiler**: Clang (when available) or GCC fallback
+- **Compiler**: Clang via clang-tool-chain (automatically installed)
 - **Debug info**: `-g3` (full debug information including macros)
 - **Optimization**: `-O0` (no optimization for accurate debugging)
 - **Frame pointers**: `-fno-omit-frame-pointer` (for accurate stack traces)
@@ -186,6 +223,16 @@ For complete debugging documentation, see [DEBUGGING.md](DEBUGGING.md).
   * run `./test`
   * run `./lint`
   * Then submit your code via a git pull request.
+
+## Pull Request Guidelines
+
+**All PRs will be squash merged.** When your pull request is merged, all commits will be squashed into a single commit on the main branch. This keeps the project history clean and linear.
+
+What this means for you:
+- Feel free to make as many commits as needed during development
+- No need to manually squash or rebase your commits before submitting
+- The PR title and description should clearly summarize the changes (they become the squash commit message)
+- All commit history within the PR will be preserved in the PR description upon merge
 
 
 ## Going deeper

@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
+## [0.4.1] 2026-06-24
+- fix #58, add **float mA_DC_PWM(float threshold, uint16_t cycles = 1)**
+- add example **ACS712_20_PWM.ino**
+- minor edits
+
+## [0.4.0] 2026-01-02
+- update GitHub actions
+- update examples
+- bump version number
+- minor edits
+
+----
+
 ## [0.3.10] - 2024-10-20
 - update readme.md, ESPHome #51, kudos to uTZFu
 - add debug example.

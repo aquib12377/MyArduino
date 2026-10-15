@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2025 Ryan Powell <ryan@nable-embedded.io> and
+ * Copyright 2020-2026 Ryan Powell <ryan@nable-embedded.io> and
  * esp-nimble-cpp, NimBLE-Arduino contributors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,10 +21,10 @@
 #include "nimconfig.h"
 #if CONFIG_BT_ENABLED && CONFIG_BT_NIMBLE_ROLE_PERIPHERAL
 
-# if defined(CONFIG_NIMBLE_CPP_IDF)
-#  include "host/ble_gap.h"
-# else
+# ifdef USING_NIMBLE_ARDUINO_HEADERS
 #  include "nimble/nimble/host/include/host/ble_gap.h"
+# else
+#  include "host/ble_gap.h"
 # endif
 
 /****  FIX COMPILATION ****/
@@ -61,7 +61,7 @@ class NimBLEClient;
  */
 class NimBLEServer {
   public:
-    void    start();
+    bool    start();
     uint8_t getConnectedCount() const;
     bool    disconnect(uint16_t connHandle, uint8_t reason = BLE_ERR_REM_USER_CONN_TERM) const;
     bool    disconnect(const NimBLEConnInfo& connInfo, uint8_t reason = BLE_ERR_REM_USER_CONN_TERM) const;
@@ -83,6 +83,7 @@ class NimBLEServer {
     void                  setDataLen(uint16_t connHandle, uint16_t tx_octets) const;
     bool                  updatePhy(uint16_t connHandle, uint8_t txPhysMask, uint8_t rxPhysMask, uint16_t phyOptions);
     bool                  getPhy(uint16_t connHandle, uint8_t* txPhy, uint8_t* rxPhy);
+    void                  sendServiceChangedIndication() const;
 
 # if CONFIG_BT_NIMBLE_ROLE_CENTRAL
     NimBLEClient* getClient(uint16_t connHandle);
@@ -122,7 +123,7 @@ class NimBLEServer {
     bool m_gattsStarted : 1;
     bool m_svcChanged : 1;
     bool m_deleteCallbacks : 1;
-# if !CONFIG_BT_NIMBLE_EXT_ADV
+# if !CONFIG_BT_NIMBLE_EXT_ADV && CONFIG_BT_NIMBLE_ROLE_BROADCASTER
     bool m_advertiseOnDisconnect : 1;
 # endif
     NimBLEServerCallbacks*                                 m_pServerCallbacks;
@@ -133,10 +134,11 @@ class NimBLEServer {
     NimBLEClient* m_pClient{nullptr};
 # endif
 
-    static int handleGapEvent(struct ble_gap_event* event, void* arg);
-    static int handleGattEvent(uint16_t connHandle, uint16_t attrHandle, ble_gatt_access_ctxt* ctxt, void* arg);
-    void       serviceChanged();
-    void       resetGATT();
+    static int  handleGapEvent(struct ble_gap_event* event, void* arg);
+    static int  handleGattEvent(uint16_t connHandle, uint16_t attrHandle, ble_gatt_access_ctxt* ctxt, void* arg);
+    static void gattRegisterCallback(struct ble_gatt_register_ctxt* ctxt, void* arg);
+    void        setServiceChanged();
+    bool        resetGATT();
 
 }; // NimBLEServer
 
@@ -179,6 +181,15 @@ class NimBLEServerCallbacks {
      * @return The passkey to be sent to the client.
      */
     virtual uint32_t onPassKeyDisplay();
+
+    /**
+     * @brief Called when using passkey entry pairing and the peer requires the passkey to be entered.
+     * @param [in] connInfo A reference to a NimBLEConnInfo instance with information
+     * about the peer connection parameters.
+     * @details The application should call NimBLEDevice::injectPassKey with the passkey
+     * displayed on the peer device to complete the pairing process.
+     */
+    virtual void onPassKeyEntry(NimBLEConnInfo& connInfo);
 
     /**
      * @brief Called when using numeric comparision for pairing.

@@ -5,6 +5,24 @@
  * See examples/App/AppInitialization for more authentication examples.
  *
  * The OAuth2.0 authentication or access token authorization is required for Cloud Functions operations.
+ * 
+ * The functions that supports API call should be 1st gen Cloud function.
+ * 
+ * You can deploy the 1st gen Cloud function with gcloud by using the following command.
+ * 
+ * gcloud config set project YOUR_PROJECT
+ * 
+ * gcloud functions deploy helloHttp \
+ * --no-gen2 \
+ * --region YOUR_LOCATION \
+ * --runtime nodejs20 \
+ * --source gs://YOUR_FIREBASE_STORAGE_BUCKET_URL/helloWorld.zip \
+ * --entry-point helloHttp \
+ * --trigger-http
+ * 
+ *  
+ * For Google REST API reference documentation, please visit
+ * https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions/call
  *
  * For the complete usage guidelines, please read README.md or visit https://github.com/mobizt/FirebaseClient
  */
@@ -88,13 +106,13 @@ void loop()
         Serial.println("Calling a function...");
 
         // Async call with callback function.
-        cfunctions.call(aClient, GoogleCloudFunctions::Parent(FIREBASE_PROJECT_ID, PROJECT_LOCATION), "helloWorld" /* function name */, "test" /* data to pass to function */, processData, "callTask");
+        cfunctions.call(aClient, GoogleCloudFunctions::Parent(FIREBASE_PROJECT_ID, PROJECT_LOCATION), "helloHttp" /* function name */, "{\\\"name\\\":\\\"Jessie\\\"}" /* data to pass to function */, processData, "callTask");
 
         // Async call with AsyncResult for returning result.
-        cfunctions.call(aClient, GoogleCloudFunctions::Parent(FIREBASE_PROJECT_ID, PROJECT_LOCATION), "helloWorld" /* function name */, "test" /* data to pass to function */, cloudFunctionsResult);
+        cfunctions.call(aClient, GoogleCloudFunctions::Parent(FIREBASE_PROJECT_ID, PROJECT_LOCATION), "helloHttp" /* function name */, "{\\\"name\\\":\\\"Jessie\\\"}" /* data to pass to function */, cloudFunctionsResult);
 
         // Sync call which waits until the payload was received.
-        String payload = cfunctions.call(aClient, GoogleCloudFunctions::Parent(FIREBASE_PROJECT_ID, PROJECT_LOCATION), "helloWorld" /* function name */, "test" /* data to pass to function */);
+        String payload = cfunctions.call(aClient, GoogleCloudFunctions::Parent(FIREBASE_PROJECT_ID, PROJECT_LOCATION), "helloHttp" /* function name */, "{\\\"name\\\":\\\"Jessie\\\"}" /* data to pass to function */);
 
         if (aClient.lastError().code() == 0)
             Serial.println(payload);

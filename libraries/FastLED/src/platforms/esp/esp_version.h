@@ -1,3 +1,5 @@
+// IWYU pragma: private
+
 // FastLED ESP-IDF version normalization
 // -------------------------------------
 // Goal: Provide a single, consistent set of ESP-IDF version macros across
@@ -15,15 +17,28 @@
 // available, then define any missing pieces. This prevents incorrect
 // feature detection such as compiling legacy polyfills on newer IDF.
 
+// PERFORMANCE OPTIMIZATION: Cache FL_HAS_INCLUDE() results to avoid expensive
+// preprocessor header searches. FL_HAS_INCLUDE triggers header searches which
+// are slow when included multiple times. This guard ensures these checks only
+// happen once per compilation unit.
+
+// ok no namespace fl
+#ifndef FASTLED_ESP_VERSION_CACHED
+#define FASTLED_ESP_VERSION_CACHED
+
+#include "fl/stl/has_include.h"
+
 // Prefer official version header when available (Arduino-ESP32 / ESP-IDF 4+)
-#if __has_include(<esp_idf_version.h>)
+#if FL_HAS_INCLUDE(<esp_idf_version.h>)
 #include "esp_idf_version.h"
 #endif
 
 // Pull in sdkconfig if present (sometimes defines version components)
-#if __has_include("sdkconfig.h")
+#if FL_HAS_INCLUDE("sdkconfig.h")
 #include "sdkconfig.h"
 #endif
+
+#endif // FASTLED_ESP_VERSION_CACHED
 
 // Provide safe defaults for very old environments that define nothing
 #ifndef ESP_IDF_VERSION_MAJOR
@@ -52,4 +67,12 @@
 // Example: AnalogOutput analogWrite polyfill compiles only when this is false
 #ifndef ESP_IDF_VERSION_4_OR_HIGHER
 #define ESP_IDF_VERSION_4_OR_HIGHER (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 0, 0))
+#endif
+
+#ifndef ESP_IDF_VERSION_5_OR_HIGHER
+#define ESP_IDF_VERSION_5_OR_HIGHER (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0))
+#endif
+
+#ifndef ESP_IDF_VERSION_6_OR_HIGHER
+#define ESP_IDF_VERSION_6_OR_HIGHER (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0))
 #endif

@@ -1,0 +1,12 @@
+websockets>=13.0
+openai>=1.50                # DeepSeek is called through its OpenAI-compatible API
+numpy>=1.24
+scipy>=1.10
+rapidfuzz>=3.0
+python-dotenv>=1.0
+# local speech-to-text (required; the model downloads on first run)
+faster-whisper>=1.0
+# local text-to-speech (required for the natural voice; needs a voice file, see .env.example)
+piper-tts>=1.3
+# optional: system-voice fallback if Piper is not installed (Windows SAPI / macOS / espeak)
+# pyttsx3>=2.90

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Guardian Dashboard · SmartRide{% endblock %}
+{% block head %}<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">GUARDIAN VIEW</span><h1>{{ session.name.split()[0] }}, your rider at a glance.</h1><p>Live safety status and emergency information.</p></div><div class="live-pill"><i></i><span id="connectionText">Connecting…</span></div></div>
+<section class="alert-banner hidden" id="accidentBanner"><div><b>🚨 Rider may need assistance</b><span>Emergency SMS will be sent if the rider does not cancel.</span></div><strong id="countdown">02:00</strong></section>
+<section class="guardian-layout">
+  <div>
+    <section class="status-grid three">
+      <article class="status-card"><div class="card-icon cyan">⛑</div><span>HELMET</span><h3 id="helmetStatus">Checking…</h3><p id="helmetDetail">Waiting for device</p></article>
+      <article class="status-card"><div class="card-icon amber">◌</div><span>ALCOHOL</span><h3 id="alcoholStatus">Checking…</h3><p id="alcoholDetail">Sensor status</p></article>
+      <article class="status-card"><div class="card-icon green">✓</div><span>SAFETY</span><h3 id="rideStatus">Monitoring</h3><p id="rideDetail">Bike stopped</p></article>
+    </section>
+    <article class="panel map-panel"><div class="panel-head"><div><span class="eyebrow">RIDER LOCATION</span><h2>Live position</h2></div><span id="coordinates">No GPS fix</span></div><div id="map" class="map guardian-map"></div><div class="map-fallback">Map tiles need internet; coordinates continue working offline.</div></article>
+  </div>
+  <aside>
+    <article class="panel emergency-card"><span class="eyebrow">EMERGENCY STATUS</span><div class="safety-orb">✓</div><h2 id="emergencyTitle">All clear</h2><p id="emergencyText">No emergency alerts reported.</p><div class="info-row"><span>SMS status</span><b id="smsStatus">Not required</b></div></article>
+    <article class="panel"><div class="panel-head"><div><span class="eyebrow">LATEST EVENTS</span><h2>Activity</h2></div></div><div id="events" class="event-list compact"><p class="empty">No events yet.</p></div></article>
+  </aside>
+</section>
+{% endblock %}
+{% block scripts %}<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>{% endblock %}
+

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2025 Ryan Powell <ryan@nable-embedded.io> and
+ * Copyright 2020-2026 Ryan Powell <ryan@nable-embedded.io> and
  * esp-nimble-cpp, NimBLE-Arduino contributors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,7 @@
 #include "nimconfig.h"
 #if CONFIG_BT_ENABLED
 
-# if defined(CONFIG_NIMBLE_CPP_IDF)
+# ifndef USING_NIMBLE_ARDUINO_HEADERS
 #  include "esp_log.h"
 #  include "console/console.h"
 #  ifndef CONFIG_NIMBLE_CPP_LOG_LEVEL
@@ -171,7 +171,7 @@
 #   define NIMBLE_LOGE(tag, format, ...) (void)tag
 #  endif
 
-# endif  /* CONFIG_NIMBLE_CPP_IDF */
+# endif  /* !USING_NIMBLE_ARDUINO_HEADERS */
 
 #  define NIMBLE_LOGD_IF(cond, tag, format, ...) { if (cond) { NIMBLE_LOGD(tag, format, ##__VA_ARGS__); }}
 #  define NIMBLE_LOGI_IF(cond, tag, format, ...) { if (cond) { NIMBLE_LOGI(tag, format, ##__VA_ARGS__); }}

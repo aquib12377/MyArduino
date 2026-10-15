@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Login · SmartRide{% endblock %}
+{% block content %}
+<section class="login-shell">
+  <div class="login-visual">
+    <div class="brand large"><span class="brand-mark">SR</span><span>SmartRide</span></div>
+    <div class="hero-copy"><span class="eyebrow">CONNECTED SAFETY</span><h1>Every ride.<br><em>Protected.</em></h1><p>A smart helmet and bike safety system that keeps riders secure and families connected.</p></div>
+    <div class="orbit"><div class="helmet-icon">⛑</div><span class="dot d1"></span><span class="dot d2"></span><span class="dot d3"></span></div>
+  </div>
+  <div class="login-panel">
+    <form method="post" class="auth-card">
+      <span class="eyebrow">WELCOME BACK</span><h2>Sign in to SmartRide</h2><p>Monitor safety, routes, and every ride.</p>
+      <label>Email address<input type="email" name="email" placeholder="rider@smartride.local" required autofocus></label>
+      <label>Password<input type="password" name="password" placeholder="••••••••" required></label>
+      <button class="btn primary" type="submit">Sign in <span>→</span></button>
+      <div class="demo-logins"><b>Prototype accounts</b><span>Rider: rider@smartride.local / Rider@123</span><span>Guardian: guardian@smartride.local / Guardian@123</span></div>
+    </form>
+  </div>
+</section>
+{% endblock %}
+

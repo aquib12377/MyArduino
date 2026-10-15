@@ -36,11 +36,7 @@
 #ifndef _IR_PRONTO_HPP
 #define _IR_PRONTO_HPP
 
-#if defined(DEBUG)
-#define LOCAL_DEBUG
-#else
-//#define LOCAL_DEBUG // This enables debug output only for this file
-#endif
+#include "LocalDebugLevelStart.h"
 
 /** \addtogroup Decoder Decoders and encoders for different protocols
  * @{
@@ -84,12 +80,12 @@ void IRsend::sendPronto(const uint16_t *data, uint16_t length, int_fast8_t aNumb
     }
     uint16_t intros = 2 * data[2];
     uint16_t repeats = 2 * data[3];
-#if defined(LOCAL_DEBUG)
-    Serial.print(F("sendPronto intros="));
-    Serial.print(intros);
-    Serial.print(F(" repeats="));
-    Serial.println(repeats);
-#endif
+
+    DEBUG_PRINT(F("sendPronto intros="));
+    DEBUG_PRINT(intros);
+    DEBUG_PRINT(F(" repeats="));
+    DEBUG_PRINTLN(repeats);
+
     if (numbersInPreamble + intros + repeats != length) { // inconsistent sizes
         return;
     }
@@ -255,7 +251,7 @@ static void compensateAndDumpSequence(Print *aSerial, const volatile IRRawbufTyp
  * Print the result (second argument) as Pronto Hex on the Print supplied as argument.
  * Used in the ReceiveDump example.
  * Do not print repeat sequence data.
- * @param aSerial The Print object on which to write, for Arduino you can use &Serial.
+ * @param aSerial The Print object on which to write, you can use &Serial for Arduino.
  * @param aFrequencyHertz Modulation frequency in Hz. Often 38000Hz.
  */
 void IRrecv::compensateAndPrintIRResultAsPronto(Print *aSerial, uint16_t aFrequencyHertz) {
@@ -266,7 +262,7 @@ void IRrecv::compensateAndPrintIRResultAsPronto(Print *aSerial, uint16_t aFreque
     dumpNumberHex(aSerial, (decodedIRData.rawlen + 1) / 2);
     dumpNumberHex(aSerial, 0); // no repeat data
     uint16_t timebase = toTimebase(aFrequencyHertz);
-    compensateAndDumpSequence(aSerial, &decodedIRData.rawDataPtr->rawbuf[1], decodedIRData.rawlen - 1, timebase); // skip leading space
+    compensateAndDumpSequence(aSerial, &irparams.rawbuf[1], decodedIRData.rawlen - 1, timebase); // skip leading space
     aSerial->println(F("\";"));
 }
 
@@ -335,13 +331,12 @@ size_t IRrecv::compensateAndStorePronto(String *aString, uint16_t frequency) {
     size += dumpNumberHex(aString, toFrequencyCode(frequency));
     size += dumpNumberHex(aString, (decodedIRData.rawlen + 1) / 2);
     size += dumpNumberHex(aString, 0);
-    size += compensateAndDumpSequence(aString, &decodedIRData.rawDataPtr->rawbuf[1], decodedIRData.rawlen - 1, timebase); // skip leading space
+    size += compensateAndDumpSequence(aString, &irparams.rawbuf[1], decodedIRData.rawlen - 1, timebase); // skip leading space
 
     return size;
 }
 
 /** @}*/
-#if defined(LOCAL_DEBUG)
-#undef LOCAL_DEBUG
-#endif
+#include "LocalDebugLevelEnd.h"
+
 #endif // _IR_PRONTO_HPP

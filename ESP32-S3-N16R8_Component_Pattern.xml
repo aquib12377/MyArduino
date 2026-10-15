@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Library Type="DipTrace-ComponentLibrary" Name="ESP32-S3-N16R8 Dev Board" Hint="ESP32-S3-WROOM-1-N16R8 dual USB-C dev board, socketed module" Version="5.3.0.0" UID32="1837465291" Units="mm">
+  <Library Type="DipTrace-PatternLibrary" Units="mm">
+    <PadStyles>
+      <PadStyle Name="PadRnd" Type="Through" HoleType="Round" Hole="1.0">
+        <MainStack Shape="Ellipse" Width="1.8" Height="1.8"/>
+      </PadStyle>
+      <PadStyle Name="PadSq" Type="Through" HoleType="Round" Hole="1.0">
+        <MainStack Shape="Rectangle" Width="1.8" Height="1.8" Corner="0"/>
+      </PadStyle>
+    </PadStyles>
+    <Categories/>
+    <Patterns>
+      <Pattern PatternStyle="ESP32S3_N16R8_HDR" Id="0" RefDes="U" Mounting="Through" Width="48.26" Height="22.86" Orientation="0" LockTypeChange="N" Type="Matrix" Float1="2.54" Float2="22.86" Float3="0" Int1="20" Int2="2">
+        <Name>ESP32-S3-N16R8_Dual-USB-C</Name>
+        <Name_Description>ESP32-S3-WROOM-1-N16R8 dual USB-C dev board (2x20, 2.54mm pitch)</Name_Description>
+        <DefPad Style="PadRnd"/>
+        <Pads>
+      <Pad Id="0" Style="PadSq" X="-24.13" Y="11.43" Angle="0" Locked="N" Side="Top"><Number>1</Number></Pad>
+      <Pad Id="1" Style="PadRnd" X="-21.59" Y="11.43" Angle="0" Locked="N" Side="Top"><Number>2</Number></Pad>
+      <Pad Id="2" Style="PadRnd" X="-19.05" Y="11.43" Angle="0" Locked="N" Side="Top"><Number>3</Number></Pad>
+      <Pad Id="3" Style="PadRnd" X="-16.51" Y="11.43" Angle="0" Locked="N" Side="Top"><Number>4</Number></Pad>
+      <Pad Id="4" Style="PadRnd" X="-13.97" Y="11.43" Angle="0" Locked="N" Side="Top"><Number>5</Number></Pad>
+      <Pad Id="5" Style="PadRnd" X="-11.43" Y="11.43" Angle="0" Locked="N" Side="Top"><Number>6</Number></Pad>
+      <Pad Id="6" Style="PadRnd" X="-8.89" Y="11.43" Angle="0" Locked="N" Side="Top"><Number>7</Number></Pad>
+      <Pad Id="7" Style="PadRnd" X="-6.35" Y="11.43" Angle="0" Locked="N" Side="Top"><Number>8</Number></Pad>
+      <Pad Id="8" Style="PadRnd" X="-3.81" Y="11.43" Angle="0" Locked="N" Side="Top"><Number>9</Number></Pad>
+      <Pad Id="9" Style="PadRnd" X="-1.27" Y="11.43" Angle="0" Locked="N" Side="Top"><Number>10</Number></Pad>
+      <Pad Id="10" Style="PadRnd" X="1.27" Y="11.43" Angle="0" Locked="N" Side="Top"><Number>11</Number></Pad>
+      <Pad Id="11" Style="PadRnd" X="3.81" Y="11.43" Angle="0" Locked="N" Side="Top"><Number>12</Number></Pad>
+      <Pad Id="12" Style="PadRnd" X="6.35" Y="11.43" Angle="0" Locked="N" Side="Top"><Number>13</Number></Pad>
+      <Pad Id="13" Style="PadRnd" X="8.89" Y="11.43" Angle="0" Locked="N" Side="Top"><Number>14</Number></Pad>
+      <Pad Id="14" Style="PadRnd" X="11.43" Y="11.43" Angle="0" Locked="N" Side="Top"><Number>15</Number></Pad>
+      <Pad Id="15" Style="PadRnd" X="13.97" Y="11.43" Angle="0" Locked="N" Side="Top"><Number>16</Number></Pad>
+      <Pad Id="16" Style="PadRnd" X="16.51" Y="11.43" Angle="0" Locked="N" Side="Top"><Number>17</Number></Pad>
+      <Pad Id="17" Style="PadRnd" X="19.05" Y="11.43" Angle="0" Locked="N" Side="Top"><Number>18</Number></Pad>
+      <Pad Id="18" Style="PadRnd" X="21.59" Y="11.43" Angle="0" Locked="N" Side="Top"><Number>19</Number></Pad>
+      <Pad Id="19" Style="PadRnd" X="24.13" Y="11.43" Angle="0" Locked="N" Side="Top"><Number>20</Number></Pad>
+      <Pad Id="20" Style="PadRnd" X="-24.13" Y="-11.43" Angle="0" Locked="N" Side="Top"><Number>21</Number></Pad>
+      <Pad Id="21" Style="PadRnd" X="-21.59" Y="-11.43" Angle="0" Locked="N" Side="Top"><Number>22</Number></Pad>
+      <Pad Id="22" Style="PadRnd" X="-19.05" Y="-11.43" Angle="0" Locked="N" Side="Top"><Number>23</Number></Pad>
+      <Pad Id="23" Style="PadRnd" X="-16.51" Y="-11.43" Angle="0" Locked="N" Side="Top"><Number>24</Number></Pad>
+      <Pad Id="24" Style="PadRnd" X="-13.97" Y="-11.43" Angle="0" Locked="N" Side="Top"><Number>25</Number></Pad>
+      <Pad Id="25" Style="PadRnd" X="-11.43" Y="-11.43" Angle="0" Locked="N" Side="Top"><Number>26</Number></Pad>
+      <Pad Id="26" Style="PadRnd" X="-8.89" Y="-11.43" Angle="0" Locked="N" Side="Top"><Number>27</Number></Pad>
+      <Pad Id="27" Style="PadRnd" X="-6.35" Y="-11.43" Angle="0" Locked="N" Side="Top"><Number>28</Number></Pad>
+      <Pad Id="28" Style="PadRnd" X="-3.81" Y="-11.43" Angle="0" Locked="N" Side="Top"><Number>29</Number></Pad>
+      <Pad Id="29" Style="PadRnd" X="-1.27" Y="-11.43" Angle="0" Locked="N" Side="Top"><Number>30</Number></Pad>
+      <Pad Id="30" Style="PadRnd" X="1.27" Y="-11.43" Angle="0" Locked="N" Side="Top"><Number>31</Number></Pad>
+      <Pad Id="31" Style="PadRnd" X="3.81" Y="-11.43" Angle="0" Locked="N" Side="Top"><Number>32</Number></Pad>
+      <Pad Id="32" Style="PadRnd" X="6.35" Y="-11.43" Angle="0" Locked="N" Side="Top"><Number>33</Number></Pad>
+      <Pad Id="33" Style="PadRnd" X="8.89" Y="-11.43" Angle="0" Locked="N" Side="Top"><Number>34</Number></Pad>
+      <Pad Id="34" Style="PadRnd" X="11.43" Y="-11.43" Angle="0" Locked="N" Side="Top"><Number>35</Number></Pad>
+      <Pad Id="35" Style="PadRnd" X="13.97" Y="-11.43" Angle="0" Locked="N" Side="Top"><Number>36</Number></Pad>
+      <Pad Id="36" Style="PadRnd" X="16.51" Y="-11.43" Angle="0" Locked="N" Side="Top"><Number>37</Number></Pad>
+      <Pad Id="37" Style="PadRnd" X="19.05" Y="-11.43" Angle="0" Locked="N" Side="Top"><Number>38</Number></Pad>
+      <Pad Id="38" Style="PadRnd" X="21.59" Y="-11.43" Angle="0" Locked="N" Side="Top"><Number>39</Number></Pad>
+      <Pad Id="39" Style="PadRnd" X="24.13" Y="-11.43" Angle="0" Locked="N" Side="Top"><Number>40</Number></Pad>
+        </Pads>
+        <Shapes>
+          <Shape Id="0" Type="Rectangle" Layer="Top Silk" LineWidth="0.15" AllLayers="N">
+            <Points><Point X="-25.5" Y="9.5"/><Point X="25.5" Y="-9.5"/></Points>
+          </Shape>
+        </Shapes>
+      </Pattern>
+    </Patterns>
+  </Library>
+  <Categories/>
+  <Components>
+    <Component Id="0">
+      <Part Id="0" RefDes="U" PartType="Normal" Type="1" ShowNumbers="Show" Int1="0" Int2="0" Width="48.26" Height="15" LockTypeChange="N">
+        <Pattern Style="ESP32S3_N16R8_HDR"/>
+        <Name>ESP32-S3-N16R8</Name>
+        <PartName>Part 1</PartName>
+        <Value>ESP32-S3-WROOM-1-N16R8</Value>
+        <Origin X="0" Y="0"/>
+        <Datasheet>https://www.espressif.com/en/products/modules/esp32-s3</Datasheet>
+        <Manufacturer>Espressif (dual USB-C dev board, N16R8 module)</Manufacturer>
+        <Pins>
+        <Pin Id="0" X="-24.13" Y="7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="90" PadId="0" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="90" NameOrientation="90"><Name>GND</Name><PadNumber>1</PadNumber></Pin>
+        <Pin Id="1" X="-21.59" Y="7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="90" PadId="1" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="90" NameOrientation="90"><Name>TX</Name><PadNumber>2</PadNumber></Pin>
+        <Pin Id="2" X="-19.05" Y="7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="90" PadId="2" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="90" NameOrientation="90"><Name>RX</Name><PadNumber>3</PadNumber></Pin>
+        <Pin Id="3" X="-16.51" Y="7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="90" PadId="3" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="90" NameOrientation="90"><Name>GPIO2</Name><PadNumber>4</PadNumber></Pin>
+        <Pin Id="4" X="-13.97" Y="7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="90" PadId="4" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="90" NameOrientation="90"><Name>GPIO42</Name><PadNumber>5</PadNumber></Pin>
+        <Pin Id="5" X="-11.43" Y="7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="90" PadId="5" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="90" NameOrientation="90"><Name>GPIO41</Name><PadNumber>6</PadNumber></Pin>
+        <Pin Id="6" X="-8.89" Y="7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="90" PadId="6" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="90" NameOrientation="90"><Name>GPIO40</Name><PadNumber>7</PadNumber></Pin>
+        <Pin Id="7" X="-6.35" Y="7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="90" PadId="7" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="90" NameOrientation="90"><Name>GPIO39</Name><PadNumber>8</PadNumber></Pin>
+        <Pin Id="8" X="-3.81" Y="7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="90" PadId="8" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="90" NameOrientation="90"><Name>GPIO38</Name><PadNumber>9</PadNumber></Pin>
+        <Pin Id="9" X="-1.27" Y="7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="90" PadId="9" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="90" NameOrientation="90"><Name>GPIO37</Name><PadNumber>10</PadNumber></Pin>
+        <Pin Id="10" X="1.27" Y="7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="90" PadId="10" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="90" NameOrientation="90"><Name>GPIO36</Name><PadNumber>11</PadNumber></Pin>
+        <Pin Id="11" X="3.81" Y="7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="90" PadId="11" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="90" NameOrientation="90"><Name>GPIO35</Name><PadNumber>12</PadNumber></Pin>
+        <Pin Id="12" X="6.35" Y="7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="90" PadId="12" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="90" NameOrientation="90"><Name>GPIO0</Name><PadNumber>13</PadNumber></Pin>
+        <Pin Id="13" X="8.89" Y="7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="90" PadId="13" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="90" NameOrientation="90"><Name>GPIO45</Name><PadNumber>14</PadNumber></Pin>
+        <Pin Id="14" X="11.43" Y="7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="90" PadId="14" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="90" NameOrientation="90"><Name>GPIO48</Name><PadNumber>15</PadNumber></Pin>
+        <Pin Id="15" X="13.97" Y="7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="90" PadId="15" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="90" NameOrientation="90"><Name>GPIO47</Name><PadNumber>16</PadNumber></Pin>
+        <Pin Id="16" X="16.51" Y="7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="90" PadId="16" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="90" NameOrientation="90"><Name>GPIO21</Name><PadNumber>17</PadNumber></Pin>
+        <Pin Id="17" X="19.05" Y="7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="90" PadId="17" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="90" NameOrientation="90"><Name>GPIO20</Name><PadNumber>18</PadNumber></Pin>
+        <Pin Id="18" X="21.59" Y="7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="90" PadId="18" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="90" NameOrientation="90"><Name>GPIO19</Name><PadNumber>19</PadNumber></Pin>
+        <Pin Id="19" X="24.13" Y="7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="90" PadId="19" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="90" NameOrientation="90"><Name>GND</Name><PadNumber>20</PadNumber></Pin>
+        <Pin Id="20" X="-24.13" Y="-7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="270" PadId="20" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="270" NameOrientation="270"><Name>3V3</Name><PadNumber>21</PadNumber></Pin>
+        <Pin Id="21" X="-21.59" Y="-7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="270" PadId="21" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="270" NameOrientation="270"><Name>3V3</Name><PadNumber>22</PadNumber></Pin>
+        <Pin Id="22" X="-19.05" Y="-7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="270" PadId="22" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="270" NameOrientation="270"><Name>RST</Name><PadNumber>23</PadNumber></Pin>
+        <Pin Id="23" X="-16.51" Y="-7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="270" PadId="23" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="270" NameOrientation="270"><Name>GPIO4</Name><PadNumber>24</PadNumber></Pin>
+        <Pin Id="24" X="-13.97" Y="-7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="270" PadId="24" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="270" NameOrientation="270"><Name>GPIO5</Name><PadNumber>25</PadNumber></Pin>
+        <Pin Id="25" X="-11.43" Y="-7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="270" PadId="25" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="270" NameOrientation="270"><Name>GPIO6</Name><PadNumber>26</PadNumber></Pin>
+        <Pin Id="26" X="-8.89" Y="-7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="270" PadId="26" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="270" NameOrientation="270"><Name>GPIO7</Name><PadNumber>27</PadNumber></Pin>
+        <Pin Id="27" X="-6.35" Y="-7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="270" PadId="27" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="270" NameOrientation="270"><Name>GPIO15</Name><PadNumber>28</PadNumber></Pin>
+        <Pin Id="28" X="-3.81" Y="-7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="270" PadId="28" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="270" NameOrientation="270"><Name>GPIO16</Name><PadNumber>29</PadNumber></Pin>
+        <Pin Id="29" X="-1.27" Y="-7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="270" PadId="29" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="270" NameOrientation="270"><Name>GPIO17</Name><PadNumber>30</PadNumber></Pin>
+        <Pin Id="30" X="1.27" Y="-7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="270" PadId="30" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="270" NameOrientation="270"><Name>GPIO18</Name><PadNumber>31</PadNumber></Pin>
+        <Pin Id="31" X="3.81" Y="-7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="270" PadId="31" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="270" NameOrientation="270"><Name>GPIO3</Name><PadNumber>32</PadNumber></Pin>
+        <Pin Id="32" X="6.35" Y="-7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="270" PadId="32" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="270" NameOrientation="270"><Name>GPIO46</Name><PadNumber>33</PadNumber></Pin>
+        <Pin Id="33" X="8.89" Y="-7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="270" PadId="33" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="270" NameOrientation="270"><Name>GPIO9</Name><PadNumber>34</PadNumber></Pin>
+        <Pin Id="34" X="11.43" Y="-7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="270" PadId="34" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="270" NameOrientation="270"><Name>GPIO10</Name><PadNumber>35</PadNumber></Pin>
+        <Pin Id="35" X="13.97" Y="-7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="270" PadId="35" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="270" NameOrientation="270"><Name>GPIO11</Name><PadNumber>36</PadNumber></Pin>
+        <Pin Id="36" X="16.51" Y="-7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="270" PadId="36" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="270" NameOrientation="270"><Name>GPIO12</Name><PadNumber>37</PadNumber></Pin>
+        <Pin Id="37" X="19.05" Y="-7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="270" PadId="37" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="270" NameOrientation="270"><Name>GPIO13</Name><PadNumber>38</PadNumber></Pin>
+        <Pin Id="38" X="21.59" Y="-7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="270" PadId="38" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="270" NameOrientation="270"><Name>GPIO14</Name><PadNumber>39</PadNumber></Pin>
+        <Pin Id="39" X="24.13" Y="-7.5" Locked="N" Type="Default" ElectricType="Undefined" Orientation="270" PadId="39" Length="2.5" ShowName="Y" NumXShift="0" NumYShift="0" NameXShift="0" NameYShift="0" SignalDelay="0" NumOrientation="270" NameOrientation="270"><Name>5Vin</Name><PadNumber>40</PadNumber></Pin>
+        </Pins>
+        <Shapes>
+          <Shape Id="0" Type="Rectangle" LineWidth="0.2">
+            <Points><Point X="-24.13" Y="7.5"/><Point X="24.13" Y="-7.5"/></Points>
+          </Shape>
+          <Shape Id="1" Type="Text" Locked="N" FontVector="Y" FontMono="N" FontSize="2" FontSizeFloat="2" FontColor="0" TextShow="RefDes" FontWidth="0.2" FontScale="1" HorzAlign="Center" VertAlign="Center" TextAlign="Center" LineSpacing="1.2">
+            <TextLines><TextLine>U?</TextLine></TextLines>
+            <Points><Point X="0" Y="9.5"/></Points>
+          </Shape>
+        </Shapes>
+      </Part>
+    </Component>
+  </Components>
+</Library>

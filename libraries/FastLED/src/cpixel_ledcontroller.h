@@ -3,18 +3,16 @@
 /// @file cpixel_ledcontroller.h
 /// defines the templated version of the CLEDController class
 
-#include "FastLED.h"
 #include "led_sysdefs.h"
 #include "pixeltypes.h"
 #include "color.h"
 #include "eorder.h"
 
-#include "fl/force_inline.h"
-#include "fl/int.h"
+#include "fl/stl/compiler_control.h"
+#include "fl/stl/int.h"
 #include "pixel_controller.h"
 #include "cled_controller.h"
-
-FASTLED_NAMESPACE_BEGIN
+#include "fl/stl/noexcept.h"
 
 
 
@@ -24,13 +22,16 @@ FASTLED_NAMESPACE_BEGIN
 /// @tparam MASK bitmask for the output lanes
 template<EOrder RGB_ORDER, int LANES=1, fl::u32 MASK=0xFFFFFFFF> class CPixelLEDController : public CLEDController {
 protected:
-
+    /// @brief Protected constructor with registration mode
+    /// @param mode Registration mode (AutoRegister or DeferRegister)
+    /// @note Subclasses can use DeferRegister to control when they join the linked list
+    CPixelLEDController(RegistrationMode mode) FL_NO_EXCEPT : CLEDController(mode) {}
 
     /// Set all the LEDs on the controller to a given color
     /// @param data the CRGB color to set the LEDs to
     /// @param nLeds the number of LEDs to set to this color
     /// @param scale_pre_mixed the RGB scaling of color adjustment + global brightness to apply to each LED (in RGB8 mode).
-    virtual void showColor(const CRGB& data, int nLeds, fl::u8 brightness) override {
+    virtual void showColor(const CRGB& data, int nLeds, fl::u8 brightness) FL_NO_EXCEPT override {
         // CRGB premixed, color_correction;
         // getAdjustmentData(brightness, &premixed, &color_correction);
         // ColorAdjustment color_adjustment = {premixed, color_correction, brightness};
@@ -43,7 +44,7 @@ protected:
     /// @param data the RGB data to write out to the strip
     /// @param nLeds the number of LEDs being written out
     /// @param scale_pre_mixed the RGB scaling of color adjustment + global brightness to apply to each LED (in RGB8 mode).
-    virtual void show(const struct CRGB *data, int nLeds, fl::u8 brightness) override {
+    virtual void show(const CRGB *data, int nLeds, fl::u8 brightness) FL_NO_EXCEPT override {
         ColorAdjustment color_adjustment = getAdjustmentData(brightness);
         PixelController<RGB_ORDER, LANES, MASK> pixels(data, nLeds < 0 ? -nLeds : nLeds, color_adjustment, getDither());
         if(nLeds < 0) {
@@ -57,16 +58,13 @@ public:
     static const EOrder RGB_ORDER_VALUE = RGB_ORDER; ///< The RGB ordering for this controller
     static const int LANES_VALUE = LANES;             ///< The number of lanes for this controller
     static const fl::u32 MASK_VALUE = MASK;         ///< The mask for the lanes for this controller
-    CPixelLEDController() : CLEDController() {}
+    CPixelLEDController() FL_NO_EXCEPT : CLEDController() {}
 
     /// Send the LED data to the strip
     /// @param pixels the PixelController object for the LED data
-    virtual void showPixels(PixelController<RGB_ORDER,LANES,MASK> & pixels) = 0;
+    virtual void showPixels(PixelController<RGB_ORDER,LANES,MASK> & pixels) FL_NO_EXCEPT = 0;
 
     /// Get the number of lanes of the Controller
     /// @returns LANES from template
-    int lanes() override { return LANES; }
+    int lanes() FL_NO_EXCEPT override { return LANES; }
 };
-
-
-FASTLED_NAMESPACE_END

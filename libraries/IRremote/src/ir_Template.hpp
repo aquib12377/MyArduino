@@ -92,6 +92,8 @@
 #ifndef _IR_SHUZU_HPP
 #define _IR_SHUZU_HPP
 
+#include "LocalDebugLevelStart.h"
+
 //==============================================================================
 //
 //
@@ -143,7 +145,7 @@ bool IRrecv::decodeShuzu() {
      * Next try the decode
      */
     // Check we have the right amount of data (28). The +4 is for initial gap, start bit mark and space + stop bit mark
-    if (decodedIRData.rawDataPtr->rawlen != (2 * SHUZU_BITS) + 4) {
+    if (irparams.rawlen != (2 * SHUZU_BITS) + 4) {
         // no debug output, since this check is mainly to determine the received protocol
         return false;
     }
@@ -155,8 +157,7 @@ bool IRrecv::decodeShuzu() {
 
     // Decode
     if (!decodePulseDistanceData_P(&ShuzuProtocolConstants, SHUZU_BITS)) {
-        IR_DEBUG_PRINT(F("Shuzu: "));
-        IR_DEBUG_PRINTLN(F("Decode failed"));
+        DEBUG_PRINTLN(F("Shuzu: Decode failed"));
         return false;
     }
 
@@ -172,4 +173,7 @@ bool IRrecv::decodeShuzu() {
 
     return true;
 }
+
+#include "LocalDebugLevelEnd.h"
+
 #endif // _IR_SHUZU_HPP

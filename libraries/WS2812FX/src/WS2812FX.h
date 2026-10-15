@@ -763,7 +763,7 @@ class WS2812FXT {
       uint8_t max_num_active_segments=MAX_NUM_ACTIVE_SEGMENTS) {
         v1 = new WS2812FX(num_leds, pin, type, max_num_segments, max_num_active_segments);
         v2 = new WS2812FX(num_leds, pin, type, max_num_segments, max_num_active_segments);
-        dest = new WS2812FX(num_leds, pin, type, max_num_segments, max_num_active_segments); 
+        dest = new WS2812FX(num_leds, pin, type, max_num_segments, max_num_active_segments);
     };
 
     void init(void) {

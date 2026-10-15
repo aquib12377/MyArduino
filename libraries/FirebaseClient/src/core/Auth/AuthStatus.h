@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
+ * SPDX-FileCopyrightText: 2026 Suwatchai K. <suwatchai@outlook.com>
  *
  * SPDX-License-Identifier: MIT
  */
@@ -57,6 +57,12 @@ namespace firebase_ns
                 break;
             case auth_event_error:
                 evstr = "error";
+                break;
+            case auth_event_deinitializing:
+                evstr = "deinitializing";
+                break;
+            case auth_event_deinitialized:
+                evstr = "deinitialized";
                 break;
             default:
                 evstr = "undefined";

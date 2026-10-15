@@ -12,7 +12,6 @@ A diff output is produced and a sensible exit code is returned.
 from __future__ import print_function, unicode_literals
 
 import argparse
-import codecs
 import difflib
 import errno
 import fnmatch
@@ -20,17 +19,15 @@ import io
 import multiprocessing
 import os
 import signal
-import subprocess
 import sys
 import traceback
 from functools import partial
-from typing import Any, Dict, Generator, List, Optional, Tuple, Union
+from typing import Any, Generator, Optional, cast
 
+from running_process import PIPE, CalledProcessError, RunningProcess
+from running_process.command_render import list2cmdline
 
-try:
-    from subprocess import DEVNULL  # py3k
-except ImportError:
-    DEVNULL = open(os.devnull, "wb")  # type: ignore
+from ci.util.global_interrupt_handler import handle_keyboard_interrupt
 
 
 DEFAULT_EXTENSIONS = "c,h,C,H,cpp,hpp,cc,hh,c++,h++,cxx,hxx"
@@ -43,8 +40,8 @@ class ExitStatus:
     TROUBLE = 2
 
 
-def excludes_from_file(ignore_file: str) -> List[str]:
-    excludes: List[str] = []
+def excludes_from_file(ignore_file: str) -> list[str]:
+    excludes: list[str] = []
     try:
         with io.open(ignore_file, "r", encoding="utf-8") as f:
             for line in f:
@@ -63,17 +60,17 @@ def excludes_from_file(ignore_file: str) -> List[str]:
 
 
 def list_files(
-    files: List[str],
+    files: list[str],
     recursive: bool = False,
-    extensions: Optional[List[str]] = None,
-    exclude: Optional[List[str]] = None,
-) -> List[str]:
+    extensions: Optional[list[str]] = None,
+    exclude: Optional[list[str]] = None,
+) -> list[str]:
     if extensions is None:
         extensions = []
     if exclude is None:
         exclude = []
 
-    out: List[str] = []
+    out: list[str] = []
     for file in files:
         if recursive and os.path.isdir(file):
             for dirpath, dnames, fnames in os.walk(file):
@@ -97,7 +94,7 @@ def list_files(
     return out
 
 
-def make_diff(file: str, original: List[str], reformatted: List[str]) -> List[str]:
+def make_diff(file: str, original: list[str], reformatted: list[str]) -> list[str]:
     return list(
         difflib.unified_diff(
             original,
@@ -110,9 +107,9 @@ def make_diff(file: str, original: List[str], reformatted: List[str]) -> List[st
 
 
 class DiffError(Exception):
-    def __init__(self, message: str, errs: Optional[List[str]] = None):
+    def __init__(self, message: str, errs: Optional[list[str]] = None):
         super(DiffError, self).__init__(message)
-        self.errs: List[str] = errs or []
+        self.errs: list[str] = errs or []
 
 
 class UnexpectedError(Exception):
@@ -122,17 +119,20 @@ class UnexpectedError(Exception):
         self.exc = exc
 
 
-def run_clang_format_diff_wrapper(args: Any, file: str) -> Tuple[List[str], List[str]]:
+def run_clang_format_diff_wrapper(args: Any, file: str) -> tuple[list[str], list[str]]:
     try:
         ret = run_clang_format_diff(args, file)
         return ret
     except DiffError:
         raise
+    except KeyboardInterrupt as ki:
+        handle_keyboard_interrupt(ki)
+        raise
     except Exception as e:
         raise UnexpectedError("{}: {}: {}".format(file, e.__class__.__name__, e), e)
 
 
-def run_clang_format_diff(args: Any, file: str) -> Tuple[List[str], List[str]]:
+def run_clang_format_diff(args: Any, file: str) -> tuple[list[str], list[str]]:
     try:
         with io.open(file, "r", encoding="utf-8") as f:
             original = f.readlines()
@@ -169,50 +169,44 @@ def run_clang_format_diff(args: Any, file: str) -> Tuple[List[str], List[str]]:
     #   > -- http://clang.llvm.org/docs/InternalsManual.html#internals-diag-translation
     #
     # It's not pretty, due to Python 2 & 3 compatibility.
-    encoding_py3: Dict[str, str] = {}
+    encoding_py3: dict[str, str] = {}
     if sys.version_info[0] >= 3:
         encoding_py3["encoding"] = "utf-8"
 
+    # This used to drain stdout to EOF and only then start reading stderr,
+    # with the comment "hopefully the stderr pipe won't get full and block the
+    # process". It can: a file that makes clang-format emit more than the
+    # ~64 KB pipe buffer of diagnostics blocks the child in write() while we
+    # sit in readlines() on the other pipe. RunningProcess drains both
+    # concurrently, so the hope is no longer load-bearing.
+    #
+    # The Python 2 fallback branch that used to live here was unreachable
+    # (guarded by sys.version_info[0] >= 3, always true) and has been dropped.
     try:
-        if sys.version_info[0] >= 3:
-            proc: subprocess.Popen[str] = subprocess.Popen(
-                invocation,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                universal_newlines=True,
-                encoding="utf-8",
-            )
-        else:
-            proc: subprocess.Popen[str] = subprocess.Popen(
-                invocation,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                universal_newlines=True,
-            )
-    except OSError as exc:
-        raise DiffError(
-            "Command '{}' failed to start: {}".format(
-                subprocess.list2cmdline(invocation), exc
-            )
+        result = RunningProcess.run(
+            invocation,
+            stdout=PIPE,
+            stderr=PIPE,
+            encoding="utf-8",
+            errors="replace",
         )
-    proc_stdout = proc.stdout
-    proc_stderr = proc.stderr
-    assert proc_stdout is not None
-    assert proc_stderr is not None
-    if sys.version_info[0] < 3:
-        # make the pipes compatible with Python 3,
-        # reading lines should output unicode
-        encoding = "utf-8"
-        proc_stdout = codecs.getreader(encoding)(proc_stdout)
-        proc_stderr = codecs.getreader(encoding)(proc_stderr)
-    # hopefully the stderr pipe won't get full and block the process
-    outs = list(proc_stdout.readlines())
-    errs = list(proc_stderr.readlines())
-    proc.wait()
-    if proc.returncode:
+    except (OSError, RuntimeError) as exc:
+        # RunningProcess reports a missing executable as RuntimeError.
+        raise DiffError(
+            "Command '{}' failed to start: {}".format(list2cmdline(invocation), exc)
+        )
+    # keepends=True matches the old readlines() behavior exactly -- make_diff
+    # feeds these straight to difflib, which expects newline-terminated lines.
+    # The intermediate str annotations pin RunningProcess's loosely-typed
+    # stdout/stderr so the list[str] contract below still type-checks.
+    stdout_text = cast(str, result.stdout or "")
+    stderr_text = cast(str, result.stderr or "")
+    outs: list[str] = stdout_text.splitlines(keepends=True)
+    errs: list[str] = stderr_text.splitlines(keepends=True)
+    if result.returncode:
         raise DiffError(
             "Command '{}' returned non-zero exit status {}".format(
-                subprocess.list2cmdline(invocation), proc.returncode
+                list2cmdline(invocation), result.returncode
             ),
             errs,
         )
@@ -225,7 +219,7 @@ def bold_red(s: str) -> str:
     return "\x1b[1m\x1b[31m" + s + "\x1b[0m"
 
 
-def colorize(diff_lines: List[str]) -> Generator[str, None, None]:
+def colorize(diff_lines: list[str]) -> Generator[str, None, None]:
     def bold(s: str) -> str:
         return "\x1b[1m" + s + "\x1b[0m"
 
@@ -251,7 +245,7 @@ def colorize(diff_lines: List[str]) -> Generator[str, None, None]:
             yield line
 
 
-def print_diff(diff_lines: List[str], use_color: bool) -> None:
+def print_diff(diff_lines: list[str], use_color: bool) -> None:
     if use_color:
         diff_lines = list(colorize(diff_lines))
     if sys.version_info[0] < 3:
@@ -356,15 +350,22 @@ def main() -> int:
 
     version_invocation = [args.clang_format_executable, str("--version")]
     try:
-        subprocess.check_call(version_invocation, stdout=DEVNULL)
-    except subprocess.CalledProcessError as e:
+        # Output is captured and discarded (RunningProcess.run has no DEVNULL).
+        RunningProcess.run(
+            version_invocation,
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+            check=True,
+        )
+    except CalledProcessError as e:
         print_trouble(parser.prog, str(e), use_colors=colored_stderr)
         return ExitStatus.TROUBLE
-    except OSError as e:
+    except (OSError, RuntimeError) as e:
         print_trouble(
             parser.prog,
             "Command '{}' failed to start: {}".format(
-                subprocess.list2cmdline(version_invocation), e
+                list2cmdline(version_invocation), e
             ),
             use_colors=colored_stderr,
         )

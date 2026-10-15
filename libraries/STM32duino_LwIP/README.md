@@ -7,4 +7,4 @@
 
 ## Version
 
-This library is based on the LwIP stack modified by ST: [stm32_mw_lwip](https://github.com/STMicroelectronics/stm32_mw_lwip) version [v2.1.3_230818](https://github.com/STMicroelectronics/stm32_mw_lwip/releases/tag/v2.1.3_230818).
+This library is based on the LwIP stack modified by ST: [stm32_mw_lwip](https://github.com/STMicroelectronics/stm32_mw_lwip) version [v2.2.1_20250804](https://github.com/STMicroelectronics/stm32_mw_lwip/releases/tag/v2.2.1_20250804).

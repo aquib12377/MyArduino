@@ -7,17 +7,9 @@ Defines the interface that all FastLED compiler implementations must follow.
 
 from abc import ABC, abstractmethod
 from concurrent.futures import Future
-from dataclasses import dataclass
-from enum import Enum
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
-
-
-class CacheType(Enum):
-    """Compiler cache type options."""
-
-    NO_CACHE = "no_cache"
-    SCCACHE = "sccache"
+from typing import Optional
 
 
 @dataclass
@@ -33,8 +25,10 @@ class CompilerResult:
 class InitResult(CompilerResult):
     """Result from compiler initialization."""
 
+    sketch_build_defines: list[str] = field(default_factory=list)
+
     @property
-    def platformio_ini(self) -> Path:
+    def project_ini(self) -> Path:
         return self.build_dir / "platformio.ini"
 
 
@@ -53,14 +47,19 @@ class Compiler(ABC):
         pass
 
     @abstractmethod
-    def build(self, examples: list[str]) -> list[Future[SketchResult]]:
+    def build(
+        self, examples: list[str], max_failures: int | None = None
+    ) -> list[Future[SketchResult]]:
         """Build a list of examples with proper resource management.
 
         Args:
             examples: List of example names or paths to compile
+            max_failures: Stop building further examples once this many have
+                failed. None builds every example.
 
         Returns:
             List of Future objects containing SketchResult for each example
+            that was attempted
         """
         pass
 
@@ -76,7 +75,7 @@ class Compiler(ABC):
 
     @abstractmethod
     def deploy(
-        self, example: str, upload_port: str | None = None, monitor: bool = False
+        self, example: str, upload_port: Optional[str] = None, monitor: bool = False
     ) -> SketchResult:
         """Deploy (upload) a specific example to the target device.
 
@@ -93,34 +92,4 @@ class Compiler(ABC):
     @abstractmethod
     def cancel_all(self) -> None:
         """Cancel all currently running builds."""
-        pass
-
-    @abstractmethod
-    def check_usb_permissions(self) -> tuple[bool, str]:
-        """Check if USB device access is properly configured.
-
-        Returns:
-            Tuple of (has_access, status_message)
-        """
-        pass
-
-    @abstractmethod
-    def install_usb_permissions(self) -> bool:
-        """Install platform-specific USB permissions or equivalent.
-
-        Returns:
-            True if installation succeeded, False otherwise
-        """
-        pass
-
-    @abstractmethod
-    def get_cache_stats(self) -> str:
-        """Get compiler statistics as a formatted string.
-
-        This can include cache statistics, build metrics, performance data,
-        or any other relevant compiler statistics.
-
-        Returns:
-            Formatted string containing compiler statistics, or empty string if none available
-        """
         pass

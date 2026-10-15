@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2025 Ryan Powell <ryan@nable-embedded.io> and
+ * Copyright 2020-2026 Ryan Powell <ryan@nable-embedded.io> and
  * esp-nimble-cpp, NimBLE-Arduino contributors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,18 +18,22 @@
 #ifndef NIMBLE_CPP_DEVICE_H_
 #define NIMBLE_CPP_DEVICE_H_
 
+#include "NimBLECppVersion.h"
 #include "nimconfig.h"
 #if CONFIG_BT_ENABLED
+
 # ifdef ESP_PLATFORM
 #  ifndef CONFIG_IDF_TARGET_ESP32P4
 #   include <esp_bt.h>
 #  endif
+#  define NIMBLE_CPP_SCAN_DUPL_ENABLED \
+      (CONFIG_BTDM_BLE_SCAN_DUPL || CONFIG_BT_LE_SCAN_DUPL || CONFIG_BT_CTRL_BLE_SCAN_DUPL)
 # endif
 
-# if defined(CONFIG_NIMBLE_CPP_IDF)
-#  include <host/ble_gap.h>
+# ifdef USING_NIMBLE_ARDUINO_HEADERS
+#  include "nimble/nimble/host/include/host/ble_gap.h"
 # else
-#  include <nimble/nimble/host/include/host/ble_gap.h>
+#  include "host/ble_gap.h"
 # endif
 
 /****  FIX COMPILATION ****/
@@ -127,6 +131,7 @@ class NimBLEDevice {
     static bool          isInitialized();
     static NimBLEAddress getAddress();
     static std::string   toString();
+    static const char*   getVersion();
     static bool          whiteListAdd(const NimBLEAddress& address);
     static bool          whiteListRemove(const NimBLEAddress& address);
     static bool          onWhiteList(const NimBLEAddress& address);
@@ -139,7 +144,7 @@ class NimBLEDevice {
     static void          setScanDuplicateCacheSize(uint16_t cacheSize);
     static void          setScanFilterMode(uint8_t type);
     static void          setScanDuplicateCacheResetTime(uint16_t time);
-    static bool          setCustomGapHandler(gap_event_handler handler);
+    static bool          setCustomGapHandler(gap_event_handler handler, void* arg = nullptr);
     static void          setSecurityAuth(bool bonding, bool mitm, bool sc);
     static void          setSecurityAuth(uint8_t auth);
     static void          setSecurityIOCap(uint8_t iocap);
@@ -249,7 +254,7 @@ class NimBLEDevice {
 # endif
 
 # ifdef ESP_PLATFORM
-#  if CONFIG_BTDM_BLE_SCAN_DUPL || CONFIG_BT_LE_SCAN_DUPL
+#  if NIMBLE_CPP_SCAN_DUPL_ENABLED
     static uint16_t m_scanDuplicateSize;
     static uint8_t  m_scanFilterMode;
     static uint16_t m_scanDuplicateResetTime;
@@ -310,6 +315,7 @@ class NimBLEDevice {
 
 # if CONFIG_BT_NIMBLE_ROLE_CENTRAL || CONFIG_BT_NIMBLE_ROLE_PERIPHERAL
 #  include "NimBLEConnInfo.h"
+#  include "NimBLEStream.h"
 # endif
 
 # include "NimBLEAddress.h"

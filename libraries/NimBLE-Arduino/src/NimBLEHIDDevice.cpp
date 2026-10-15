@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2025 Ryan Powell <ryan@nable-embedded.io> and
+ * Copyright 2020-2026 Ryan Powell <ryan@nable-embedded.io> and
  * esp-nimble-cpp, NimBLE-Arduino contributors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -84,9 +84,7 @@ void NimBLEHIDDevice::setReportMap(uint8_t* map, uint16_t size) {
  * This function called when all the services have been created.
  */
 void NimBLEHIDDevice::startServices() {
-    m_deviceInfoSvc->start();
-    m_hidSvc->start();
-    m_batterySvc->start();
+    // no-op now, services started by server start.
 } // startServices
 
 /**

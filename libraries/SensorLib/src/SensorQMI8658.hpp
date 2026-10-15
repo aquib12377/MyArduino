@@ -29,8 +29,16 @@
  */
 #pragma once
 
-#include "REG/QMI8658Constants.h"
-#include "SensorPlatform.hpp"
+#include "SensorBuildOpt.h"
+#if !SENSORLIB_EXCLUDE_QMI8658
+
+#pragma message("Warning: Please replace with a new driver. Please refer to the examples/QMI8658 example. SensorQMI8658.hpp will be removed in the next version.")
+
+#include "platform/comm/ComplexStaticDeviceWithHal.hpp"
+#include <math.h>
+
+static constexpr uint8_t  QMI8658_L_SLAVE_ADDRESS = (0x6B);
+static constexpr uint8_t  QMI8658_H_SLAVE_ADDRESS = (0x6A);
 
 typedef struct {
     float x;
@@ -38,99 +46,98 @@ typedef struct {
     float z;
 } IMUdata;
 
-class SensorQMI8658 : public QMI8658Constants
+class SensorQMI8658 : public ComplexStaticDeviceWithHal
 {
 public:
-
     typedef void (*EventCallBack_t)(void);
 
     enum AccelRange {
-        ACC_RANGE_2G,
-        ACC_RANGE_4G,
-        ACC_RANGE_8G,
-        ACC_RANGE_16G
+        ACC_RANGE_2G,           // ±2g
+        ACC_RANGE_4G,           // ±4g
+        ACC_RANGE_8G,           // ±8g
+        ACC_RANGE_16G           // ±16g
     };
 
     enum GyroRange {
-        GYR_RANGE_16DPS,
-        GYR_RANGE_32DPS,
-        GYR_RANGE_64DPS,
-        GYR_RANGE_128DPS,
-        GYR_RANGE_256DPS,
-        GYR_RANGE_512DPS,
-        GYR_RANGE_1024DPS,
+        GYR_RANGE_16DPS,        // 16 degrees per second
+        GYR_RANGE_32DPS,        // 32 degrees per second
+        GYR_RANGE_64DPS,        // 64 degrees per second
+        GYR_RANGE_128DPS,       // 128 degrees per second
+        GYR_RANGE_256DPS,       // 256 degrees per second
+        GYR_RANGE_512DPS,       // 512 degrees per second
+        GYR_RANGE_1024DPS,      // 1024 degrees per second
     };
 
     // In 6DOF mode (accelerometer and gyroscope are both enabled),
     // the output data rate is derived from the nature frequency of gyroscope
     enum AccelODR {
-        ACC_ODR_1000Hz = 3,
-        ACC_ODR_500Hz,
-        ACC_ODR_250Hz,
-        ACC_ODR_125Hz,
-        ACC_ODR_62_5Hz,
-        ACC_ODR_31_25Hz,
-        ACC_ODR_LOWPOWER_128Hz  = 12,   //The accelerometer low power mode is only available when the gyroscope is disabled
-        ACC_ODR_LOWPOWER_21Hz,          //The accelerometer low power mode is only available when the gyroscope is disabled
-        ACC_ODR_LOWPOWER_11Hz,          //The accelerometer low power mode is only available when the gyroscope is disabled
-        ACC_ODR_LOWPOWER_3Hz            //The accelerometer low power mode is only available when the gyroscope is disabled
+        ACC_ODR_1000Hz = 3,             // 1000 Hz
+        ACC_ODR_500Hz,                  // 500 Hz
+        ACC_ODR_250Hz,                  // 250 Hz
+        ACC_ODR_125Hz,                  // 125 Hz
+        ACC_ODR_62_5Hz,                 // 62.5 Hz
+        ACC_ODR_31_25Hz,                // 31.25 Hz
+        ACC_ODR_LOWPOWER_128Hz  = 12,   // The accelerometer low power mode is only available when the gyroscope is disabled
+        ACC_ODR_LOWPOWER_21Hz,          // The accelerometer low power mode is only available when the gyroscope is disabled
+        ACC_ODR_LOWPOWER_11Hz,          // The accelerometer low power mode is only available when the gyroscope is disabled
+        ACC_ODR_LOWPOWER_3Hz            // The accelerometer low power mode is only available when the gyroscope is disabled
     };
 
     enum GyroODR {
-        GYR_ODR_7174_4Hz,
-        GYR_ODR_3587_2Hz,
-        GYR_ODR_1793_6Hz,
-        GYR_ODR_896_8Hz,
-        GYR_ODR_448_4Hz,
-        GYR_ODR_224_2Hz,
-        GYR_ODR_112_1Hz,
-        GYR_ODR_56_05Hz,
-        GYR_ODR_28_025Hz
+        GYR_ODR_7174_4Hz,   // 7174.4 Hz
+        GYR_ODR_3587_2Hz,   // 3587.2 Hz
+        GYR_ODR_1793_6Hz,   // 1793.6 Hz
+        GYR_ODR_896_8Hz,    // 896.8 Hz
+        GYR_ODR_448_4Hz,    // 448.4 Hz
+        GYR_ODR_224_2Hz,    // 224.2 Hz
+        GYR_ODR_112_1Hz,    // 112.1 Hz
+        GYR_ODR_56_05Hz,    // 56.05 Hz
+        GYR_ODR_28_025Hz    // 28.025 Hz
     };
 
     enum TapEvent {
-        INVALID_TAP,
-        SINGLE_TAP,
-        DOUBLE_TAP,
+        INVALID_TAP,    // Invalid tap event
+        SINGLE_TAP,     // Single tap event
+        DOUBLE_TAP,     // Double tap event
     };
 
     //Low-Pass Filter.
     enum LpfMode {
-        LPF_MODE_0,     //2.66% of ODR
-        LPF_MODE_1,     //3.63% of ODR
-        LPF_MODE_2,     //5.39% of ODR
-        LPF_MODE_3,     //13.37% of ODR
+        LPF_MODE_0,     //2.66% of output data rate
+        LPF_MODE_1,     //3.63% of output data rate
+        LPF_MODE_2,     //5.39% of output data rate
+        LPF_MODE_3,     //13.37% of output data rate
         LPF_OFF,        //OFF Low-Pass Filter
     };
 
     enum MotionEvent {
-        MOTION_TAP,
-        MOTION_ANT_MOTION,
-        MOTION_NO_MOTION,
-        MOTION_SIGNIFICANT,
-        MOTION_PEDOMETER,
+        MOTION_TAP,          // Tap motion detected
+        MOTION_ANT_MOTION,   // Any motion detected
+        MOTION_NO_MOTION,    // No motion detected
+        MOTION_SIGNIFICANT,  // Significant motion detected
+        MOTION_PEDOMETER,    // Pedometer motion detected
     };
 
     enum IntPin {
-        INTERRUPT_PIN_1,
-        INTERRUPT_PIN_2,
-        INTERRUPT_PIN_DISABLE
+        INTERRUPT_PIN_1,    // Interrupt pin 1
+        INTERRUPT_PIN_2,    // Interrupt pin 2
+        INTERRUPT_PIN_DISABLE // Disable interrupt
     };
 
     enum FIFO_Samples {
-        FIFO_SAMPLES_16,
-        FIFO_SAMPLES_32,
-        FIFO_SAMPLES_64,
-        FIFO_SAMPLES_128,
-    } ;
+        FIFO_SAMPLES_16,    // Configure the FIFO watermark level to 16 samples.
+        FIFO_SAMPLES_32,    // Configure the FIFO watermark level to 32 samples.
+        FIFO_SAMPLES_64,    // Configure the FIFO watermark level to 64 samples.
+        FIFO_SAMPLES_128,   // Configure the FIFO watermark level to 128 samples.
+    };
 
     enum FIFO_Mode {
-        // Configure the FIFO_MODE to ‘Bypass’ (0) mode, will disable the FIFO functionality.
+        // Configure the FIFO_MODE to Bypass (0) mode, will disable the FIFO functionality.
         FIFO_MODE_BYPASS,
-        // In ‘FIFO’ mode, once FIFO is full,
+        // In FIFO mode, once FIFO is full,
         // the data filling will stop and new data will be discarded until host reads out the FIFO data and release the space for new data to be written to.
         FIFO_MODE_FIFO,
-        // In ‘Stream’ mode, once FIFO is full,
+        // In Stream mode, once FIFO is full,
         // the data filling will continue and the oldest data will be discarded,
         // until host reads out the FIFO data and release the space for new data to be written to
         FIFO_MODE_STREAM,
@@ -169,17 +176,17 @@ public:
     };
 
     enum SensorStatus {
-        STATUS_INT_CTRL9_CMD_DONE = _BV(0),
-        STATUS_INT_LOCKED = _BV(1),
-        STATUS_INT_AVAIL = _BV(2),
-        STATUS0_GYRO_DATA_READY = _BV(3),
-        STATUS0_ACCEL_DATA_READY = _BV(4),
-        STATUS1_SIGNIFICANT_MOTION = _BV(5),
-        STATUS1_NO_MOTION = _BV(6),
-        STATUS1_ANY_MOTION = _BV(7),
-        STATUS1_PEDOMETER_MOTION = _BV(8),
-        STATUS1_WOM_MOTION = _BV(9),
-        STATUS1_TAP_MOTION = _BV(10),
+        STATUS_INT_CTRL9_CMD_DONE    = 0x0001,  // bit 0
+        STATUS_INT_LOCKED            = 0x0002,  // bit 1
+        STATUS_INT_AVAIL             = 0x0004,  // bit 2
+        STATUS0_GYRO_DATA_READY      = 0x0008,  // bit 3
+        STATUS0_ACCEL_DATA_READY     = 0x0010,  // bit 4
+        STATUS1_SIGNIFICANT_MOTION   = 0x0020,  // bit 5
+        STATUS1_NO_MOTION            = 0x0040,  // bit 6
+        STATUS1_ANY_MOTION           = 0x0080,  // bit 7
+        STATUS1_PEDOMETER_MOTION     = 0x0100,  // bit 8
+        STATUS1_WOM_MOTION           = 0x0200,  // bit 9
+        STATUS1_TAP_MOTION           = 0x0400,  // bit 10
     };
 
     enum TapDetectionPriority {
@@ -193,105 +200,59 @@ public:
 
     enum MotionCtrl {
 
-        ANY_MOTION_EN_X = _BV(0),
-        ANY_MOTION_EN_Y = _BV(1),
-        ANY_MOTION_EN_Z = _BV(2),
+        ANY_MOTION_EN_X = sensorlib::_bv(0),
+        ANY_MOTION_EN_Y = sensorlib::_bv(1),
+        ANY_MOTION_EN_Z = sensorlib::_bv(2),
 
         //Logic-AND between events of enabled axes for No-Motion detection, Otherwise, logical OR
-        ANY_MOTION_LOGIC_AND = _BV(3),
+        ANY_MOTION_LOGIC_AND = sensorlib::_bv(3),
 
-        NO_MOTION_EN_X = _BV(4),
-        NO_MOTION_EN_Y = _BV(5),
-        NO_MOTION_EN_Z = _BV(6),
+        NO_MOTION_EN_X = sensorlib::_bv(4),
+        NO_MOTION_EN_Y = sensorlib::_bv(5),
+        NO_MOTION_EN_Z = sensorlib::_bv(6),
 
         //Logic-AND between events of enabled axes for No-Motion detection , Otherwise, logical OR
-        NO_MOTION_LOGIC_OR = _BV(7),
+        NO_MOTION_LOGIC_OR = sensorlib::_bv(7),
     };
 
-    SensorQMI8658() : comm(nullptr), hal(nullptr) {}
+    /**
+     * @brief  Constructor for SensorQMI8658.
+     * @note   This function initializes the SensorQMI8658 object.
+     * @retval None
+     */
+    SensorQMI8658()  = default;
 
+    /**
+     * @brief  Destructor for SensorQMI8658.
+     * @note   This function cleans up the resources used by the SensorQMI8658 object.
+     * @retval None
+     */
     ~SensorQMI8658()
     {
-        if (comm) {
-            comm->deinit();
-        }
         if (fifo_buffer) {
             free(fifo_buffer);
             fifo_buffer = NULL;
         }
     }
 
-#if defined(ARDUINO)
-    bool begin(TwoWire &wire, uint8_t addr = QMI8658_L_SLAVE_ADDRESS, int sda = -1, int scl = -1)
+    /**
+    * @brief  Set sensor interrupt pins
+    * @note   This function sets the interrupt pins for the sensor.
+    * @param  _irq: Interrupt pin number
+    * @retval None
+    */
+    void setPins(int _irq)
     {
-        if (!beginCommon<SensorCommI2C, HalArduino>(comm, hal, wire, addr, sda, scl)) {
-            return false;
-        }
-        return initImpl();
+        this->_irq = _irq;
     }
 
-    bool begin(SPIClass &spi, uint8_t csPin, int mosi = -1, int miso = -1, int sck = -1)
-    {
-        if (!beginCommon<SensorCommSPI, HalArduino>(comm, hal, spi, csPin, mosi, miso, sck)) {
-            return false;
-        }
-        return initImpl();
-    }
-
-#elif defined(ESP_PLATFORM)
-
-#if defined(USEING_I2C_LEGACY)
-    bool begin(i2c_port_t port_num, uint8_t addr = QMI8658_L_SLAVE_ADDRESS, int sda = -1, int scl = -1)
-    {
-        hal = std::make_unique<HalEspIDF>();
-        if (!hal) {
-            return false;
-        }
-        comm = std::make_unique<SensorCommI2C>(port_num, addr, sda, scl);
-        if (!comm) {
-            return false;
-        }
-        comm->init();
-        return initImpl();
-    }
-#else
-    bool begin(i2c_master_bus_handle_t handle, uint8_t addr = QMI8658_L_SLAVE_ADDRESS)
-    {
-        hal = std::make_unique<HalEspIDF>();
-        if (!hal) {
-            return false;
-        }
-        comm = std::make_unique<SensorCommI2C>(handle, addr);
-        if (!comm) {
-            return false;
-        }
-        comm->init();
-        return initImpl();
-    }
-#endif  //ESP_PLATFORM
-
-
-    bool begin(spi_host_device_t host, spi_device_handle_t handle, uint8_t csPin, int mosi, int miso, int sck)
-    {
-        if (!beginCommon<SensorCommSPI, HalEspIDF>(comm, hal,
-                host, handle, csPin, mosi, miso, sck)) {
-            return false;
-        }
-        return initImpl();
-    }
-#endif  //ARDUINO
-
-    bool begin(SensorCommCustom::CustomCallback callback,
-               SensorCommCustomHal::CustomHalCallback hal_callback,
-               uint8_t addr = QMI8658_L_SLAVE_ADDRESS)
-    {
-        if (!beginCommCustomCallback<SensorCommCustom, SensorCommCustomHal>(COMM_CUSTOM,
-                callback, hal_callback, addr, comm, hal)) {
-            return false;
-        }
-        return initImpl();
-    }
-
+    /**
+     * @brief  Reset the sensor
+     * @note   Call this function to reset the sensor to its default state
+     * @param  waitResult: True to wait for the reset result, false to return immediately
+     * @param  timeout: Timeout duration in milliseconds
+     * @retval true on success, false on failure
+     */
     bool reset(bool waitResult = true, uint32_t timeout = 500)
     {
         int val = 0;  // initialize with some value to avoid compilation errors
@@ -310,7 +271,7 @@ public:
                 }
                 hal->delay(10);
             }
-            log_e("Reset chip failed, Response val = %d - 0x%X", val, val);
+            SENSORLIB_LOG_E("Reset chip failed, Response val = %d - 0x%X", val, val);
             return false;
         }
 
@@ -320,16 +281,30 @@ public:
         return true;
     }
 
+    /**
+     * @brief  Get the chip ID
+     * @retval Chip ID
+     */
     uint8_t getChipID()
     {
         return comm->readRegister(QMI8658_REG_REVISION);
     }
 
+    /**
+     * @brief  Get the WHO_AM_I register value
+     * @note   This register is used to identify the device
+     * @retval WHO_AM_I register value
+     */
     int whoAmI()
     {
         return comm->readRegister(QMI8658_REG_WHOAMI);
     }
 
+    /**
+     * @brief  Get the timestamp
+     * @note   This timestamp is generated by the sensor
+     * @retval Timestamp value
+     */
     uint32_t getTimestamp()
     {
         uint8_t  buffer[3];
@@ -346,7 +321,10 @@ public:
         return lastTimestamp;
     }
 
-
+    /**
+     * @brief  Get the temperature in degree Celsius
+     * @retval Temperature value in degree Celsius
+     */
     float getTemperature_C()
     {
         uint8_t buffer[2];
@@ -356,6 +334,11 @@ public:
         return NAN;
     }
 
+    /**
+     * @brief  Enable or disable the interrupt
+     * @param  pin: Interrupt pin to enable/disable,see IntPin enum
+     * @param  enable: True to enable, false to disable
+     */
     void enableINT(IntPin pin, bool enable = true)
     {
         switch (pin) {
@@ -372,20 +355,34 @@ public:
         }
     }
 
+    /**
+     * @brief  Get the IRQ status
+     * @note   This status indicates which interrupt has occurred
+     * @retval IRQ status register value
+     */
     uint8_t getIrqStatus()
     {
         return comm->readRegister(QMI8658_REG_STATUS_INT);
     }
 
-
+    /**
+     * @brief  Enable or disable the Data Ready interrupt
+     * @param  enable: True to enable, false to disable
+     */
     void enableDataReadyINT(bool enable = true)
     {
         enable ? comm->clrRegisterBit(QMI8658_REG_CTRL7, 5) :
         comm->setRegisterBit(QMI8658_REG_CTRL7, 5);
     }
 
-
-    int configAccelerometer(AccelRange range, AccelODR odr, LpfMode lpfOdr = LPF_MODE_0)
+    /**
+     * @brief  Configure the accelerometer
+     * @param  range: Accelerometer range setting
+     * @param  odr: Accelerometer output data rate setting
+     * @param  lpfOdr: Accelerometer low-pass filter setting
+     * @retval true on success, false on failure
+     */
+    bool configAccelerometer(AccelRange range, AccelODR odr, LpfMode lpfOdr = LPF_MODE_0)
     {
         bool en = isEnableAccelerometer();
 
@@ -395,7 +392,7 @@ public:
 
         //setAccelRange
         if (comm->writeRegister(QMI8658_REG_CTRL2, 0x8F, (range << 4)) != 0) {
-            return -1;
+            return false;
         }
 
         switch (range) {
@@ -403,21 +400,29 @@ public:
         // 2 Gs (00), 4 Gs (01), 8 Gs (10), and 16 Gs  (11).
         // Here's a bit of an algorithm to calculate DPS/(ADC tick) based on that
         // 2-bit value:
-        case ACC_RANGE_2G:  accelScales = 2.0 / 32768.0; break;
-        case ACC_RANGE_4G:  accelScales = 4.0 / 32768.0; break;
-        case ACC_RANGE_8G:  accelScales = 8.0 / 32768.0; break;
-        case ACC_RANGE_16G: accelScales = 16.0 / 32768.0; break;
+        case ACC_RANGE_2G:
+            accelScales = 2.0 / 32768.0;
+            break;
+        case ACC_RANGE_4G:
+            accelScales = 4.0 / 32768.0;
+            break;
+        case ACC_RANGE_8G:
+            accelScales = 8.0 / 32768.0;
+            break;
+        case ACC_RANGE_16G:
+            accelScales = 16.0 / 32768.0;
+            break;
         }
 
         // setAccelOutputDataRate
         if (comm->writeRegister(QMI8658_REG_CTRL2, 0xF0, odr) != 0) {
-            return -1;
+            return false;
         }
 
         if (lpfOdr != LPF_OFF) {
             // setAccelLowPassFitterOdr
             if (comm->writeRegister(QMI8658_REG_CTRL5, QMI8658_ACCEL_LPF_MASK,  (lpfOdr << 1)) != 0) {
-                return -1;
+                return false;
             }
             // Enable Low-Pass Fitter
             comm->setRegisterBit(QMI8658_REG_CTRL5, 0);
@@ -433,11 +438,19 @@ public:
             enableAccelerometer();
         }
 
-        return 0;
+        return true;
     }
 
 
-    int configGyroscope(GyroRange range, GyroODR odr, LpfMode lpfOdr = LPF_MODE_0)
+    /**
+     * @brief  Configure the gyroscope
+     * @note   Call this function to configure the gyroscope settings
+     * @param  range: Gyroscope range setting
+     * @param  odr: Gyroscope output data rate setting
+     * @param  lpfOdr: Gyroscope low-pass filter setting
+     * @retval true on success, false on failure
+     */
+    bool configGyroscope(GyroRange range, GyroODR odr, LpfMode lpfOdr = LPF_MODE_0)
     {
         bool en = isEnableGyroscope();
 
@@ -447,7 +460,7 @@ public:
 
         // setGyroRange
         if (comm->writeRegister(QMI8658_REG_CTRL3, 0x8F, (range << 4)) != 0) {
-            return -1;
+            return false;
         }
 
         switch (range) {
@@ -455,24 +468,38 @@ public:
         // 250 DPS (00), 500 DPS (01), 1000 DPS (10), and 2000 DPS  (11).
         // Here's a bit of an algorithm to calculate DPS/(ADC tick) based on that
         // 2-bit value:
-        case GYR_RANGE_16DPS: gyroScales = 16.0 / 32768.0; break;
-        case GYR_RANGE_32DPS: gyroScales = 32.0 / 32768.0; break;
-        case GYR_RANGE_64DPS: gyroScales = 64.0 / 32768.0; break;
-        case GYR_RANGE_128DPS: gyroScales = 128.0 / 32768.0; break;
-        case GYR_RANGE_256DPS: gyroScales = 256.0 / 32768.0; break;
-        case GYR_RANGE_512DPS: gyroScales = 512.0 / 32768.0; break;
-        case GYR_RANGE_1024DPS: gyroScales = 1024.0 / 32768.0; break;
+        case GYR_RANGE_16DPS:
+            gyroScales = 16.0 / 32768.0;
+            break;
+        case GYR_RANGE_32DPS:
+            gyroScales = 32.0 / 32768.0;
+            break;
+        case GYR_RANGE_64DPS:
+            gyroScales = 64.0 / 32768.0;
+            break;
+        case GYR_RANGE_128DPS:
+            gyroScales = 128.0 / 32768.0;
+            break;
+        case GYR_RANGE_256DPS:
+            gyroScales = 256.0 / 32768.0;
+            break;
+        case GYR_RANGE_512DPS:
+            gyroScales = 512.0 / 32768.0;
+            break;
+        case GYR_RANGE_1024DPS:
+            gyroScales = 1024.0 / 32768.0;
+            break;
         }
 
         // setGyroOutputDataRate
         if (comm->writeRegister(QMI8658_REG_CTRL3, 0xF0, odr) != 0) {
-            return -1;
+            return false;
         }
 
         // setGyroLowPassFitterOdr
         if (lpfOdr != LPF_OFF) {
             if (comm->writeRegister(QMI8658_REG_CTRL5, QMI8658_GYRO_LPF_MASK,  (lpfOdr << 5)) != 0) {
-                return -1;
+                return false;
             }
             // Enable Low-Pass Fitter
             comm->setRegisterBit(QMI8658_REG_CTRL5, 4);
@@ -488,14 +515,20 @@ public:
             enableGyroscope();
         }
 
-        return 0;
+        return true;
     }
 
-
-    int configFIFO(FIFO_Mode    mode,
-                   FIFO_Samples samples = FIFO_SAMPLES_16,
-                   IntPin pin = INTERRUPT_PIN_DISABLE,  //Disable interrupt mode
-                   uint8_t trigger_samples = 16)
+    /**
+     * @brief  Configure the FIFO
+     * @note   Call this function to configure FIFO before using readFromFifo function
+     * @param  mode: FIFO mode setting
+     * @param  samples: Number of samples to store in FIFO
+     * @param  pin: Interrupt pin to output FIFO watermark interrupt, see IntPin enum
+     * @param  trigger_samples: Number of samples to trigger FIFO watermark interrupt
+     * @retval true on success, false on failure
+     */
+    bool configFIFO(FIFO_Mode mode, FIFO_Samples samples = FIFO_SAMPLES_16,
+                    IntPin pin = INTERRUPT_PIN_DISABLE, uint8_t trigger_samples = 16)
     {
         bool enGyro = isEnableGyroscope();
         bool enAccel = isEnableAccelerometer();
@@ -510,8 +543,8 @@ public:
 
         // Reset FIFO configure
         if (writeCommand(CTRL_CMD_RST_FIFO) != 0) {
-            log_e("Reset fifo failed!");
-            return -1;
+            SENSORLIB_LOG_E("Reset fifo failed!");
+            return false;
         }
 
         _fifo_interrupt = true;
@@ -534,7 +567,7 @@ public:
         // Set fifo mode and samples len
         _fifo_mode = (samples << 2) | mode;
         if (comm->writeRegister(QMI8658_REG_FIFO_CTRL, _fifo_mode) == -1) {
-            return -1;
+            return false;
         }
 
         /*
@@ -542,7 +575,7 @@ public:
         * The unit is sample, which means 6 bytes if one of accelerometer and gyroscope is enabled, and 12 bytes if both are enabled.
         * */
         if (comm->writeRegister(QMI8658_REG_FIFO_WTM_TH, trigger_samples ) == -1) {
-            return -1;
+            return false;
         }
 
         if (enGyro) {
@@ -554,37 +587,46 @@ public:
         }
 
         int res =  comm->readRegister(QMI8658_REG_FIFO_CTRL);
-        log_d("QMI8658_REG_FIFO_CTRL : 0x%X", res);
+        SENSORLIB_LOG_D("QMI8658_REG_FIFO_CTRL : 0x%X", res);
         if ((res & 0x02) == 0x02) {
-            log_d("Enabled Stream mode.");
+            SENSORLIB_LOG_D("Enabled Stream mode.");
         } else if ((res & 0x01) == 0x01) {
-            log_d("Enabled FIFO mode.");
+            SENSORLIB_LOG_D("Enabled FIFO mode.");
         } else if ((res & 0x03) == 0x00) {
-            log_d("Disabled FIFO.");
+            SENSORLIB_LOG_D("Disabled FIFO.");
         }
         res >>= 2;
         if ((res & 0x03) == 0x03) {
-            log_d("128 samples.");
+            SENSORLIB_LOG_D("128 samples.");
         } else if ((res & 0x02) == 0x02) {
-            log_d("64 samples.");
+            SENSORLIB_LOG_D("64 samples.");
         } else if ((res & 0x01) == 0x01) {
-            log_d("32 samples.");
+            SENSORLIB_LOG_D("32 samples.");
         } else if ((res & 0x03) == 0x00) {
-            log_d("16 samples.");
+            SENSORLIB_LOG_D("16 samples.");
         }
 
-        return 0;
+        return true;
     }
 
+    /**
+     * @brief  readFromFifo
+     * @note   Read the data in the FIFO buffer. configFIFO should be called before use.
+     * @param  acc: Pointer to store accelerometer data
+     * @param  accLength: Length of the accelerometer data array
+     * @param  gyro: Pointer to store gyroscope data
+     * @param  gyrLength: Length of the gyroscope data array
+     * @retval Number of samples read per sensor
+     */
     uint16_t readFromFifo(IMUdata *acc, uint16_t accLength, IMUdata *gyro, uint16_t gyrLength)
     {
         if (_fifo_mode == FIFO_MODE_BYPASS) {
-            log_e("FIFO is not configured.");
+            SENSORLIB_LOG_E("FIFO is not configured.");
             return 0;
         }
 
         if (!_gyro_enabled && !_accel_enabled) {
-            log_e("Sensor not enabled.");
+            SENSORLIB_LOG_E("Sensor not enabled.");
             return 0;
         }
 
@@ -594,7 +636,7 @@ public:
         }
 
         if (!fifo_buffer) {
-            log_e("FIFO buffer is NULL");
+            SENSORLIB_LOG_E("FIFO buffer is NULL");
             return 0;
         }
 
@@ -602,13 +644,13 @@ public:
         uint16_t samples_per_sensor = data_bytes / (6 * enabled_sensor_count);
         uint16_t total_samples = samples_per_sensor * enabled_sensor_count;
 
-        log_d("Total samples: %u", total_samples);
+        SENSORLIB_LOG_D("Total samples: %u", total_samples);
 
         uint16_t accel_index = 0;
         uint16_t gyro_index = 0;
 
         for (uint16_t i = 0; i < total_samples; ++i) {
-            auto data = reinterpret_cast<int16_t *>(&fifo_buffer[i * 6]);
+            auto data = reinterpret_cast < int16_t * > (&fifo_buffer[i * 6]);
             int16_t x = data[0];
             int16_t y = data[1];
             int16_t z = data[2];
@@ -650,122 +692,11 @@ public:
         return samples_per_sensor;
     }
 
-
-private:
-
-    uint16_t getFifoNeedBytes()
-    {
-        uint8_t sam[] = {16, 32, 64, 128};
-        uint8_t sensors  = 0;
-        if (_gyro_enabled && _accel_enabled) {
-            sensors = 2;
-        } else if (_gyro_enabled || _accel_enabled) {
-            sensors = 1;
-        }
-        uint8_t samples =  ((_fifo_mode >> 2) & 0x03) ;
-        return sam[samples] * 6 * sensors;
-    }
-
     /**
-     * @brief  readFromFifo
-     * @note   Read the data in the FIFO buffer. configFIFO should be called before use.
-     * @retval Returns the size of the element read
+     * @brief  Enable the accelerometer
+     * @note   This function will enable the accelerometer
+     * @retval true on success, false on failure
      */
-    uint16_t readFromFifo()
-    {
-        uint8_t  status[2];
-        uint16_t fifo_bytes   = 0;
-
-        if ((_irq != -1) && _fifo_interrupt) {
-            /*
-             * Once the corresponds INT pin is configured to the push-pull mode, the FIFO watermark interrupt can be seen on the
-             * corresponds INT pin. It will keep high level as long as the FIFO filled level is equal to or higher than the watermark, will
-             * drop to low level as long as the FIFO filled level is lower than the configured FIFO watermark after reading out by host
-             * and FIFO_RD_MODE is cleared.
-            */
-            if (hal->digitalRead(_irq) == LOW) {
-                return false;
-            }
-        }
-
-        size_t alloc_size = getFifoNeedBytes();
-        if (!fifo_buffer) {
-            fifo_buffer = (uint8_t *)calloc(alloc_size, sizeof(uint8_t));
-            if (!fifo_buffer) {
-                log_e("Calloc buffer size %u bytes failed!", alloc_size);
-                return 0;
-            }
-            _fifo_size = alloc_size;
-
-        } else if (alloc_size > _fifo_size) {
-            fifo_buffer = (uint8_t *)realloc(fifo_buffer, alloc_size);
-            if (!fifo_buffer) {
-                log_e("Realloc buffer size %u bytes failed!", alloc_size);
-                return 0;
-            }
-        }
-
-        // 1.Got FIFO watermark interrupt by INT pin or polling the FIFO_STATUS register (FIFO_WTM and/or FIFO_FULL).
-        int val = comm->readRegister(QMI8658_REG_FIFO_STATUS);
-        if (val == -1) {
-            return 0;
-        }
-        log_d("FIFO status:0x%x", val);
-
-        if (!(val & _BV(4))) {
-            log_d("FIFO is Empty");
-            return 0;
-        }
-        if (val & _BV(5)) {
-            log_d("FIFO Overflow condition has happened (data dropping happened)");
-            // return 0;
-        }
-        if (val & _BV(6)) {
-            log_d("FIFO Water Mark Level Hit");
-        }
-        if (val & _BV(7)) {
-            log_d("FIFO is Full");
-        }
-
-        // 2.Read the FIFO_SMPL_CNT and FIFO_STATUS registers, to calculate the level of FIFO content data, refer to 8.4 FIFO Sample Count.
-        if (comm->readRegister(QMI8658_REG_FIFO_COUNT, status, 2) == -1) {
-            log_e("Bus communication failed!");
-            return 0;
-        }
-
-        // FIFO_Sample_Count (in byte) = 2 * (fifo_smpl_cnt_msb[1:0] * 256 + fifo_smpl_cnt_lsb[7:0])
-        fifo_bytes = 2 * (((status[1] & 0x03)) << 8 | status[0]);
-
-        log_d("reg fifo_bytes:%d ", fifo_bytes);
-
-        //Samples 16  * 6 * 2  = 192
-        //Samples 32  * 6 * 2  = 384
-        //Samples 64  * 6 * 2  = 768
-        //Samples 128 * 6 * 2  = 1536
-
-        // 3.Send CTRL_CMD_REQ_FIFO (0x05) by CTRL9 command, to enable FIFO read mode. Refer to CTRL_CMD_REQ_FIFO for details.
-        if (writeCommand(CTRL_CMD_REQ_FIFO) != 0) {
-            log_e("Request FIFO failed!");
-            return 0;
-        }
-        // 4.Read from the FIFO_DATA register per FIFO_Sample_Count.
-        if (comm->readRegister(QMI8658_REG_FIFO_DATA, fifo_buffer, fifo_bytes) == -1) {
-            log_e("Request FIFO data failed !");
-            return 0;
-        }
-
-        // 5.Disable the FIFO Read Mode by setting FIFO_CTRL.FIFO_rd_mode to 0. New data will be filled into FIFO afterwards.
-        if (comm->writeRegister(QMI8658_REG_FIFO_CTRL, _fifo_mode) == -1) {
-            log_e("Clear FIFO flag failed!");
-            return 0;
-        }
-
-        return fifo_bytes;
-    }
-
-public:
-
-
     bool enableAccelerometer()
     {
         if (comm->setRegisterBit(QMI8658_REG_CTRL7, 0)) {
@@ -774,6 +705,11 @@ public:
         return _accel_enabled;
     }
 
+    /**
+     * @brief  Disable the accelerometer
+     * @note   This function will disable the accelerometer
+     * @retval true on success, false on failure
+     */
     bool disableAccelerometer()
     {
         if (comm->clrRegisterBit(QMI8658_REG_CTRL7, 0)) {
@@ -783,16 +719,31 @@ public:
         return false;
     }
 
+    /**
+     * @brief  Check if the accelerometer is enabled
+     * @note   This function will check if the accelerometer is enabled
+     * @retval true if enabled, false otherwise
+     */
     bool isEnableAccelerometer()
     {
         return _accel_enabled;
     }
 
+    /**
+     * @brief  Check if the gyroscope is enabled
+     * @note   This function will check if the gyroscope is enabled
+     * @retval true if enabled, false otherwise
+     */
     bool isEnableGyroscope()
     {
         return _gyro_enabled;
     }
 
+    /**
+     * @brief  Enable the gyroscope
+     * @note   This function will enable the gyroscope
+     * @retval true on success, false on failure
+     */
     bool enableGyroscope()
     {
         if (comm->setRegisterBit(QMI8658_REG_CTRL7, 1)) {
@@ -801,6 +752,11 @@ public:
         return _gyro_enabled;
     }
 
+    /**
+     * @brief  Disable the gyroscope
+     * @note   This function will disable the gyroscope
+     * @retval true on success, false on failure
+     */
     bool disableGyroscope()
     {
         if (comm->clrRegisterBit(QMI8658_REG_CTRL7, 1)) {
@@ -810,6 +766,12 @@ public:
         return false;
     }
 
+    /**
+     * @brief  Get the raw accelerometer data
+     * @note   This function will read the raw accelerometer data from the sensor
+     * @param  *rawBuffer: Pointer to the buffer to store the raw data
+     * @retval true on success, false on failure
+     */
     bool getAccelRaw(int16_t *rawBuffer)
     {
         if (!_accel_enabled) {
@@ -826,6 +788,14 @@ public:
         return true;
     }
 
+    /**
+     * @brief  Get the accelerometer data
+     * @note   This function will read the accelerometer data from the sensor
+     * @param  &x: accelerometer X-axis data
+     * @param  &y: accelerometer Y-axis data
+     * @param  &z: accelerometer Z-axis data
+     * @retval true on success, false on failure
+     */
     bool getAccelerometer(float &x, float &y, float &z)
     {
         if (!_accel_enabled) {
@@ -841,16 +811,32 @@ public:
         return false;
     }
 
+    /**
+     * @brief  Get the accelerometer scales
+     * @note   This function will return the current accelerometer scales
+     * @retval The current accelerometer scales
+     */
     float getAccelerometerScales()
     {
         return accelScales;
     }
 
+    /**
+     * @brief  Get the gyroscope scales
+     * @note   This function will return the current gyroscope scales
+     * @retval The current gyroscope scales
+     */
     float getGyroscopeScales()
     {
         return gyroScales;
     }
 
+    /**
+     * @brief  Get the raw gyroscope data
+     * @note   This function will read the raw gyroscope data from the sensor
+     * @param  *rawBuffer: Pointer to the buffer to store the raw data
+     * @retval true on success, false on failure
+     */
     bool getGyroRaw(int16_t *rawBuffer)
     {
         if (!_gyro_enabled) {
@@ -867,7 +853,15 @@ public:
         return true;
     }
 
-    int getGyroscope(float &x, float &y, float &z)
+    /**
+     * @brief  Get the raw gyroscope data
+     * @note   This function will read the raw gyroscope data from the sensor
+     * @param  &x: Reference to the variable to store the X-axis data
+     * @param  &y: Reference to the variable to store the Y-axis data
+     * @param  &z: Reference to the variable to store the Z-axis data
+     * @retval true on success, false on failure
+     */
+    bool getGyroscope(float &x, float &y, float &z)
     {
         if (!_gyro_enabled) {
             return false;
@@ -882,6 +876,11 @@ public:
         return false;
     }
 
+    /**
+     * @brief  Check if new data is available
+     * @note   This function will check the status register to see if new data is available
+     * @retval true if new data is available, false otherwise
+     */
     bool getDataReady()
     {
         if ((_irq_enable_mask & 0x03) && (_irq != -1)) {
@@ -895,7 +894,7 @@ public:
             return  comm->getRegisterBit(QMI8658_REG_STATUS_INT, 1);
         case ASYNC_MODE:
             //TODO: When Accel and Gyro are configured with different rates, this will always be false
-            if (_accel_enabled & _gyro_enabled) {
+            if (_accel_enabled && _gyro_enabled) {
                 return comm->readRegister(QMI8658_REG_STATUS0) & 0x03;
             } else if (_gyro_enabled) {
                 return comm->readRegister(QMI8658_REG_STATUS0) & 0x02;
@@ -909,49 +908,78 @@ public:
         return false;
     }
 
-    int enableSyncSampleMode()
+    /**
+     * @brief  Enable the synchronous sample mode
+     * @note   This function will enable the synchronous sample mode for the sensor
+     * @retval true on success, false on failure
+     */
+    bool enableSyncSampleMode()
     {
         sampleMode = SYNC_MODE;
         return comm->setRegisterBit(QMI8658_REG_CTRL7, 7);
     }
 
-    int disableSyncSampleMode()
+    /**
+     * @brief  Disable the synchronous sample mode
+     * @note   This function will disable the synchronous sample mode for the sensor
+     * @retval true on success, false on failure
+     */
+    bool disableSyncSampleMode()
     {
         sampleMode = ASYNC_MODE;
         return comm->clrRegisterBit(QMI8658_REG_CTRL7, 7);
     }
 
-    int enableLockingMechanism()
+    /**
+     * @brief  Enable the locking mechanism
+     * @note   This function will enable the locking mechanism for the sensor
+     * @retval true on success, false on failure
+     */
+    bool enableLockingMechanism()
     {
         enableSyncSampleMode();
         if (comm->writeRegister(QMI8658_REG_CAL1_L, 0x01) != 0) {
-            return -1;
+            return false;
         }
-        return writeCommand(CTRL_CMD_AHB_CLOCK_GATING);
-
+        return writeCommand(CTRL_CMD_AHB_CLOCK_GATING) == 0;
     }
 
-    int disableLockingMechanism()
+    /**
+     * @brief  Disable the locking mechanism
+     * @note   This function will disable the locking mechanism for the sensor
+     * @retval true on success, false on failure
+     */
+    bool disableLockingMechanism()
     {
         disableSyncSampleMode();
         if (comm->writeRegister(QMI8658_REG_CAL1_L, (uint8_t)0x00) != 0) {
             return -1;
         }
-        return writeCommand(CTRL_CMD_AHB_CLOCK_GATING);
+        return writeCommand(CTRL_CMD_AHB_CLOCK_GATING) == 0;
     }
 
+    /**
+     * @brief  Dump the control register values
+     * @note   This function will read and log the values of the control registers
+     * @retval None
+     */
     void dumpCtrlRegister()
     {
         uint8_t buffer[9];
         comm->readRegister(QMI8658_REG_CTRL1, buffer, 9);
         for (int i = 0; i < 9; ++i) {
-            log_d("CTRL%d: REG:0x%02X HEX:0x%02X\n", i + 1, QMI8658_REG_CTRL1 + i, buffer[i]);
+            SENSORLIB_LOG_D("CTRL%d: REG:0x%02X HEX:0x%02X\n", i + 1, QMI8658_REG_CTRL1 + i, buffer[i]);
         }
 
         buffer[0] =  comm->readRegister(QMI8658_REG_FIFO_CTRL);
-        log_d("FIFO_CTRL: REG:0x%02X HEX:0x%02X\n",  QMI8658_REG_FIFO_CTRL, buffer[0]);
+        SENSORLIB_LOG_D("FIFO_CTRL: REG:0x%02X HEX:0x%02X\n",  QMI8658_REG_FIFO_CTRL, buffer[0]);
     }
 
+    /**
+     * @brief  Power down the sensor
+     * @note   This function will disable the accelerometer and gyroscope
+     * @retval None
+     */
     void powerDown()
     {
         disableAccelerometer();
@@ -959,16 +987,32 @@ public:
         comm->setRegisterBit(QMI8658_REG_CTRL1, 1);
     }
 
+
+    /**
+     * @brief  Power on the sensor
+     * @note   This function will enable the accelerometer and gyroscope
+     * @retval None
+     */
     void powerOn()
     {
         comm->clrRegisterBit(QMI8658_REG_CTRL1, 1);
     }
 
+    /**
+     * @brief  Get the Pedometer counter
+     * @note   This function will return the current Pedometer step count
+     * @retval Pedometer step count
+     */
     int getStatusRegister()
     {
         return comm->readRegister(QMI8658_REG_STATUS1);
     }
 
+    /**
+     * @brief  Config activity interrupt pin mapping
+     * @param  pin: Interrupt pin to map activity interrupt, see IntPin enum
+     * @retval true on success, false on failure
+     */
     int configActivityInterruptMap(IntPin pin)
     {
         return pin == INTERRUPT_PIN_1 ? comm->setRegisterBit(QMI8658_REG_CTRL8, 6)
@@ -1003,9 +1047,9 @@ public:
      *                      E.g., ped_sig_count = 4, every 4 valid steps is detected, update the registers once (added by 4).
      * @retval
      */
-    int configPedometer(uint16_t ped_sample_cnt, uint16_t ped_fix_peak2peak, uint16_t ped_fix_peak,
-                        uint16_t ped_time_up, uint8_t ped_time_low = 0x14, uint8_t ped_time_cnt_entry = 0x0A, uint8_t ped_fix_precision = 0x00,
-                        uint8_t ped_sig_count = 0x04)
+    bool configPedometer(uint16_t ped_sample_cnt, uint16_t ped_fix_peak2peak, uint16_t ped_fix_peak,
+                         uint16_t ped_time_up, uint8_t ped_time_low = 0x14, uint8_t ped_time_cnt_entry = 0x0A, uint8_t ped_fix_precision = 0x00,
+                         uint8_t ped_sig_count = 0x04)
     {
         // The Pedometer can only work in Non-SyncSample mode
         disableSyncSampleMode();
@@ -1050,9 +1094,14 @@ public:
         if (enAccel) {
             enableAccelerometer();
         }
-        return 0;
+        return true;
     }
 
+    /**
+     * @brief  Get the Pedometer counter
+     * @note   This function will return the current Pedometer step count
+     * @retval Pedometer step count
+     */
     uint32_t getPedometerCounter()
     {
         uint8_t buffer[3];
@@ -1062,12 +1111,22 @@ public:
         return 0;
     }
 
-    int clearPedometerCounter()
+    /**
+     * @brief  Clear the Pedometer counter
+     * @note   This function will reset the Pedometer step count to zero
+     * @retval True on success, false on failure
+     */
+    bool clearPedometerCounter()
     {
-        return writeCommand(CTRL_CMD_RESET_PEDOMETER);
+        return writeCommand(CTRL_CMD_RESET_PEDOMETER) == 0;
     }
 
-    // The Pedometer can only work in Non-SyncSample mode
+    /**
+     * @brief enablePedometer
+     * @note  Enable the Pedometer function , pedometer can only work in Non-SyncSample mode
+     * @param  pin: Interrupt pin to output Pedometer interrupt, see IntPin enum
+     * @retval true on success, false on failure
+     */
     bool enablePedometer(IntPin pin = INTERRUPT_PIN_DISABLE)
     {
         if (!_accel_enabled)return false;
@@ -1123,12 +1182,14 @@ public:
                     Linear Acceleration for quiet status. E.g., 0.4g2
      * @retval
      */
-    int configTap(uint8_t priority, uint8_t peakWindow, uint16_t tapWindow, uint16_t dTapWindow,
-                  float alpha, float gamma, float peakMagThr, float UDMThr)
+    bool configTap(uint8_t priority, uint8_t peakWindow, uint16_t tapWindow, uint16_t dTapWindow,
+                   float alpha, float gamma, float peakMagThr, float UDMThr)
     {
 
         // The Tap detection can only work in Non-SyncSample mode
-        disableSyncSampleMode();
+        if (!disableSyncSampleMode()) {
+            return false;
+        }
 
         bool enGyro = isEnableGyroscope();
         bool enAccel = isEnableAccelerometer();
@@ -1165,14 +1226,14 @@ public:
         double acceleration_square = peakMagThr * g * g;     // Calculate the square of the acceleration
         uint16_t value = (uint16_t)(acceleration_square / resolution); // Calculates the value of a 2-byte unsigned integer
 
-        comm->writeRegister(QMI8658_REG_CAL2_L, lowByte(value));
-        comm->writeRegister(QMI8658_REG_CAL2_H, highByte(value));
+        comm->writeRegister(QMI8658_REG_CAL2_L, sensorlib::_lowByte(value));
+        comm->writeRegister(QMI8658_REG_CAL2_H, sensorlib::_highByte(value));
 
         acceleration_square = UDMThr * g * g;     // Calculate the square of the acceleration
         value = (uint16_t)(acceleration_square / resolution); // Calculates the value of a 2-byte unsigned integer
 
-        comm->writeRegister(QMI8658_REG_CAL3_L, lowByte(value));
-        comm->writeRegister(QMI8658_REG_CAL3_H, highByte(value));
+        comm->writeRegister(QMI8658_REG_CAL3_L, sensorlib::_lowByte(value));
+        comm->writeRegister(QMI8658_REG_CAL3_H, sensorlib::_highByte(value));
         // comm->writeRegister(QMI8658_REG_CAL4_L, 0x02);
         comm->writeRegister(QMI8658_REG_CAL4_H, 0x02);
 
@@ -1186,10 +1247,16 @@ public:
             enableAccelerometer();
         }
 
-        return 0;
+        return true;
     }
 
-    bool enableTap(IntPin pin = INTERRUPT_PIN_DISABLE)
+    /**
+     * @brief  Enable tap detection
+     * @note   The Tap Detection can only work in Non-SyncSample mode
+     * @param  pin: Interrupt Pin( 1 or 2 ) ,default is INTERRUPT_PIN_1
+     * @retval True if successful, false otherwise
+     */
+    bool enableTap(IntPin pin = INTERRUPT_PIN_1)
     {
         if (!_accel_enabled)return false;
         switch (pin) {
@@ -1204,32 +1271,42 @@ public:
         return comm->setRegisterBit(QMI8658_REG_CTRL8, 0);
     }
 
+    /**
+     * @brief  Disable tap detection
+     * @note   This function disables tap detection and the associated interrupt
+     * @retval True if successful, false otherwise
+     */
     bool disableTap()
     {
         return comm->clrRegisterBit(QMI8658_REG_CTRL8, 0);
     }
 
+    /**
+     * @brief  Get the current tap status
+     * @note   This function reads the tap status register and returns the tap event
+     * @retval The current tap event
+     */
     TapEvent getTapStatus()
     {
         int val = comm->readRegister(QMI8658_REG_TAP_STATUS);
-        if (val & _BV(7)) {
-            log_i("Tap was detected on the negative direction of the Tap axis");
+        if (val & sensorlib::_bv(7)) {
+            SENSORLIB_LOG_I("Tap was detected on the negative direction of the Tap axis");
         } else {
-            log_i("Tap was detected on the positive direction of the Tap axis");
+            SENSORLIB_LOG_I("Tap was detected on the positive direction of the Tap axis");
         }
         uint8_t t = (val >> 4) & 0x03;
         switch (t) {
         case 0:
-            log_i("No Tap was detected");
+            SENSORLIB_LOG_I("No Tap was detected");
             break;
         case 1:
-            log_i("Tap was detected on X axis");
+            SENSORLIB_LOG_I("Tap was detected on X axis");
             break;
         case 2:
-            log_i("Tap was detected on Y axis");
+            SENSORLIB_LOG_I("Tap was detected on Y axis");
             break;
         case 3:
-            log_i("Tap was detected on Z axis");
+            SENSORLIB_LOG_I("Tap was detected on Z axis");
             break;
         default:
             break;
@@ -1237,13 +1314,13 @@ public:
         t = val & 0x03;
         switch (t) {
         case 0:
-            log_i("No Tap was detected");
+            SENSORLIB_LOG_I("No Tap was detected");
             return INVALID_TAP;
         case 1:
-            log_i("Single-Tap was detected");
+            SENSORLIB_LOG_I("Single-Tap was detected");
             return SINGLE_TAP;
         case 2:
-            log_i("Double-Tap was detected");
+            SENSORLIB_LOG_I("Double-Tap was detected");
             return DOUBLE_TAP;
         default:
             break;
@@ -1253,7 +1330,7 @@ public:
 
 
     //TODO:Need Test
-    int configMotion(
+    bool configMotion(
         //* See enum MotionCtrl
         uint8_t modeCtrl,
         //* Define the slope threshold of the x-axis for arbitrary motion detection
@@ -1282,7 +1359,9 @@ public:
         uint16_t SigMotionConfirmWindow)
     {
         // Only work in Non-SyncSample mode
-        disableSyncSampleMode();
+        if (!disableSyncSampleMode()) {
+            return false;
+        }
 
         bool enGyro = isEnableGyroscope();
         bool enAccel = isEnableAccelerometer();
@@ -1308,10 +1387,10 @@ public:
 
         comm->writeRegister(QMI8658_REG_CAL1_L, AnyMotionWindow);
         comm->writeRegister(QMI8658_REG_CAL1_H, NoMotionWindow);
-        comm->writeRegister(QMI8658_REG_CAL2_L, lowByte(SigMotionWaitWindow));
-        comm->writeRegister(QMI8658_REG_CAL2_H, highByte(SigMotionWaitWindow));
-        comm->writeRegister(QMI8658_REG_CAL3_L, lowByte(SigMotionConfirmWindow));
-        comm->writeRegister(QMI8658_REG_CAL3_H, highByte(SigMotionConfirmWindow));
+        comm->writeRegister(QMI8658_REG_CAL2_L, sensorlib::_lowByte(SigMotionWaitWindow));
+        comm->writeRegister(QMI8658_REG_CAL2_H, sensorlib::_highByte(SigMotionWaitWindow));
+        comm->writeRegister(QMI8658_REG_CAL3_L, sensorlib::_lowByte(SigMotionConfirmWindow));
+        comm->writeRegister(QMI8658_REG_CAL3_H, sensorlib::_highByte(SigMotionConfirmWindow));
         // comm->writeRegister(QMI8658_REG_CAL4_L, 0x02);
         comm->writeRegister(QMI8658_REG_CAL4_H, 0x02);
 
@@ -1324,10 +1403,16 @@ public:
         if (enAccel) {
             enableAccelerometer();
         }
-        return 0;
+        return true;
     }
 
-    bool enableMotionDetect(IntPin pin = INTERRUPT_PIN_DISABLE)
+    /**
+     * @brief  Enable motion detection
+     * @note   The Motion Detection can only work in Non-SyncSample mode
+     * @param  pin: Interrupt Pin( 1 or 2 ) ,default use pin1
+     * @retval True if successful, false otherwise
+     */
+    bool enableMotionDetect(IntPin pin = INTERRUPT_PIN_1)
     {
         if (!_accel_enabled)return false;
         switch (pin) {
@@ -1345,6 +1430,11 @@ public:
         return true;
     }
 
+    /**
+     * @brief  Disable motion detection
+     * @note   This function disables motion detection and the associated interrupt
+     * @retval True if successful, false otherwise
+     */
     bool disableMotionDetect()
     {
         comm->clrRegisterBit(QMI8658_REG_CTRL8, 1);
@@ -1369,39 +1459,40 @@ public:
      *  (in number of accelerometer samples), the
      *  number of consecutive samples that will be ignored after
      *  enabling the WoM, to screen out unwanted fake detection
-     * @retval
+     * @param  accRange: Accelerometer Range ,default ±8g
+     * @retval True if successful, false otherwise
      */
-    int configWakeOnMotion(uint8_t WoMThreshold = 200,
-                           AccelODR odr = ACC_ODR_LOWPOWER_128Hz,
-                           IntPin pin = INTERRUPT_PIN_2,
-                           uint8_t defaultPinValue = 1,
-                           uint8_t blankingTime = 0x20
-                          )
+    bool configWakeOnMotion(uint8_t WoMThreshold = 200,
+                            AccelODR odr = ACC_ODR_LOWPOWER_128Hz,
+                            IntPin pin = INTERRUPT_PIN_2,
+                            uint8_t defaultPinValue = 1,
+                            uint8_t blankingTime = 0x20,
+                            AccelRange accRange = ACC_RANGE_8G)
     {
 
         uint8_t val = 0;
 
-        //Reset default value
+        // Reset default value
         if (!reset()) {
-            return -1;
+            return false;
         }
 
         // Disable sensors
         comm->clrRegisterBit(QMI8658_REG_CTRL7, 0);
 
-        //setAccelRange
-        if (comm->writeRegister(QMI8658_REG_CTRL2, 0x8F, (ACC_RANGE_8G << 4)) != 0) {
-            return -1;
+        // SetAccelRange
+        if (comm->writeRegister(QMI8658_REG_CTRL2, 0x8F, (accRange << 4)) != 0) {
+            return false;
         }
 
         // setAccelOutputDataRate
         if (comm->writeRegister(QMI8658_REG_CTRL2, 0xF0, odr) != 0) {
-            return -1;
+            return false;
         }
 
-        //set wom
+        // Set wom
         if (comm->writeRegister(QMI8658_REG_CAL1_L, WoMThreshold) != 0) {
-            return -1;
+            return false;
         }
 
         if ( pin == INTERRUPT_PIN_1) {
@@ -1413,22 +1504,27 @@ public:
         val <<= 6;
         val |= (blankingTime & 0x3F);
         if (comm->writeRegister(QMI8658_REG_CAL1_H, val) != 0) {
-            return -1;
+            return false;
         }
 
         if (writeCommand(CTRL_CMD_WRITE_WOM_SETTING) != 0) {
-            return -1;
+            return false;
         }
 
         enableAccelerometer();
 
         enableINT(pin);
 
-        return 0;
+        return true;
     }
 
 
-
+    /**
+     * @brief  Get Sensor chip USID
+     * @param  *buffer: Input buffer to store the USID , must be uint8_t[6]
+     * @param  length: Length of the buffer , must be less than or equal to 6
+     * @retval None
+     */
     void getChipUsid(uint8_t *buffer, uint8_t length)
     {
         if (length > 6) {
@@ -1438,15 +1534,20 @@ public:
     }
 
 
+    /**
+     * @brief  Get Sensor chip firmware version
+     * @note   This function retrieves the firmware version of the sensor chip
+     * @retval Firmware version number
+     */
     uint32_t getChipFirmwareVersion()
     {
         return revisionID;
     }
 
     /**
-     * @brief update
-     * @note  Get the interrupt status and status 0, status 1 of the sensor
-     * @retval  Return SensorStatus
+     * @brief  Update sensor status
+     * @note   This function updates the sensor status by reading the interrupt status and status registers
+     * @retval Updated sensor status
      */
     uint16_t update()
     {
@@ -1459,10 +1560,10 @@ public:
             return 0;
         }
 
-        // log_i("STATUSINT:0x%X BIN:", status[0]);
-        // log_i("STATUS0:0x%X BIN:", status[1]);
-        // log_i("STATUS1:0x%X BIN:", status[2]);
-        // log_i("------------------\n");
+        // SENSORLIB_LOG_I("STATUSINT:0x%X BIN:", status[0]);
+        // SENSORLIB_LOG_I("STATUS0:0x%X BIN:", status[1]);
+        // SENSORLIB_LOG_I("STATUS1:0x%X BIN:", status[2]);
+        // SENSORLIB_LOG_I("------------------\n");
 
         // Ctrl9 CmdDone
         // Indicates CTRL9 Command was done, as part of CTRL9 protocol
@@ -1606,6 +1707,14 @@ public:
     }
 
 
+    /**
+     * @brief  Set Gyroscope calibration gains
+     * @note   This function sets the calibration gains for the gyroscope
+     * @param  *gX_gain: Pointer to the gain value for the X axis
+     * @param  *gY_gain: Pointer to the gain value for the Y axis
+     * @param  *gZ_gain: Pointer to the gain value for the Z axis
+     * @retval True if successful, false otherwise
+     */
     bool calibration(uint16_t *gX_gain = NULL, uint16_t *gY_gain = NULL, uint16_t *gZ_gain = NULL)
     {
         // 1.Set CTRL7.aEN = 0 and CTRL7.gEN = 0, to disable the accelerometer and gyroscope.
@@ -1628,39 +1737,39 @@ public:
 
         // During the process, it is recommended to place the device in quiet, otherwise, the COD might fail and report error.
 
-        if (result & _BV(7)) {
-            log_e("COD failed for checking low sensitivity limit of X axis of gyroscope");
+        if (result & sensorlib::_bv(7)) {
+            SENSORLIB_LOG_E("COD failed for checking low sensitivity limit of X axis of gyroscope");
             return false;
         }
-        if (result & _BV(6)) {
-            log_e("COD failed for checking high sensitivity limit of X axis of gyroscope");
+        if (result & sensorlib::_bv(6)) {
+            SENSORLIB_LOG_E("COD failed for checking high sensitivity limit of X axis of gyroscope");
             return false;
         }
-        if (result & _BV(5)) {
-            log_e("COD failed for checking low sensitivity limit of Y axis of gyroscope");
+        if (result & sensorlib::_bv(5)) {
+            SENSORLIB_LOG_E("COD failed for checking low sensitivity limit of Y axis of gyroscope");
             return false;
         }
-        if (result & _BV(4)) {
-            log_e("COD failed for checking high sensitivity limit of Y axis of gyroscope");
+        if (result & sensorlib::_bv(4)) {
+            SENSORLIB_LOG_E("COD failed for checking high sensitivity limit of Y axis of gyroscope");
             return false;
         }
-        if (result & _BV(3)) {
-            log_e("Accelerometer checked failed (significant vibration happened during COD)");
+        if (result & sensorlib::_bv(3)) {
+            SENSORLIB_LOG_E("Accelerometer checked failed (significant vibration happened during COD)");
             return false;
         }
-        if (result & _BV(2)) {
-            log_e("Gyroscope startup failure happened when COD was called");
+        if (result & sensorlib::_bv(2)) {
+            SENSORLIB_LOG_E("Gyroscope startup failure happened when COD was called");
             return false;
         }
-        if (result & _BV(1)) {
-            log_e("COD was called while gyroscope was enabled, COD return failure");
+        if (result & sensorlib::_bv(1)) {
+            SENSORLIB_LOG_E("COD was called while gyroscope was enabled, COD return failure");
             return false;
         }
-        if (result & _BV(0)) {
-            log_e("COD failed; no COD correction applied");
+        if (result & sensorlib::_bv(0)) {
+            SENSORLIB_LOG_E("COD failed; no COD correction applied");
             return false;
         }
-        log_d("All calibrations are completed");
+        SENSORLIB_LOG_D("All calibrations are completed");
 
         if (gX_gain && gY_gain && gZ_gain) {
             uint8_t rawBuffer[6] = {0};
@@ -1676,6 +1785,14 @@ public:
     }
 
 
+    /**
+     * @brief  Write Gyroscope calibration gains
+     * @note   This function writes the calibration gains for the gyroscope
+     * @param  gX_gain: Gain value for the X axis
+     * @param  gY_gain: Gain value for the Y axis
+     * @param  gZ_gain: Gain value for the Z axis
+     * @retval True if successful, false otherwise
+     */
     bool writeCalibration(uint16_t gX_gain, uint16_t gY_gain, uint16_t gZ_gain)
     {
         // 1. Disable Accelerometer and Gyroscope by setting CTRL7.aEN = 0 and CTRL7.gEN = 0
@@ -1684,16 +1801,15 @@ public:
         }
 
         uint8_t buffer[] = {
-
             // 2. write Gyro-X gain (16 bits) to registers CAL1_L and CAL1_H registers (0x0B, 0x0C)
-            lowByte(gX_gain),
-            highByte(gX_gain),
+            sensorlib::_lowByte(gX_gain),
+            sensorlib::_highByte(gX_gain),
             // 3. write Gyro-Y gain (16 bits) to registers CAL2_L and CAL2_H registers (0x0D, 0x0E)
-            lowByte(gY_gain),
-            highByte(gY_gain),
+            sensorlib::_lowByte(gY_gain),
+            sensorlib::_highByte(gY_gain),
             // 4. write Gyro-Z gain (16 bits) to registers CAL3_L and CAL3_H registers (0x0F, 0x10)
-            lowByte(gZ_gain),
-            highByte(gZ_gain),
+            sensorlib::_lowByte(gZ_gain),
+            sensorlib::_highByte(gZ_gain),
         };
 
         comm->writeRegister(QMI8658_REG_CAL1_L, buffer, sizeof(buffer));
@@ -1706,7 +1822,11 @@ public:
         return true;
     }
 
-
+    /**
+     * @brief  Perform self-test on the accelerometer
+     * @note   This function triggers a self-test on the accelerometer and checks the results
+     * @retval True if self-test passed, false otherwise
+     */
     bool selfTestAccel()
     {
         // 1- Disable the sensors (CTRL7 = 0x00).
@@ -1724,17 +1844,17 @@ public:
         int dataReady = 0x00;
         while (dataReady != 0x01) {
             uint8_t reg_var = comm->readRegister(QMI8658_REG_STATUS_INT);
-            log_d("reg_var : %x", reg_var);
+            SENSORLIB_LOG_D("reg_var : %x", reg_var);
             dataReady = reg_var & 0x01;
             // dataReady = comm->readRegister(QMI8658_REG_STATUS_INT) & 0x01;
             hal->delay(20);
             if (--retry <= 0) {
-                log_e("No response.");
+                SENSORLIB_LOG_E("No response.");
                 return false;
             }
         }
 
-        log_i("Data is ready for reading....");
+        SENSORLIB_LOG_I("Data is ready for reading....");
 
         //4- Set CTRL2.aST(bit7) to 0, to clear STATUSINT1.bit0 and/or INT2.
         comm->clrRegisterBit(QMI8658_REG_CTRL2, 7);
@@ -1743,12 +1863,12 @@ public:
         retry = 50;
         while (dataReady == 0x01) {
             uint8_t reg_var = comm->readRegister(QMI8658_REG_STATUS_INT);
-            log_d("reg_var : %x", reg_var);
+            SENSORLIB_LOG_D("reg_var : %x", reg_var);
             dataReady = (reg_var & 0x01);
             // dataReady = !(comm->readRegister(QMI8658_REG_STATUS_INT) & 0x01);
             hal->delay(20);
             if (--retry <= 0) {
-                log_e("No response.");
+                SENSORLIB_LOG_E("No response.");
                 return false;
             }
         }
@@ -1775,19 +1895,24 @@ public:
         float dVY_mg = dVY * 0.5;
         float dVZ_mg = dVZ * 0.5;
 
-        log_d("\n\tdVX_mg:%05.11f \n\tdVY_mg:%05.11f \n\tdVZ_mg:%05.11f", dVX_mg, dVY_mg, dVZ_mg);
+        SENSORLIB_LOG_D("\n\tdVX_mg:%05.11f \n\tdVY_mg:%05.11f \n\tdVZ_mg:%05.11f", dVX_mg, dVY_mg, dVZ_mg);
         // If the absolute results of all three axes are higher than 200mg, the accelerometer can be considered functional.
         // Otherwise, the accelerometer cannot be considered functional.
         if (abs(dVX_mg) > 200 && abs(dVY_mg) > 200 && abs(dVZ_mg) > 200) {
-            log_d("Accelerometer is working properly.");
+            SENSORLIB_LOG_D("Accelerometer is working properly.");
         } else {
-            log_d("Accelerometer is not working properly.");
+            SENSORLIB_LOG_D("Accelerometer is not working properly.");
             return false;
         }
         return true;
     }
 
 
+    /**
+     * @brief  Perform self-test on the gyroscope
+     * @note   This function triggers a self-test on the gyroscope and checks the results
+     * @retval True if self-test passed, false otherwise
+     */
     bool selfTestGyro()
     {
         // 1- Disable the sensors (CTRL7 = 0x00).
@@ -1795,7 +1920,7 @@ public:
             return false;
         }
 
-        // 2- Set the bit gST to 1. (CTRL3.bit7 = 1’b1).
+        // 2- Set the bit gST to 1. (CTRL3.bit7 = 1"b1).
         comm->setRegisterBit(QMI8658_REG_CTRL3, 7);
 
         // 3- Wait for QMI8658A to drive INT2 to High, if INT2 is enabled, or STATUS_INT.bit0 is set to 1.
@@ -1805,12 +1930,12 @@ public:
             dataReady = comm->readRegister(QMI8658_REG_STATUS_INT) & 0x01;
             hal->delay(20);
             if (--retry <= 0) {
-                log_e("No response.");
+                SENSORLIB_LOG_E("No response.");
                 return false;
             }
         }
 
-        log_i("Data is ready for reading....");
+        SENSORLIB_LOG_I("Data is ready for reading....");
 
         //4- Set CTRL3.aST(bit7) to 0, to clear STATUS_INT1.bit0 and/or INT2.
         comm->clrRegisterBit(QMI8658_REG_CTRL3, 7);
@@ -1821,7 +1946,7 @@ public:
             dataReady = !(comm->readRegister(QMI8658_REG_STATUS_INT) & 0x01);
             hal->delay(20);
             if (--retry <= 0) {
-                log_e("No response.");
+                SENSORLIB_LOG_E("No response.");
                 return false;
             }
         }
@@ -1850,94 +1975,194 @@ public:
         dVY *= (1.0 / (1 << 4)); // 62.5 mdps
         dVZ *= (1.0 / (1 << 4)); // 62.5 mdps
 
-        log_d("\n\tdVX:%12.4f \n\tdVY:%12.4f \n\tdVZ:%12.4f", dVX, dVY, dVZ);
+        SENSORLIB_LOG_D("\n\tdVX:%12.4f \n\tdVY:%12.4f \n\tdVZ:%12.4f", dVX, dVY, dVZ);
 
         //  If the absolute results of all three axes are higher than 300dps, the gyroscope can be considered functional.
         // Otherwise, the gyroscope cannot be considered functional.
         if (abs(dVX) > 300 && abs(dVY) > 300 && abs(dVZ) > 300) {
-            log_d("Gyro is working properly.");
+            SENSORLIB_LOG_D("Gyro is working properly.");
         } else {
-            log_d("Gyro is not working properly.");
+            SENSORLIB_LOG_D("Gyro is not working properly.");
             return false;
         }
 
         return true;
     }
 
-    // This offset change is lost when the sensor is power cycled, or the system is reset
-    // Each delta offset value should contain 16 bits and the format is signed 11.5 (5 fraction bits, unit is 1 / 2^5).
+    /**
+     * @brief  Write accelerometer calibration offsets
+     * @note   This function writes the calibration offsets for the accelerometer ,
+     *         this offset change is lost when the sensor is power cycled, or the system is reset
+     * @param  offset_x: Offset value for the X axis
+     * @param  offset_y: Offset value for the Y axis
+     * @param  offset_z: Offset value for the Z axis
+     * @retval None
+     */
     void setAccelOffset(int16_t offset_x, int16_t offset_y, int16_t offset_z)
     {
-
         uint8_t data[6];
-        data[0] = lowByte(offset_x);
-        data[1] = highByte(offset_x);
-        data[2] = lowByte(offset_y);
-        data[3] = highByte(offset_y);
-        data[4] = lowByte(offset_z);
-        data[5] = highByte(offset_z);
-
+        data[0] = sensorlib::_lowByte(offset_x);
+        data[1] = sensorlib::_highByte(offset_x);
+        data[2] = sensorlib::_lowByte(offset_y);
+        data[3] = sensorlib::_highByte(offset_y);
+        data[4] = sensorlib::_lowByte(offset_z);
+        data[5] = sensorlib::_highByte(offset_z);
         comm->writeRegister(QMI8658_REG_CAL1_L, data, 2);
         comm->writeRegister(QMI8658_REG_CAL2_L, data + 2, 2);
         comm->writeRegister(QMI8658_REG_CAL3_L, data + 4, 2);
-
         writeCommand(CTRL_CMD_ACCEL_HOST_DELTA_OFFSET);
     }
 
-    // This offset change is lost when the sensor is power cycled, or the system is reset
-    // Each delta offset value should contain 16 bits and the format is signed 11.5 (5 fraction bits, unit is 1 / 2^5).
+    /**
+     * @brief  Write gyroscope calibration offsets
+     * @note   This function writes the calibration offsets for the gyroscope,
+     *         this offset change is lost when the sensor is power cycled, or the system is reset
+     * @param  offset_x: Offset value for the X axis
+     * @param  offset_y: Offset value for the Y axis
+     * @param  offset_z: Offset value for the Z axis
+     * @retval None
+     */
     void setGyroOffset(int16_t offset_x, int16_t offset_y, int16_t offset_z)
     {
-
         uint8_t data[6];
-        data[0] = lowByte(offset_x);
-        data[1] = highByte(offset_x);
-        data[2] = lowByte(offset_y);
-        data[3] = highByte(offset_y);
-        data[4] = lowByte(offset_z);
-        data[5] = highByte(offset_z);
-
+        data[0] = sensorlib::_lowByte(offset_x);
+        data[1] = sensorlib::_highByte(offset_x);
+        data[2] = sensorlib::_lowByte(offset_y);
+        data[3] = sensorlib::_highByte(offset_y);
+        data[4] = sensorlib::_lowByte(offset_z);
+        data[5] = sensorlib::_highByte(offset_z);
         comm->writeRegister(QMI8658_REG_CAL1_L, data, 2);
         comm->writeRegister(QMI8658_REG_CAL2_L, data + 2, 2);
         comm->writeRegister(QMI8658_REG_CAL3_L, data + 4, 2);
-
         writeCommand(CTRL_CMD_GYRO_HOST_DELTA_OFFSET);
-
-    }
-
-    void setPins(int _irq)
-    {
-        _irq = _irq;
     }
 
 private:
-    float accelScales, gyroScales;
-    uint32_t lastTimestamp = 0;
-    uint8_t sampleMode = ASYNC_MODE;
-    bool _accel_enabled = false;
-    bool _gyro_enabled = false;
-    uint32_t revisionID;
-    uint8_t  usid[6];
-    bool _gDataReady = false;
-    bool _aDataReady = false;
-    int _irq = -1;
-    uint8_t _irq_enable_mask = false;
-    uint8_t _fifo_mode;
-    bool _fifo_interrupt = false;;
-    uint8_t *fifo_buffer = NULL;
-    uint16_t _fifo_size = 0;
 
-    EventCallBack_t eventWomEvent = NULL;
-    EventCallBack_t eventTagEvent = NULL;
-    EventCallBack_t eventPedometerEvent = NULL;
-    EventCallBack_t eventNoMotionEvent = NULL;
-    EventCallBack_t eventAnyMotionEvent = NULL;
-    EventCallBack_t eventSignificantMotion = NULL;
-    EventCallBack_t eventGyroDataReady = NULL;
-    EventCallBack_t eventAccelDataReady = NULL;
-    EventCallBack_t eventDataLocking = NULL;
+    /**
+     * @brief  Get the number of bytes needed for the FIFO buffer
+     * @note   This function will calculate the required FIFO buffer size based on the current configuration.
+     * @retval The number of bytes needed for the FIFO buffer
+     */
+    uint16_t getFifoNeedBytes()
+    {
+        uint8_t sam[] = {16, 32, 64, 128};
+        uint8_t sensors  = 0;
+        if (_gyro_enabled && _accel_enabled) {
+            sensors = 2;
+        } else if (_gyro_enabled || _accel_enabled) {
+            sensors = 1;
+        }
+        uint8_t samples =  ((_fifo_mode >> 2) & 0x03) ;
+        return sam[samples] * 6 * sensors;
+    }
 
 
+    /**
+     * @brief  Get sensor data from FIFO buffer
+     * @note    This function will parse the FIFO buffer and extract accelerometer and gyroscope data,call configFIFO() first.
+     * @retval  The number of samples read from the FIFO buffer
+     */
+    uint16_t readFromFifo()
+    {
+        uint8_t  status[2];
+        uint16_t fifo_bytes   = 0;
+
+        if ((_irq != -1) && _fifo_interrupt) {
+            /*
+             * Once the corresponds INT pin is configured to the push-pull mode, the FIFO watermark interrupt can be seen on the
+             * corresponds INT pin. It will keep high level as long as the FIFO filled level is equal to or higher than the watermark, will
+             * drop to low level as long as the FIFO filled level is lower than the configured FIFO watermark after reading out by host
+             * and FIFO_RD_MODE is cleared.
+            */
+            if (hal->digitalRead(_irq) == LOW) {
+                return false;
+            }
+        }
+
+        size_t alloc_size = getFifoNeedBytes();
+        if (!fifo_buffer) {
+            fifo_buffer = (uint8_t *)calloc(alloc_size, sizeof(uint8_t));
+            if (!fifo_buffer) {
+                SENSORLIB_LOG_E("Calloc buffer size %u bytes failed!", alloc_size);
+                return 0;
+            }
+            _fifo_size = alloc_size;
+
+        } else if (alloc_size > _fifo_size) {
+            fifo_buffer = (uint8_t *)realloc(fifo_buffer, alloc_size);
+            if (!fifo_buffer) {
+                SENSORLIB_LOG_E("Realloc buffer size %u bytes failed!", alloc_size);
+                return 0;
+            }
+        }
+
+        // Got FIFO watermark interrupt by INT pin or polling the FIFO_STATUS register (FIFO_WTM and/or FIFO_FULL).
+        int val = comm->readRegister(QMI8658_REG_FIFO_STATUS);
+        if (val == -1) {
+            return 0;
+        }
+        SENSORLIB_LOG_D("FIFO status:0x%x", val);
+
+        if (!(val & sensorlib::_bv(4))) {
+            SENSORLIB_LOG_D("FIFO is Empty");
+            return 0;
+        }
+        if (val & sensorlib::_bv(5)) {
+            SENSORLIB_LOG_D("FIFO Overflow condition has happened (data dropping happened)");
+            // return 0;
+        }
+        if (val & sensorlib::_bv(6)) {
+            SENSORLIB_LOG_D("FIFO Water Mark Level Hit");
+        }
+        if (val & sensorlib::_bv(7)) {
+            SENSORLIB_LOG_D("FIFO is Full");
+        }
+
+        // Read the FIFO_SMPL_CNT and FIFO_STATUS registers, to calculate the level of FIFO content data, refer to 8.4 FIFO Sample Count.
+        if (comm->readRegister(QMI8658_REG_FIFO_COUNT, status, 2) == -1) {
+            SENSORLIB_LOG_E("Bus communication failed!");
+            return 0;
+        }
+
+        // FIFO_Sample_Count (in byte) = 2 * (fifo_smpl_cnt_msb[1:0] * 256 + fifo_smpl_cnt_lsb[7:0])
+        fifo_bytes = 2 * (((status[1] & 0x03)) << 8 | status[0]);
+
+        SENSORLIB_LOG_D("reg fifo_bytes:%d ", fifo_bytes);
+
+        //Samples 16  * 6 * 2  = 192
+        //Samples 32  * 6 * 2  = 384
+        //Samples 64  * 6 * 2  = 768
+        //Samples 128 * 6 * 2  = 1536
+
+        // Send CTRL_CMD_REQ_FIFO (0x05) by CTRL9 command, to enable FIFO read mode. Refer to CTRL_CMD_REQ_FIFO for details.
+        if (writeCommand(CTRL_CMD_REQ_FIFO) != 0) {
+            SENSORLIB_LOG_E("Request FIFO failed!");
+            return 0;
+        }
+
+        // Read from the FIFO_DATA register per FIFO_Sample_Count.
+        if (comm->readRegister(QMI8658_REG_FIFO_DATA, fifo_buffer, fifo_bytes) == -1) {
+            SENSORLIB_LOG_E("Request FIFO data failed !");
+            return 0;
+        }
+
+        // Disable the FIFO Read Mode by setting FIFO_CTRL.FIFO_rd_mode to 0. New data will be filled into FIFO afterwards.
+        if (comm->writeRegister(QMI8658_REG_FIFO_CTRL, _fifo_mode) == -1) {
+            SENSORLIB_LOG_E("Clear FIFO flag failed!");
+            return 0;
+        }
+
+        return fifo_bytes;
+    }
+
+
+    /**
+     * @brief  Get the accelerometer scales
+     * @note   This function retrieves the current accelerometer scales
+     * @param  None
+     * @retval Current accelerometer scales
+     */
     int writeCommand(CommandTable cmd, uint32_t wait_ms = 1000)
     {
         int      val;
@@ -1950,7 +2175,7 @@ private:
             val = comm->readRegister(QMI8658_REG_STATUS_INT);
             hal->delay(1);
             if (hal->millis() - startMillis > wait_ms) {
-                log_e("wait for ctrl9 command done time out : %d val:%d", cmd, val);
+                SENSORLIB_LOG_E("wait for ctrl9 command done time out : %d val:%d", cmd, val);
                 return -1;
             }
         } while (val != -1 && !(val & 0x80));
@@ -1964,7 +2189,7 @@ private:
             val = comm->readRegister(QMI8658_REG_STATUS_INT);
             hal->delay(1);
             if (hal->millis() - startMillis > wait_ms) {
-                log_e("Clear ctrl9 command done flag timeout : %d val:%d", cmd, val);
+                SENSORLIB_LOG_E("Clear ctrl9 command done flag timeout : %d val:%d", cmd, val);
                 return -1;
             }
         } while (val != -1 && (val & 0x80));
@@ -1973,7 +2198,12 @@ private:
     }
 
 
-
+    /**
+     * @brief  Get the accelerometer scales
+     * @note   This function retrieves the current accelerometer scales
+     * @param  None
+     * @retval Current accelerometer scales
+     */
     uint8_t mgToBytes(float mg)
     {
         float g = mg / 1000.0;      // Convert to grams
@@ -1982,9 +2212,38 @@ private:
     }
 
 
+    int _irq = -1;
+    float accelScales = 0.0f, gyroScales = 0.0f;
+    bool _accel_enabled = false;
+    bool _gyro_enabled = false;
+    bool _gDataReady = false;
+    bool _aDataReady = false;
+    bool _fifo_interrupt = false;
+
+    uint8_t  usid[6];
+    uint8_t sampleMode = ASYNC_MODE;
+    uint8_t _irq_enable_mask = false;
+    uint8_t _fifo_mode = 0x00;
+    uint8_t *fifo_buffer = NULL;
+    uint16_t _fifo_size = 0;
+
+    uint32_t lastTimestamp = 0;
+    uint32_t revisionID = 0x00;
+
+    EventCallBack_t eventWomEvent = NULL;
+    EventCallBack_t eventTagEvent = NULL;
+    EventCallBack_t eventPedometerEvent = NULL;
+    EventCallBack_t eventNoMotionEvent = NULL;
+    EventCallBack_t eventAnyMotionEvent = NULL;
+    EventCallBack_t eventSignificantMotion = NULL;
+    EventCallBack_t eventGyroDataReady = NULL;
+    EventCallBack_t eventAccelDataReady = NULL;
+    EventCallBack_t eventDataLocking = NULL;
+
+
 protected:
 
-    bool initImpl()
+    bool initImpl(uint8_t param) override
     {
         uint8_t buffer[6] = {0};
 
@@ -1999,7 +2258,7 @@ protected:
 
         uint8_t id = whoAmI();
         if (id != QMI8658_REG_WHOAMI_DEFAULT) {
-            log_e("ERROR! ID NOT MATCH QMI8658 , Response id is 0x%x", id);
+            SENSORLIB_LOG_E("ERROR! ID NOT MATCH QMI8658 , Response id is 0x%x", id);
             return false;
         }
         // Enable address auto increment, Big-Endian format
@@ -2020,27 +2279,126 @@ protected:
 
         if (comm->readRegister(QMI8658_REG_DQW_L, buffer, 3) != -1) {
             revisionID = buffer[0] | (uint32_t)(buffer[1] << 8) | (uint32_t)(buffer[2] << 16);
-            log_d("FW Version :0x%02X%02X%02X", buffer[0], buffer[1], buffer[2]);
+            SENSORLIB_LOG_D("FW Version :0x%02X%02X%02X", buffer[0], buffer[1], buffer[2]);
         }
 
         if (comm->readRegister(QMI8658_REG_DVX_L, usid, 6) != -1) {
-            log_d("USID :%02X%02X%02X%02X%02X%02X",
-                  usid[0], usid[1], usid[2],
-                  usid[3], usid[4], usid[5]);
+            SENSORLIB_LOG_D("USID :%02X%02X%02X%02X%02X%02X",
+                            usid[0], usid[1], usid[2],
+                            usid[3], usid[4], usid[5]);
         }
 
         return true;
     }
 
-protected:
-    std::unique_ptr<SensorCommBase> comm;
-    std::unique_ptr<SensorHal> hal;
+    // @brief  registers default value
+    static constexpr uint8_t QMI8658_REG_WHOAMI_DEFAULT = 0x05;
+    static constexpr uint8_t QMI8658_REG_STATUS_DEFAULT = 0x03;
+    static constexpr uint8_t QMI8658_REG_RESET_DEFAULT = 0xB0;
+
+
+    //* General Purpose Registers
+    static constexpr uint8_t QMI8658_REG_WHOAMI = 0x00;
+    static constexpr uint8_t QMI8658_REG_REVISION = 0x01;
+
+
+    //* Setup and Control Registers
+    static constexpr uint8_t QMI8658_REG_CTRL1 = 0x02;
+    static constexpr uint8_t QMI8658_REG_CTRL2 = 0x03;
+    static constexpr uint8_t QMI8658_REG_CTRL3 = 0x04;
+    // Reserved
+    static constexpr uint8_t QMI8658_REG_CTRL5 = 0x06;
+    // Reserved
+    static constexpr uint8_t QMI8658_REG_CTRL7 = 0x08;
+    static constexpr uint8_t QMI8658_REG_CTRL8 = 0x09;
+    static constexpr uint8_t QMI8658_REG_CTRL9 = 0x0A;
+
+    //* Host Controlled Calibration Registers (See CTRL9, Usage is Optional)
+    static constexpr uint8_t QMI8658_REG_CAL1_L = 0x0B;
+    static constexpr uint8_t QMI8658_REG_CAL1_H = 0x0C;
+    static constexpr uint8_t QMI8658_REG_CAL2_L = 0x0D;
+    static constexpr uint8_t QMI8658_REG_CAL2_H = 0x0E;
+    static constexpr uint8_t QMI8658_REG_CAL3_L = 0x0F;
+    static constexpr uint8_t QMI8658_REG_CAL3_H = 0x10;
+    static constexpr uint8_t QMI8658_REG_CAL4_L = 0x11;
+    static constexpr uint8_t QMI8658_REG_CAL4_H = 0x12;
+
+    //* FIFO Registers
+    static constexpr uint8_t QMI8658_REG_FIFO_WTM_TH = 0x13;
+    static constexpr uint8_t QMI8658_REG_FIFO_CTRL = 0x14;
+    static constexpr uint8_t QMI8658_REG_FIFO_COUNT = 0x15;
+    static constexpr uint8_t QMI8658_REG_FIFO_STATUS = 0x16;
+    static constexpr uint8_t QMI8658_REG_FIFO_DATA = 0x17;
+
+    //* Status Registers
+    static constexpr uint8_t QMI8658_REG_STATUS_INT = 0x2D;
+    static constexpr uint8_t QMI8658_REG_STATUS0 = 0x2E;
+    static constexpr uint8_t QMI8658_REG_STATUS1 = 0x2F;
+
+    //* Timestamp Register
+    static constexpr uint8_t QMI8658_REG_TIMESTAMP_L = 0x30;
+    static constexpr uint8_t QMI8658_REG_TIMESTAMP_M = 0x31;
+    static constexpr uint8_t QMI8658_REG_TIMESTAMP_H = 0x32;
+
+    //* Data Output Registers (16 bits 2’s Complement Except COD Sensor Data)
+    static constexpr uint8_t QMI8658_REG_TEMPERATURE_L = 0x33;
+    static constexpr uint8_t QMI8658_REG_TEMPERATURE_H = 0x34;
+    static constexpr uint8_t QMI8658_REG_AX_L = 0x35;
+    static constexpr uint8_t QMI8658_REG_AX_H = 0x36;
+    static constexpr uint8_t QMI8658_REG_AY_L = 0x37;
+    static constexpr uint8_t QMI8658_REG_AY_H = 0x38;
+    static constexpr uint8_t QMI8658_REG_AZ_L = 0x39;
+    static constexpr uint8_t QMI8658_REG_AZ_H = 0x3A;
+    static constexpr uint8_t QMI8658_REG_GX_L = 0x3B;
+    static constexpr uint8_t QMI8658_REG_GX_H = 0x3C;
+    static constexpr uint8_t QMI8658_REG_GY_L = 0x3D;
+    static constexpr uint8_t QMI8658_REG_GY_H = 0x3E;
+    static constexpr uint8_t QMI8658_REG_GZ_L = 0x3F;
+    static constexpr uint8_t QMI8658_REG_GZ_H = 0x40;
+
+    //* COD Indication and General Purpose Registers
+
+    // Calibration-On-Demand status register
+    static constexpr uint8_t QMI8658_REG_COD_STATUS = 0x46;
+    static constexpr uint8_t QMI8658_REG_DQW_L = 0x49;
+    static constexpr uint8_t QMI8658_REG_DQW_H = 0x4A;
+    static constexpr uint8_t QMI8658_REG_DQX_L = 0x4B;
+    static constexpr uint8_t QMI8658_REG_DQX_H = 0x4C;
+
+    static constexpr uint8_t QMI8658_REG_DQY_L = 0x4D;
+    static constexpr uint8_t QMI8658_REG_DQY_H = 0x4E;
+    static constexpr uint8_t QMI8658_REG_DQZ_L = 0x4F;
+    static constexpr uint8_t QMI8658_REG_DQZ_H = 0x50;
+
+    static constexpr uint8_t QMI8658_REG_DVX_L = 0x51;
+    static constexpr uint8_t QMI8658_REG_DVX_H = 0x52;
+    static constexpr uint8_t QMI8658_REG_DVY_L = 0x53;
+    static constexpr uint8_t QMI8658_REG_DVY_H = 0x54;
+    static constexpr uint8_t QMI8658_REG_DVZ_L = 0x55;
+    static constexpr uint8_t QMI8658_REG_DVZ_H = 0x56;
+
+    //* Activity Detection Output Registers
+    static constexpr uint8_t QMI8658_REG_TAP_STATUS = 0x59;
+    static constexpr uint8_t QMI8658_REG_STEP_CNT_LOW = 0x5A;
+    static constexpr uint8_t QMI8658_REG_STEP_CNT_MID = 0x5B;
+    static constexpr uint8_t QMI8658_REG_STEP_CNT_HIGH = 0x5C;
+    static constexpr uint8_t QMI8658_REG_RESET = 0x60;
+
+    //* Reset Register
+    static constexpr uint8_t QMI8658_REG_RST_RESULT = 0x4D;
+    static constexpr uint8_t QMI8658_REG_RST_RESULT_VAL = 0x80;
+
+    static constexpr uint8_t STATUS0_ACCEL_AVAIL = 0x01;
+    static constexpr uint8_t STATUS0_GYRO_AVAIL = 0x02;
+    static constexpr uint8_t QMI8658_ACCEL_LPF_MASK = 0xF9;
+    static constexpr uint8_t QMI8658_GYRO_LPF_MASK = 0x9F;
+
+    static constexpr uint8_t QMI8658_ACCEL_EN_MASK = 0x01;
+    static constexpr uint8_t QMI8658_GYRO_EN_MASK = 0x02;
+    static constexpr uint8_t QMI8658_ACCEL_GYRO_EN_MASK = 0x03;
+
+
+    static constexpr uint8_t QMI8658_FIFO_MAP_INT1 = 0x04;
 };
 
-
-
-
-
-
-
-
+#endif

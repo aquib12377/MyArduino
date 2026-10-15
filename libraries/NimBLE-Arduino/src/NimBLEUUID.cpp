@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2025 Ryan Powell <ryan@nable-embedded.io> and
+ * Copyright 2020-2026 Ryan Powell <ryan@nable-embedded.io> and
  * esp-nimble-cpp, NimBLE-Arduino contributors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -37,6 +37,20 @@ static const uint8_t ble_base_uuid[] = {
  * @param [in] uuid The native UUID.
  */
 NimBLEUUID::NimBLEUUID(const ble_uuid_any_t& uuid) : m_uuid{uuid} {}
+
+/**
+ * @brief Create a UUID from the native UUID pointer.
+ * @param [in] uuid The native UUID pointer.
+ */
+NimBLEUUID::NimBLEUUID(const ble_uuid_t* uuid) {
+    if (uuid == nullptr) {
+        NIMBLE_LOGE(LOG_TAG, "Invalid UUID pointer");
+        m_uuid.u.type = 0;
+        return;
+    }
+
+    ble_uuid_copy(&m_uuid, uuid);
+}
 
 /**
  * @brief Create a UUID from a string.

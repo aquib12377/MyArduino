@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
+ * SPDX-FileCopyrightText: 2026 Suwatchai K. <suwatchai@outlook.com>
  *
  * SPDX-License-Identifier: MIT
  */
@@ -23,6 +23,8 @@ class AppBase
     friend class FirestoreBase;
     friend class CloudFunctions;
     friend class Messaging;
+    friend class MessagingBase;
+    friend class MessagingInstance;
     friend class Storage;
     friend class CloudStorage;
     friend class RuleSets;

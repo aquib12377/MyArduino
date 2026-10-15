@@ -3,6 +3,8 @@ import json
 from pathlib import Path
 
 from ci.util.elf import dump_symbol_sizes
+from ci.util.firmware_elf import resolve_firmware_elf
+from ci.util.global_interrupt_handler import handle_keyboard_interrupt
 
 
 HERE = Path(__file__).resolve().parent
@@ -31,10 +33,10 @@ def main() -> int:
     else:
         root_build_dir = Path(".build")
 
-    # Support nested PlatformIO structure: .build/pio/<board>
-    nested_pio_dir = root_build_dir / "pio"
-    if nested_pio_dir.is_dir():
-        root_build_dir = nested_pio_dir
+    # Board builds live under .build/fbuild/<board>
+    nested_board_dir = root_build_dir / "fbuild"
+    if nested_board_dir.is_dir():
+        root_build_dir = nested_board_dir
 
     # Find the first board directory
     board_dirs = [d for d in root_build_dir.iterdir() if d.is_dir()]
@@ -56,11 +58,31 @@ def main() -> int:
     board_dir = board_dirs[which]
     board = board_dir.name
 
-    build_info_json = board_dir / "build_info.json"
+    # Find build_info.json (try example-specific files first, then generic)
+    build_info_files = list(board_dir.glob("build_info_*.json"))
+    if build_info_files:
+        # Prefer example-specific files
+        build_info_json = build_info_files[0]
+    else:
+        # Fall back to generic build_info.json
+        build_info_json = board_dir / "build_info.json"
+
+    if not build_info_json.exists():
+        print(f"Error: No build_info*.json found in {board_dir}")
+        return 1
+
     build_info = json.loads(build_info_json.read_text())
     board_info = build_info.get(board) or build_info[next(iter(build_info))]
 
-    firmware_path = Path(board_info["prog_path"])
+    # See ci/util/firmware_elf.py: `prog_path` is not where fbuild writes.
+    firmware_path = resolve_firmware_elf(board_info, board_dir)
+    if firmware_path is None:
+        print(
+            f"Error: no firmware ELF found for {board}. Looked for an fbuild "
+            f"artifact under {board_dir / '.fbuild' / 'build'} and at "
+            f"prog_path '{board_info.get('prog_path', '')}'."
+        )
+        return 1
     cpp_filt_path = Path(board_info["aliases"]["c++filt"])
 
     print(f"Dumping symbol sizes for {board} firmware: {firmware_path}")
@@ -68,6 +90,9 @@ def main() -> int:
         nm_path = Path(board_info["aliases"]["nm"])
         symbol_sizes = dump_symbol_sizes(nm_path, cpp_filt_path, firmware_path)
         print(symbol_sizes)
+    except KeyboardInterrupt as ki:
+        handle_keyboard_interrupt(ki)
+        raise
     except Exception as e:
         print(f"Error while dumping symbol sizes: {e}")
 

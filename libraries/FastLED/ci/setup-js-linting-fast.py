@@ -1,3 +1,8 @@
+from ci.util.global_interrupt_handler import (
+    handle_keyboard_interrupt,  # pyright: ignore[reportMissingImports]
+)
+
+
 #!/usr/bin/env -S uv run --script
 
 
@@ -12,7 +17,6 @@ import json
 import os
 import platform
 import shutil
-import subprocess
 import sys
 import tarfile
 import zipfile
@@ -20,6 +24,9 @@ from pathlib import Path
 
 # Import httpx for HTTP requests (dynamically managed by uv)
 import httpx
+from running_process import PIPE, CalledProcessError, RunningProcess
+
+from ci.util.js_tools_cache import repository_tools_dir
 
 
 # Force UTF-8 output for Windows consoles
@@ -29,7 +36,9 @@ if sys.platform.startswith("win"):
 
 # Configuration
 NODE_VERSION = "20.11.0"  # LTS version
-TOOLS_DIR = Path(".cache/js-tools")
+
+
+TOOLS_DIR = repository_tools_dir(Path.cwd())
 NODE_DIR = TOOLS_DIR / "node"
 
 
@@ -62,8 +71,25 @@ def get_node_download_info():
     return url, filename, is_zip
 
 
+def _download_archive(url: str, download_path: Path, filename: str) -> None:
+    """Fetch the Node.js archive to ``download_path``."""
+    print(f"Downloading from: {url}")
+    with httpx.stream("GET", url, follow_redirects=True) as response:
+        response.raise_for_status()
+        with open(download_path, "wb") as f:
+            for chunk in response.iter_bytes(chunk_size=8192):
+                f.write(chunk)
+    print(f"SUCCESS: Downloaded {filename}")
+
+
 def download_and_extract_node():
-    """Download and extract Node.js binary"""
+    """Download and extract Node.js binary.
+
+    The downloaded archive is kept in ``TOOLS_DIR`` so a later re-setup (after
+    the extracted tree is cleaned, or the toolchain is reprovisioned) reuses it
+    instead of re-fetching ~30MB. A corrupt cached archive is discarded and
+    re-downloaded once rather than failing the setup.
+    """
     url, filename, is_zip = get_node_download_info()
     download_path = TOOLS_DIR / filename
 
@@ -77,17 +103,13 @@ def download_and_extract_node():
         raise ValueError(f"Unsupported architecture: {machine}")
 
     print(f"Downloading Node.js v{NODE_VERSION}...")
-    TOOLS_DIR.mkdir(exist_ok=True)
+    TOOLS_DIR.mkdir(parents=True, exist_ok=True)
     NODE_DIR.mkdir(exist_ok=True)
 
-    if not download_path.exists():
-        print(f"Downloading from: {url}")
-        with httpx.stream("GET", url, follow_redirects=True) as response:
-            response.raise_for_status()
-            with open(download_path, "wb") as f:
-                for chunk in response.iter_bytes(chunk_size=8192):
-                    f.write(chunk)
-        print(f"SUCCESS: Downloaded {filename}")
+    if download_path.exists():
+        print(f"Reusing cached archive: {download_path.name}")
+    else:
+        _download_archive(url, download_path, filename)
 
     # Extract Node.js
     if platform.system() == "Windows":
@@ -98,64 +120,72 @@ def download_and_extract_node():
     if not node_exe.exists():
         print("Extracting Node.js...")
 
-        if is_zip:
-            with zipfile.ZipFile(download_path, "r") as zip_ref:
-                zip_ref.extractall(NODE_DIR)
-            # Move contents from nested folder to NODE_DIR
-            nested_dir = NODE_DIR / f"node-v{NODE_VERSION}-win-{arch}"
-            if nested_dir.exists():
-                for item in nested_dir.iterdir():
-                    if item.is_dir():
-                        # For directories, move contents recursively
-                        target_dir = NODE_DIR / item.name
-                        if target_dir.exists():
-                            shutil.rmtree(target_dir)
-                        shutil.move(str(item), str(target_dir))
-                    else:
-                        # For files, move directly
-                        target_file = NODE_DIR / item.name
-                        if target_file.exists():
-                            target_file.unlink()
-                        item.rename(target_file)
-                nested_dir.rmdir()
-        else:
-            with tarfile.open(download_path, "r:*") as tar_ref:
-                tar_ref.extractall(NODE_DIR)
-            # Move contents from nested folder to NODE_DIR
-            nested_dir = (
-                NODE_DIR / f"node-v{NODE_VERSION}-{platform.system().lower()}-x64"
-            )
-            if nested_dir.exists():
-                for item in nested_dir.iterdir():
-                    item.rename(NODE_DIR / item.name)
-                nested_dir.rmdir()
+        try:
+            _extract(download_path, NODE_DIR, is_zip, arch)
+        except (zipfile.BadZipFile, tarfile.ReadError, EOFError) as exc:
+            # A retained archive can be truncated by an interrupted download.
+            # Discard it and fetch once more rather than failing setup.
+            print(f"Cached archive unusable ({exc}); re-downloading")
+            download_path.unlink(missing_ok=True)
+            _download_archive(url, download_path, filename)
+            _extract(download_path, NODE_DIR, is_zip, arch)
 
         print("SUCCESS: Node.js extracted")
 
-    # Clean up download file
-    if download_path.exists():
-        download_path.unlink()
+    # The archive is deliberately retained so a re-setup skips the download.
+    # Remove .cache/js-tools/ entirely to force a clean re-provision.
 
     return node_exe
 
 
+def _extract(download_path: Path, node_dir: Path, is_zip: bool, arch: str) -> None:
+    """Unpack the archive into ``node_dir``, flattening its nested top folder."""
+    if is_zip:
+        with zipfile.ZipFile(download_path, "r") as zip_ref:
+            zip_ref.extractall(node_dir)
+        nested_dir = node_dir / f"node-v{NODE_VERSION}-win-{arch}"
+        if nested_dir.exists():
+            for item in nested_dir.iterdir():
+                if item.is_dir():
+                    # For directories, move contents recursively
+                    target_dir = node_dir / item.name
+                    if target_dir.exists():
+                        shutil.rmtree(target_dir)
+                    shutil.move(str(item), str(target_dir))
+                else:
+                    # For files, move directly
+                    target_file = node_dir / item.name
+                    if target_file.exists():
+                        target_file.unlink()
+                    item.rename(target_file)
+            nested_dir.rmdir()
+    else:
+        with tarfile.open(download_path, "r:*") as tar_ref:
+            tar_ref.extractall(node_dir)
+        nested_dir = (
+            node_dir / f"node-v{NODE_VERSION}-{platform.system().lower()}-{arch}"
+        )
+        if nested_dir.exists():
+            for item in nested_dir.iterdir():
+                item.rename(node_dir / item.name)
+            nested_dir.rmdir()
+
+
 def setup_eslint():
     """Install ESLint and create configuration"""
-    if platform.system() == "Windows":
-        node_exe = NODE_DIR / "node.exe"
-        npm_exe = NODE_DIR / "npm.cmd"
-    else:
-        node_exe = NODE_DIR / "bin" / "node"
-        npm_exe = NODE_DIR / "bin" / "npm"
-
     print("Installing ESLint...")
 
-    # Create package.json
+    # Create package.json with TypeScript ESLint support
     package_json = {
         "name": "fastled-js-linting",
         "version": "1.0.0",
         "private": True,
-        "dependencies": {"eslint": "^8.56.0"},
+        "dependencies": {
+            "eslint": "^8.56.0",
+            "@typescript-eslint/parser": "^6.19.0",
+            "@typescript-eslint/eslint-plugin": "^6.19.0",
+            "typescript": "^5.3.3",
+        },
     }
 
     with open(TOOLS_DIR / "package.json", "w") as f:
@@ -163,117 +193,80 @@ def setup_eslint():
 
     # Install ESLint
     try:
-        # Use absolute path for npm executable
+        # Get absolute paths for node and npm
+        _node_exe_abs = (
+            (TOOLS_DIR / "node" / "node.exe").resolve()
+            if platform.system() == "Windows"
+            else (TOOLS_DIR / "node" / "bin" / "node").resolve()
+        )
         npm_exe_abs = (
             (TOOLS_DIR / "node" / "npm.cmd").resolve()
             if platform.system() == "Windows"
             else (TOOLS_DIR / "node" / "bin" / "npm").resolve()
         )
 
+        # Add node directory to PATH for npm to find node executable
+        env = os.environ.copy()
+        node_bin_dir = (
+            str((TOOLS_DIR / "node").resolve())
+            if platform.system() == "Windows"
+            else str((TOOLS_DIR / "node" / "bin").resolve())
+        )
+        env["PATH"] = f"{node_bin_dir}{os.pathsep}{env.get('PATH', '')}"
+
         # On Windows, use shell=True to properly execute .cmd files
         if platform.system() == "Windows":
-            result = subprocess.run(
+            RunningProcess.run(
                 [str(npm_exe_abs), "install"],
                 cwd=TOOLS_DIR,
                 check=True,
-                capture_output=True,
-                text=True,
+                stdout=PIPE,
+                stderr=PIPE,
+                encoding="utf-8",
+                errors="replace",
                 shell=True,
+                env=env,
             )
         else:
-            result = subprocess.run(
+            RunningProcess.run(
                 [str(npm_exe_abs), "install"],
                 cwd=TOOLS_DIR,
                 check=True,
-                capture_output=True,
-                text=True,
+                stdout=PIPE,
+                stderr=PIPE,
+                encoding="utf-8",
+                errors="replace",
+                env=env,
             )
         # npm install succeeded
-    except subprocess.CalledProcessError as e:
+    except CalledProcessError as e:
         # Show stderr output for debugging
         print(f"npm install stderr: {e.stderr}")
         print(f"npm install stdout: {e.stdout}")
         raise
 
-    # Create minimal .eslintrc.js - FAST ONLY: Critical issues only
-    eslint_config = """module.exports = {
-  env: {
-    browser: true,
-    es2022: true,
-    worker: true
-  },
-  parserOptions: {
-    ecmaVersion: 2022,
-    sourceType: "module"
-  },
-  rules: {
-    // FAST LINTING: Only check for critical runtime issues
-    "no-debugger": "error",
-    "no-eval": "error"
-  }
-};"""
+    # Copy ESLint config to tools directory so it can resolve the TypeScript parser
+    import shutil
 
-    with open(TOOLS_DIR / ".eslintrc.js", "w") as f:
-        f.write(eslint_config)
+    eslint_config_src = Path("src/platforms/wasm/compiler/.eslintrc.cjs")
+    eslint_config_dst = TOOLS_DIR / ".eslintrc.cjs"
+
+    if eslint_config_src.exists():
+        shutil.copy(eslint_config_src, eslint_config_dst)
+        print(f"SUCCESS: ESLint config copied to {eslint_config_dst}")
+    else:
+        print(f"WARNING: ESLint config not found at {eslint_config_src}")
 
     print("SUCCESS: ESLint configured")
 
 
 def create_fast_lint_script():
-    """Create fast linting script"""
-    if platform.system() == "Windows":
-        node_exe = NODE_DIR / "node.exe"
-        eslint_exe = TOOLS_DIR / "node_modules" / ".bin" / "eslint.cmd"
-    else:
-        node_exe = NODE_DIR / "bin" / "node"
-        eslint_exe = TOOLS_DIR / "node_modules" / ".bin" / "eslint"
-
-    script_content = f"""#!/bin/bash
-# FastLED JavaScript Linting Script (Node.js + ESLint - FAST!)
-
-# Colors for output
-RED='\\033[0;31m'
-GREEN='\\033[0;32m'
-YELLOW='\\033[1;33m'
-BLUE='\\033[0;34m'
-NC='\\033[0m' # No Color
-
-echo -e "${{BLUE}}FAST FastLED JavaScript Linting (Node.js + ESLint - FAST!)${{NC}}"
-
-# Check if ESLint is installed
-if [ ! -f ".cache/js-tools/node_modules/.bin/eslint{".cmd" if platform.system() == "Windows" else ""}" ]; then
-    echo -e "${{RED}}ERROR: ESLint not found. Run: uv run ci/setup-js-linting-fast.py${{NC}}"
-    exit 1
-fi
-
-# Find JavaScript files in WASM platform
-JS_FILES=$(find src/platforms/wasm -name "*.js" -type f 2>/dev/null)
-
-if [ -z "$JS_FILES" ]; then
-    echo -e "${{YELLOW}}WARNING: No JavaScript files found in src/platforms/wasm/${{NC}}"
-    exit 0
-fi
-
-echo -e "${{BLUE}}Found JavaScript files:${{NC}}"
-echo "$JS_FILES" | sed 's/^/  /'
-
-# Run ESLint
-echo -e "${{BLUE}}Running ESLint...${{NC}}"
-cd .cache/js-tools
-if "./node_modules/.bin/eslint{".cmd" if platform.system() == "Windows" else ""}" --no-eslintrc --no-inline-config -c .eslintrc.js ../../src/platforms/wasm/compiler/*.js ../../src/platforms/wasm/compiler/modules/*.js; then
-    echo -e "${{GREEN}}SUCCESS: JavaScript linting completed successfully${{NC}}"
-else
-    echo -e "${{RED}}ERROR: JavaScript linting failed${{NC}}"
-    exit 1
-fi
-"""
-
-    script_path = TOOLS_DIR / "lint-js-fast"
-    with open(script_path, "w") as f:
-        f.write(script_content)
-
-    # Make executable on Unix systems
-    if platform.system() != "Windows":
+    """Ensure the lint script is executable."""
+    # Lint script is ci/lint-js-fast (tracked in git)
+    script_path = Path("ci/lint-js-fast")
+    # Script already exists in ci/ and is tracked in git
+    # Just ensure it's executable
+    if platform.system() != "Windows" and script_path.exists():
         os.chmod(script_path, 0o755)
 
     print("SUCCESS: Fast lint script created")
@@ -284,15 +277,18 @@ def main():
     print("Setting up fast JavaScript linting (Node.js + ESLint)...")
 
     try:
-        node_exe = download_and_extract_node()
+        download_and_extract_node()
         setup_eslint()
         create_fast_lint_script()
 
         print("\\nFast JavaScript linting setup complete!")
         print("\\nUsage:")
-        print("  bash .cache/js-tools/lint-js-fast    # Fast linting with ESLint")
+        print("  bash ci/lint-js-fast                 # Fast linting with ESLint")
         print("  For more info: ci/js/README.md")
 
+    except KeyboardInterrupt as ki:
+        handle_keyboard_interrupt(ki)
+        raise
     except Exception as e:
         print(f"Setup failed: {e}")
         sys.exit(1)

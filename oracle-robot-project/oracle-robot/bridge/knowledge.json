@@ -1,0 +1,667 @@
+{
+  "robot_name": "ORACLE",
+  "fallback_no_speech": "Sorry, I didn't catch that. Please hold the button, speak clearly, and let go when you are done.",
+  "fallback_offline": "I can't reach my brain right now. Please ask one of our volunteers, or try again in a moment.",
+  "fallback_bump": "Oops! Something is in my way.",
+  "action_acks": {
+    "F": "Okay, moving forward!",
+    "B": "Okay, going back!",
+    "L": "Turning left!",
+    "R": "Turning right!",
+    "S": "Okay, stopping!"
+  },
+  "intents": [
+    {
+      "id": "greeting",
+      "kind": "greeting",
+      "question": "Hello, who are you?",
+      "keywords": {
+        "3": [
+          "who are you",
+          "what is oracle",
+          "what does oracle stand for",
+          "introduce yourself",
+          "your name",
+          "what is your name",
+          "hi oracle",
+          "hey oracle"
+        ],
+        "2": [
+          "hello",
+          "hi",
+          "hey",
+          "namaste"
+        ]
+      },
+      "answer": "Hello! Welcome to EQUINOX 2026: Reimagining Tomorrow! I am your AI assistant ORACLE (Optical & Robotic Assistant for Curiosity, Learning and Exploration) for today. Feel free to ask me anything about the exhibition, STEAM projects or our 'Lighting Lives' initiative. How can I help you explore today?"
+    },
+    {
+      "id": "inauguration_welcome",
+      "kind": "faq",
+      "question": "Hello oracle",
+      "keywords": {
+        "3": [
+          "hello oracle"
+        ]
+      },
+      "answer": "Welcome to the inauguration for robotics and computer labs."
+    },
+    {
+      "id": "what_is_equinox",
+      "kind": "faq",
+      "question": "What is EQUINOX?",
+      "keywords": {
+        "3": [
+          "what is equinox",
+          "about equinox",
+          "meaning of equinox",
+          "tell me about equinox",
+          "what does equinox mean",
+          "what is the equinox"
+        ],
+        "1": [
+          "equinox"
+        ]
+      },
+      "answer": "EQUINOX represents the perfect equilibrium between analytical logic - Science, Technology, Engineering and Math - and creative expression through Art and Design."
+    },
+    {
+      "id": "theme",
+      "kind": "faq",
+      "question": "What is the theme of this year's exhibition?",
+      "keywords": {
+        "3": [
+          "theme of",
+          "this years theme",
+          "reimagining tomorrow",
+          "what is the theme",
+          "what is the topic"
+        ],
+        "2": [
+          "theme"
+        ],
+        "1": [
+          "topic"
+        ]
+      },
+      "block": [
+        "movie",
+        "film",
+        "song",
+        "book",
+        "story",
+        "game",
+        "party",
+        "birthday",
+        "wedding",
+        "novel",
+        "poem",
+        "cartoon"
+      ],
+      "answer": "This year's theme is 'Reimagining Tomorrow', where our students showcase innovative prototypes, ideas and visionary art aligned with the vision for India 2047."
+    },
+    {
+      "id": "steam",
+      "kind": "faq",
+      "question": "What does STEAM stand for?",
+      "keywords": {
+        "3": [
+          "steam mean",
+          "steam stand for",
+          "steam stands for",
+          "what is steam",
+          "meaning of steam",
+          "steam meaning",
+          "full form of steam",
+          "steam full form"
+        ],
+        "1": [
+          "steam"
+        ]
+      },
+      "block": [
+        "steam engine",
+        "steam power",
+        "steam turbine",
+        "steam locomotive",
+        "steamboat",
+        "steam boat",
+        "steam cleaner"
+      ],
+      "answer": "STEAM stands for Science, Technology, Engineering, Art and Mathematics."
+    },
+    {
+      "id": "lighting_lives",
+      "kind": "faq",
+      "question": "What is 'Lighting Lives'?",
+      "keywords": {
+        "3": [
+          "what is lighting lives",
+          "tell me about lighting lives",
+          "about lighting lives",
+          "student startup",
+          "social initiative",
+          "social entrepreneurship"
+        ],
+        "1": [
+          "lighting lives"
+        ]
+      },
+      "answer": "'Lighting Lives' is a student-led social entrepreneurship initiative where our art students craft and sell handmade artifacts to raise funds for charity."
+    },
+    {
+      "id": "charity",
+      "kind": "faq",
+      "question": "Which cause or charity does 'Lighting Lives' support?",
+      "keywords": {
+        "3": [
+          "smit old age home",
+          "old age home",
+          "where do funds go",
+          "where do the funds go",
+          "where does the money go",
+          "where do the proceeds go",
+          "which charity",
+          "which cause",
+          "what cause"
+        ],
+        "2": [
+          "charity",
+          "donation",
+          "donate",
+          "funds",
+          "proceeds"
+        ],
+        "1": [
+          "cause",
+          "foundation"
+        ]
+      },
+      "answer": "All proceeds go to the Smit Old Age Home and Care Foundation to support homeless, elderly and vulnerable individuals with shelter, healthcare and rehabilitation."
+    },
+    {
+      "id": "projects",
+      "kind": "faq",
+      "question": "What kinds of projects can I see today?",
+      "keywords": {
+        "3": [
+          "what to see",
+          "what can i see",
+          "projects can i see",
+          "what projects",
+          "kinds of projects",
+          "what is on display"
+        ],
+        "2": [
+          "projects",
+          "prototypes",
+          "exhibits",
+          "exhibit"
+        ]
+      },
+      "answer": "You will see innovative student prototypes, visionary artwork, creative solutions for India 2047 and handmade artifacts at the 'Lighting Lives' stall."
+    },
+    {
+      "id": "buy",
+      "kind": "faq",
+      "question": "Where can I buy the 'Lighting Lives' artifacts?",
+      "keywords": {
+        "3": [
+          "lighting lives stall",
+          "handmade items",
+          "buy artifacts",
+          "buy the artifacts",
+          "purchase artifacts",
+          "purchase the artifacts",
+          "buy handmade",
+          "purchase handmade"
+        ],
+        "2": [
+          "artifacts",
+          "artifact",
+          "handmade",
+          "stall",
+          "stalls"
+        ],
+        "1": [
+          "buy",
+          "purchase",
+          "where can i buy",
+          "where to buy",
+          "how can i buy",
+          "how do i buy",
+          "where can i purchase",
+          "sell",
+          "selling"
+        ]
+      },
+      "min_score": 3,
+      "answer": "You can visit the 'Lighting Lives' stall within the exhibition hall to purchase handmade artifacts made by our talented art students."
+    },
+    {
+      "id": "learning",
+      "kind": "faq",
+      "question": "How do these projects help students learn?",
+      "keywords": {
+        "3": [
+          "why steam",
+          "help students learn",
+          "students learn",
+          "how do students learn",
+          "benefits of steam",
+          "how do these projects help",
+          "how do projects help",
+          "skills do students"
+        ],
+        "1": [
+          "learning",
+          "benefits",
+          "benefit",
+          "skills",
+          "skill",
+          "learn"
+        ]
+      },
+      "answer": "STEAM projects combine technical logic with creative problem-solving, teaching students innovation, hands-on design and social responsibility."
+    },
+    {
+      "id": "organizer",
+      "kind": "faq",
+      "question": "Who organized EQUINOX?",
+      "keywords": {
+        "3": [
+          "who organized",
+          "who organised",
+          "who is organizing",
+          "who hosted",
+          "hosted by",
+          "who is the principal",
+          "lodha world school"
+        ],
+        "2": [
+          "principal",
+          "organizer",
+          "organiser",
+          "organizers",
+          "organisers",
+          "organized",
+          "organised"
+        ],
+        "1": [
+          "school"
+        ]
+      },
+      "answer": "EQUINOX is hosted by Lodha World School, CBG, brought to life by our talented students and dedicated faculty."
+    },
+    {
+      "id": "support",
+      "kind": "faq",
+      "question": "How can visitors support our students today?",
+      "keywords": {
+        "3": [
+          "how can visitors support",
+          "how can i support",
+          "how can we support",
+          "how can i help",
+          "support our students",
+          "support the students",
+          "how to support"
+        ],
+        "2": [
+          "support",
+          "participate",
+          "encourage"
+        ],
+        "1": [
+          "help"
+        ]
+      },
+      "answer": "You can support our young innovators by exploring their projects, asking them questions and purchasing artifacts at the 'Lighting Lives' stall!"
+    },
+    {
+      "id": "venue_clean_earth",
+      "kind": "venue",
+      "question": "Where is Clean Earth?",
+      "keywords": {
+        "3": [
+          "clean earth",
+          "classroom 1a",
+          "class 1a",
+          "room 1a"
+        ]
+      },
+      "answer": "Clean Earth is in Classroom 1A, on the First Floor."
+    },
+    {
+      "id": "venue_water_for_the_future",
+      "kind": "venue",
+      "question": "Where is Water for the Future?",
+      "keywords": {
+        "3": [
+          "water for the future",
+          "water for future",
+          "classroom 1b",
+          "class 1b",
+          "room 1b"
+        ]
+      },
+      "answer": "Water for the Future is in Classroom 1B, on the First Floor."
+    },
+    {
+      "id": "venue_energy_for_tomorrow",
+      "kind": "venue",
+      "question": "Where is Energy for Tomorrow?",
+      "keywords": {
+        "3": [
+          "energy for tomorrow",
+          "classroom 1c",
+          "class 1c",
+          "room 1c"
+        ]
+      },
+      "answer": "Energy for Tomorrow is in Classroom 1C, on the First Floor."
+    },
+    {
+      "id": "venue_smart_homes",
+      "kind": "venue",
+      "question": "Where is Smart Homes?",
+      "keywords": {
+        "3": [
+          "smart homes",
+          "smart home",
+          "classroom 1d",
+          "class 1d",
+          "room 1d"
+        ]
+      },
+      "answer": "Smart Homes is in Classroom 1D, on the First Floor."
+    },
+    {
+      "id": "venue_smart_cities",
+      "kind": "venue",
+      "question": "Where is Smart Cities?",
+      "keywords": {
+        "3": [
+          "smart cities",
+          "smart city",
+          "classroom 1e",
+          "class 1e",
+          "room 1e"
+        ]
+      },
+      "answer": "Smart Cities is in Classroom 1E, on the First Floor."
+    },
+    {
+      "id": "venue_clean_mobility",
+      "kind": "venue",
+      "question": "Where is Clean Mobility?",
+      "keywords": {
+        "3": [
+          "clean mobility",
+          "classroom 2a",
+          "class 2a",
+          "room 2a"
+        ]
+      },
+      "answer": "Clean Mobility is in Classroom 2A, on the First Floor."
+    },
+    {
+      "id": "venue_healthy_body",
+      "kind": "venue",
+      "question": "Where is Healthy Body?",
+      "keywords": {
+        "3": [
+          "healthy body",
+          "classroom 2b",
+          "class 2b",
+          "room 2b"
+        ]
+      },
+      "answer": "Healthy Body is in Classroom 2B, on the First Floor."
+    },
+    {
+      "id": "venue_mind_and_digital_balance",
+      "kind": "venue",
+      "question": "Where is Mind and Digital Balance?",
+      "keywords": {
+        "3": [
+          "mind and digital balance",
+          "digital balance",
+          "classroom 2c",
+          "class 2c",
+          "room 2c"
+        ]
+      },
+      "answer": "Mind and Digital Balance is in Classroom 2C, on the First Floor."
+    },
+    {
+      "id": "venue_smart_agriculture",
+      "kind": "venue",
+      "question": "Where is Smart Agriculture?",
+      "keywords": {
+        "3": [
+          "smart agriculture",
+          "classroom 2d",
+          "class 2d",
+          "room 2d"
+        ]
+      },
+      "answer": "Smart Agriculture is in Classroom 2D, on the First Floor."
+    },
+    {
+      "id": "venue_smart_recycling",
+      "kind": "venue",
+      "question": "Where is Smart Recycling?",
+      "keywords": {
+        "3": [
+          "smart recycling",
+          "classroom 2e",
+          "class 2e",
+          "room 2e"
+        ]
+      },
+      "answer": "Smart Recycling is in Classroom 2E, on the First Floor."
+    },
+    {
+      "id": "venue_smart_helpers",
+      "kind": "venue",
+      "question": "Where is Smart Helpers?",
+      "keywords": {
+        "3": [
+          "smart helpers",
+          "classroom 3a",
+          "class 3a",
+          "room 3a"
+        ]
+      },
+      "answer": "Smart Helpers is in Classroom 3A, on the First Floor."
+    },
+    {
+      "id": "venue_future_travel",
+      "kind": "venue",
+      "question": "Where is Future Travel?",
+      "keywords": {
+        "3": [
+          "future travel",
+          "classroom 3b",
+          "class 3b",
+          "room 3b"
+        ]
+      },
+      "answer": "Future Travel is in Classroom 3B, on the First Floor."
+    },
+    {
+      "id": "venue_future_learning",
+      "kind": "venue",
+      "question": "Where is Future Learning?",
+      "keywords": {
+        "3": [
+          "future learning",
+          "classroom 3c",
+          "class 3c",
+          "room 3c"
+        ]
+      },
+      "answer": "Future Learning is in Classroom 3C, on the First Floor."
+    },
+    {
+      "id": "venue_future_living",
+      "kind": "venue",
+      "question": "Where is Future Living?",
+      "keywords": {
+        "3": [
+          "future living",
+          "classroom 3d",
+          "class 3d",
+          "room 3d"
+        ]
+      },
+      "answer": "Future Living is in Classroom 3D, on the First Floor."
+    },
+    {
+      "id": "venue_together_we_rise",
+      "kind": "venue",
+      "question": "Where is Together We Rise?",
+      "keywords": {
+        "3": [
+          "together we rise",
+          "classroom 10b",
+          "class 10b",
+          "room 10b"
+        ]
+      },
+      "answer": "Together We Rise is in Classroom 10B, on the 5th Floor."
+    },
+    {
+      "id": "venue_tech_with_heart",
+      "kind": "venue",
+      "question": "Where is Tech with Heart?",
+      "keywords": {
+        "3": [
+          "tech with heart",
+          "classroom 10c",
+          "class 10c",
+          "room 10c"
+        ]
+      },
+      "answer": "Tech with Heart is in Classroom 10C, on the 5th Floor."
+    },
+    {
+      "id": "venue_beyond_borders",
+      "kind": "venue",
+      "question": "Where is Beyond Borders?",
+      "keywords": {
+        "3": [
+          "beyond borders",
+          "classroom 10d",
+          "class 10d",
+          "room 10d"
+        ]
+      },
+      "answer": "Beyond Borders is in Classroom 10D, on the 5th Floor."
+    },
+    {
+      "id": "venue_ethinova",
+      "kind": "venue",
+      "question": "Where is Ethinova?",
+      "keywords": {
+        "3": [
+          "ethinova",
+          "classroom 10e",
+          "class 10e",
+          "room 10e"
+        ]
+      },
+      "answer": "Ethinova is in Classroom 10E, on the 5th Floor."
+    },
+    {
+      "id": "venue_greennova",
+      "kind": "venue",
+      "question": "Where is GreenNova?",
+      "keywords": {
+        "3": [
+          "greennova",
+          "green nova",
+          "pe room",
+          "p e room",
+          "physical education room"
+        ]
+      },
+      "answer": "GreenNova is in the PE Room, on the 5th Floor."
+    },
+    {
+      "id": "venue_future_cities",
+      "kind": "venue",
+      "question": "Where is Future Cities?",
+      "keywords": {
+        "3": [
+          "future cities",
+          "future city",
+          "music room"
+        ]
+      },
+      "answer": "Future Cities is in the Music Room, on the 5th Floor."
+    },
+    {
+      "id": "venue_the_health_odyssey",
+      "kind": "venue",
+      "question": "Where is The Health Odyssey?",
+      "keywords": {
+        "3": [
+          "health odyssey",
+          "the health odyssey",
+          "dance room"
+        ]
+      },
+      "answer": "The Health Odyssey is in the Dance Room, on the 5th Floor."
+    },
+    {
+      "id": "venue_robosphere_the_robotics_projects",
+      "kind": "venue",
+      "question": "Where is RoboSphere, the robotics projects?",
+      "keywords": {
+        "3": [
+          "robosphere",
+          "robo sphere",
+          "robotics projects",
+          "robotics",
+          "outside the computer room",
+          "outside computer room"
+        ]
+      },
+      "answer": "RoboSphere, the robotics projects is in the space outside the Computer Room, on the 5th Floor."
+    },
+    {
+      "id": "venue_the_earthshot_challenge_and_roots_and_shoots",
+      "kind": "venue",
+      "question": "Where is The EarthShot Challenge and Roots and Shoots?",
+      "keywords": {
+        "3": [
+          "earthshot challenge",
+          "earthshot",
+          "earth shot",
+          "roots and shoots",
+          "outside the music room"
+        ]
+      },
+      "answer": "The EarthShot Challenge and Roots and Shoots is in the space outside the Music Room, on the 5th Floor."
+    },
+    {
+      "id": "venue_selfie",
+      "kind": "venue",
+      "question": "Where is the selfie point?",
+      "keywords": {
+        "3": [
+          "selfie point",
+          "selfie spot",
+          "take a selfie"
+        ],
+        "2": [
+          "selfie",
+          "selfies"
+        ]
+      },
+      "answer": "The selfie point is on the 5th Floor, just outside the lift."
+    }
+  ]
+}

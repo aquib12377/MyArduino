@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2025 Ryan Powell <ryan@nable-embedded.io> and
+ * Copyright 2020-2026 Ryan Powell <ryan@nable-embedded.io> and
  * esp-nimble-cpp, NimBLE-Arduino contributors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -53,7 +53,7 @@ class NimBLERemoteService : public NimBLEAttribute {
 
     NimBLERemoteService(NimBLEClient* pClient, const struct ble_gatt_svc* service);
     ~NimBLERemoteService();
-    bool       retrieveCharacteristics(const NimBLEUUID* uuidFilter = nullptr) const;
+    bool retrieveCharacteristics(const NimBLEUUID* uuidFilter = nullptr, NimBLERemoteCharacteristic** ppChar = nullptr) const;
     static int characteristicDiscCB(uint16_t                     conn_handle,
                                     const struct ble_gatt_error* error,
                                     const struct ble_gatt_chr*   chr,

@@ -223,10 +223,6 @@
             #define BLYNK_BUFFERS_SIZE 1024
         #endif
 
-        #if defined(ESP32)
-            #define BLYNK_NO_ANALOG_PINS
-        #endif
-
         #if defined(ARDUINO_ARCH_AVR)
             #define BLYNK_USE_INTERNAL_ATOLL
             #define BLYNK_MAX_TIMERS 8
@@ -283,6 +279,7 @@
         /* Arduino megaAVR */
         #elif defined(ARDUINO_AVR_UNO_WIFI_REV2)
         #define BLYNK_INFO_DEVICE  "Arduino UNO WiFi Rev2"
+        #define BLYNK_USE_INTERNAL_ATOLL
 
         /* Arduino SAM */
         #elif defined(ARDUINO_SAM_DUE)
@@ -374,8 +371,12 @@
         #define BLYNK_INFO_DEVICE  "ESP8266"
 
         /* ESP32 */
+        #elif defined(ARDUINO_ESP32C2_DEV) || defined(CONFIG_IDF_TARGET_ESP32C2)
+        #define BLYNK_INFO_DEVICE  "ESP32-C2"
         #elif defined(ARDUINO_ESP32C3_DEV) || defined(CONFIG_IDF_TARGET_ESP32C3)
         #define BLYNK_INFO_DEVICE  "ESP32-C3"
+        #elif defined(ARDUINO_ESP32C5_DEV) || defined(CONFIG_IDF_TARGET_ESP32C5)
+        #define BLYNK_INFO_DEVICE  "ESP32-C5"
         #elif defined(ARDUINO_ESP32C6_DEV) || defined(CONFIG_IDF_TARGET_ESP32C6)
         #define BLYNK_INFO_DEVICE  "ESP32-C6"
         #elif defined(ARDUINO_ESP32S3_DEV) || defined(CONFIG_IDF_TARGET_ESP32S3)

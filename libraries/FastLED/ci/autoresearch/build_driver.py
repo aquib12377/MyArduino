@@ -1,0 +1,116 @@
+"""Build driver abstraction for autoresearch with fbuild-only board builds."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from pathlib import Path
+from typing import IO, Protocol, runtime_checkable
+
+
+@dataclass(frozen=True)
+class DeployResult:
+    """Structured build/deploy result, including post-flash port handoff."""
+
+    success: bool
+    port: str | None = None
+    message: str = ""
+
+
+@runtime_checkable
+class BuildDriver(Protocol):
+    """Abstract build system driver for compile + deploy.
+
+    AutoResearch board builds use FbuildDriver.
+    """
+
+    @property
+    def name(self) -> str: ...
+
+    def install_packages(
+        self,
+        build_dir: Path,
+        environment: str | None,
+        timeout: float = 1800,
+    ) -> bool: ...
+
+    def deploy(
+        self,
+        build_dir: Path,
+        environment: str | None,
+        upload_port: str | None,
+        verbose: bool = False,
+        clean: bool = False,
+        quiet: bool = False,
+        log_file: IO[str] | None = None,
+    ) -> bool | DeployResult: ...
+
+    def firmware_path(self, build_dir: Path, environment: str) -> Path | None: ...
+
+
+class FbuildDriver:
+    """Build driver using fbuild (Rust-based daemon, combined build+flash)."""
+
+    @property
+    def name(self) -> str:
+        return "fbuild"
+
+    def install_packages(
+        self,
+        build_dir: Path,
+        environment: str | None,
+        timeout: float = 1800,
+    ) -> bool:
+        # fbuild owns package/toolchain resolution during build/deploy; there
+        # is nothing to pre-install.
+        return True
+
+    def deploy(
+        self,
+        build_dir: Path,
+        environment: str | None,
+        upload_port: str | None,
+        verbose: bool = False,
+        clean: bool = False,
+        quiet: bool = False,
+        log_file: IO[str] | None = None,
+    ) -> DeployResult:
+        from ci.util.fbuild_runner import run_fbuild_deploy
+
+        result = run_fbuild_deploy(
+            build_dir,
+            environment=environment,
+            upload_port=upload_port,
+            verbose=verbose,
+            clean=clean,
+            quiet=quiet,
+            log_file=log_file,
+        )
+        return DeployResult(
+            success=result.success,
+            port=result.port,
+            message=result.output,
+        )
+
+    def firmware_path(self, build_dir: Path, environment: str) -> Path | None:
+        from fbuild import find_firmware
+
+        resolved = find_firmware(str(build_dir), environment, "firmware.bin")
+        return Path(resolved) if resolved is not None else None
+
+
+def select_build_driver(
+    _environment: str | None,
+    _use_fbuild_flag: bool,
+    _no_fbuild_flag: bool,
+) -> BuildDriver:
+    """Select the appropriate build driver.
+
+    fbuild is always selected for AutoResearch board builds. Deprecated
+    compatibility flags are accepted by the parser but ignored here.
+
+    Args:
+        _environment: Reserved for future per-board overrides; currently unused.
+        _use_fbuild_flag: Deprecated compatibility parameter; ignored.
+        _no_fbuild_flag: Deprecated compatibility parameter; ignored.
+    """
+    return FbuildDriver()

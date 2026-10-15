@@ -3,6 +3,9 @@
  *
  * This example uses the UserAuth class for authentication.
  * See examples/App/AppInitialization for more authentication examples.
+ * 
+ * For Google REST API reference documentation, please visit
+ * https://firebase.google.com/docs/firestore/reference/rest/v1/projects.databases.documents/commit
  *
  * For the complete usage guidelines, please read README.md or visit https://github.com/mobizt/FirebaseClient
  */
@@ -146,7 +149,7 @@ void append_map_value_async(Writes &writes)
     Docs.commit(aClient, Firestore::Parent(FIREBASE_PROJECT_ID), writes, processData, "commitTask");
 }
 
-void append_map_value_async(Writes &writes)
+void append_map_value_async2(Writes &writes)
 {
     Serial.println("Appending the map value in the document... ");
 

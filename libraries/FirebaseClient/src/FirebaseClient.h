@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
+ * SPDX-FileCopyrightText: 2026 Suwatchai K. <suwatchai@outlook.com>
  *
  * SPDX-License-Identifier: MIT
  */
@@ -12,13 +12,7 @@
 #include "./core/File/FileConfig.h"
 
 #if defined(ENABLE_JWT) || defined(ENABLE_ESP_SSLCLIENT)
-
-#if __has_include(<ESP_SSLClient.h>)
 #include <ESP_SSLClient.h>
-#elif !defined(ESP32) || defined(ENABLE_ESP_SSLCLIENT)
-#include "./client/SSLClient/ESP_SSLClient.h"
-#endif
-
 #endif
 
 #if defined(ENABLE_JWT)
@@ -49,6 +43,7 @@
 #if defined(ENABLE_MESSAGING)
 #if __has_include("messaging/Messaging.h")
 #include "messaging/Messaging.h"
+#include "messaging/MessagingInstance.h"
 #endif
 #endif
 

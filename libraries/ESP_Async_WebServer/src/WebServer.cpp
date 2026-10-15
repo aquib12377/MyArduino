@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
-// Copyright 2016-2025 Hristo Gochkov, Mathieu Carbou, Emil Muratov
+// Copyright 2016-2026 Hristo Gochkov, Mathieu Carbou, Emil Muratov, Will Miles
 
 #include "ESPAsyncWebServer.h"
 #include "WebHandlerImpl.h"
 
-#if defined(ESP32) || defined(TARGET_RP2040) || defined(TARGET_RP2350) || defined(PICO_RP2040) || defined(PICO_RP2350) || defined(LIBRETINY)
+#include <memory>
+#include <string>
+#include <utility>
+
+#if defined(ESP32) || defined(TARGET_RP2040) || defined(TARGET_RP2350) || defined(PICO_RP2040) || defined(PICO_RP2350) || defined(LIBRETINY) || defined(HOST)
 #include <WiFi.h>
 #elif defined(ESP8266)
 #include <ESP8266WiFi.h>
@@ -15,7 +19,7 @@
 using namespace asyncsrv;
 
 bool ON_STA_FILTER(AsyncWebServerRequest *request) {
-#if SOC_WIFI_SUPPORTED || CONFIG_ESP_WIFI_REMOTE_ENABLED || LT_ARD_HAS_WIFI || CONFIG_ESP32_WIFI_ENABLED
+#if ASYNCWEBSERVER_WIFI_SUPPORTED
   return WiFi.localIP() == request->client()->localIP();
 #else
   return false;
@@ -23,7 +27,7 @@ bool ON_STA_FILTER(AsyncWebServerRequest *request) {
 }
 
 bool ON_AP_FILTER(AsyncWebServerRequest *request) {
-#if SOC_WIFI_SUPPORTED || CONFIG_ESP_WIFI_REMOTE_ENABLED || LT_ARD_HAS_WIFI || CONFIG_ESP32_WIFI_ENABLED
+#if ASYNCWEBSERVER_WIFI_SUPPORTED
   return WiFi.localIP() != request->client()->localIP();
 #else
   return false;
@@ -44,8 +48,8 @@ AsyncWebServer::AsyncWebServer(uint16_t port) : _server(port) {
         return;
       }
       c->setRxTimeout(3);
-      AsyncWebServerRequest *r = new AsyncWebServerRequest((AsyncWebServer *)s, c);
-      if (r == NULL) {
+      std::shared_ptr<AsyncWebServerRequest> r = AsyncWebServerRequest::create(static_cast<AsyncWebServer *>(s), c);
+      if (!r) {
         c->abort();
         delete c;
       }
@@ -124,10 +128,6 @@ void AsyncWebServer::beginSecure(const char *cert, const char *key, const char *
 }
 #endif
 
-void AsyncWebServer::_handleDisconnect(AsyncWebServerRequest *request) {
-  delete request;
-}
-
 void AsyncWebServer::_rewriteRequest(AsyncWebServerRequest *request) {
   // the last rewrite that matches the request will be used
   // we do not break the loop to allow for multiple rewrites to be applied and only the last one to be used (allows overriding)
@@ -155,7 +155,7 @@ AsyncCallbackWebHandler &AsyncWebServer::on(
 ) {
   AsyncCallbackWebHandler *handler = new AsyncCallbackWebHandler();
   handler->setUri(std::move(uri));
-  handler->setMethod(method);
+  handler->setMethod(std::move(method));
   handler->onRequest(onRequest);
   handler->onUpload(onUpload);
   handler->onBody(onBody);
@@ -166,7 +166,7 @@ AsyncCallbackWebHandler &AsyncWebServer::on(
 #if ASYNC_JSON_SUPPORT == 1
 AsyncCallbackJsonWebHandler &AsyncWebServer::on(AsyncURIMatcher uri, WebRequestMethodComposite method, ArJsonRequestHandlerFunction onBody) {
   AsyncCallbackJsonWebHandler *handler = new AsyncCallbackJsonWebHandler(std::move(uri), onBody);
-  handler->setMethod(method);
+  handler->setMethod(std::move(method));
   addHandler(handler);
   return *handler;
 }

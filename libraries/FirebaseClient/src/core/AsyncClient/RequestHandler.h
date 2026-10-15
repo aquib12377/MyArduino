@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
+ * SPDX-FileCopyrightText: 2026 Suwatchai K. <suwatchai@outlook.com>
  *
  * SPDX-License-Identifier: MIT
  */
@@ -23,12 +23,12 @@
 #endif
 #endif
 
-#if defined(ENABLE_GZIP)
+#if defined(ENABLE_GZIP) && defined(FIREBASE_GZIP_LIB)
 #include <stdlib.h>
 #include <stdio.h>
 extern "C"
 {
-    // TO DO: include gzip library
+    #include FIREBASE_GZIP_LIB
 }
 #define EXTRAS_HEADERS "Accept-Encoding: gzip\r\n"
 #else
@@ -78,6 +78,7 @@ public:
     uint8_t *data = nullptr;
     file_config_data file_data;
     bool base64 = false, ota = false, connected = false;
+    int command = 0;
     uint32_t ul_dl_task_running_addr = 0, ota_storage_addr = 0, payloadLen = 0;
     uint32_t dataLen = 0, payloadIndex = 0;
     uint16_t dataIndex = 0;

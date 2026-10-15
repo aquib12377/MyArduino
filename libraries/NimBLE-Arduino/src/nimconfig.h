@@ -51,7 +51,7 @@
 // #define CONFIG_BT_NIMBLE_MAX_EXT_ADV_INSTANCES 1
 
 /** @brief Un-comment to set the max extended advertising data size (Range: 31 - 1650) */
-// #define CONFIG_BT_NIMBLE_MAX_EXT_ADV_DATA_LEN 251
+// #define CONFIG_BT_NIMBLE_MAX_EXT_ADV_DATA_LEN 1650
 
 /** @brief Un-comment to enable periodic advertising */
 // #define CONFIG_BT_NIMBLE_ENABLE_PERIODIC_ADV 1
@@ -391,20 +391,16 @@ defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32S3)
 #    define CONFIG_BT_NIMBLE_MAX_EXT_ADV_INSTANCES 1
 #  endif
 #  if !defined(CONFIG_BT_NIMBLE_MAX_EXT_ADV_DATA_LEN)
-#    define CONFIG_BT_NIMBLE_MAX_EXT_ADV_DATA_LEN 251
+#    define CONFIG_BT_NIMBLE_MAX_EXT_ADV_DATA_LEN 1650
+#  endif
+#  if !defined(CONFIG_BT_NIMBLE_EXT_ADV_MAX_SIZE)
+#    define CONFIG_BT_NIMBLE_EXT_ADV_MAX_SIZE CONFIG_BT_NIMBLE_MAX_EXT_ADV_DATA_LEN
 #  endif
 #endif
 
 /* Must set max number of syncs if periodic advertising is enabled */
 #if CONFIG_BT_NIMBLE_ENABLE_PERIODIC_ADV && !defined(CONFIG_BT_NIMBLE_MAX_PERIODIC_SYNCS)
 #  define CONFIG_BT_NIMBLE_MAX_PERIODIC_SYNCS 1
-#endif
-
-/* Enables the use of Arduino String class for attribute values */
-#if defined __has_include
-#  if __has_include (<Arduino.h>)
-#    define NIMBLE_CPP_ARDUINO_STRING_AVAILABLE
-#  endif
 #endif
 
 #ifndef CONFIG_NIMBLE_CPP_DEBUG_ASSERT_ENABLED
@@ -426,3 +422,7 @@ void nimble_cpp_assert(const char *file, unsigned line) __attribute((weak, noret
 #else
 # define NIMBLE_CPP_DEBUG_ASSERT(cond) (void(0))
 #endif
+
+// Indicate that NimBLE Arduino headers are being used,
+// allows for drop-in compatibility with the esp-nimble-cpp library where it is not defined.
+#define USING_NIMBLE_ARDUINO_HEADERS (1)

@@ -96,6 +96,20 @@ The library is at least confirmed to work with the following boards:
 Please let me know of other working platforms / processors (and failing ones!).
 
 
+### Sensitivity magnetic fields
+
+The ACS712 (et al) uses a Hall sensor to measure the current.
+The disadvantage is that the ACS712 is sensitive for external magnetic fields.
+See discussion https://forum.arduino.cc/t/unwanted-behaviour-of-acs712-with-arduino-uno-r4-wifi/1449620
+
+Allegro has an application note about this sensitivity.
+https://www.allegromicro.com/-/media/files/application-notes/an26030-managing-external-magnetic-field-interference-acs71x.pdf?sc_lang=en
+
+In practice one might use a different current sensor e.g. an INA226
+or one of the others in the INA series.
+For an incomplete list see - https://github.com/RobTillaart/INA226
+
+
 ## Compatibles
 
 Robodyn has a breakout for the ACS758 - 50 A. - See resolution below.
@@ -140,6 +154,13 @@ Not tested, but looks compatible - same formula as above
 |  200 A   |     20   |  244.4 mA   |   61.0 mA   |   3.81 mA   |     uni       |
 
 
+### Related
+
+- https://github.com/RobTillaart/AMC1302 - opto isolated current sensor
+- https://github.com/RobTillaart/INA226 - series of current sensors
+- https://github.com/RobTillaart/printHelpers - scientific formatting.
+
+
 ## Interface
 
 ```cpp
@@ -171,11 +192,28 @@ The function returns the AC current in mA. (Note it returns a float).
 Its working is based upon sampling a full period and take the square root of the average sumSquared.
 This function is intended for signals with unknown Form Factor.
   - 0.2.8 the parameter cycles allow to average over a number of cycles.
-- **float mA_DC(uint16_t samples = 1)** blocks < 1 ms (Arduino UNO) as it calls **analogRead()** twice.
+- **float mA_DC(uint16_t cycles = 1)** blocks < 1 ms (Arduino UNO R3) as it calls **analogRead()** twice.
 A negative value indicates the current flows in the opposite direction.
-  - 0.2.8 the parameter samples allow to average over a number of samples.
+  - 0.2.8 the parameter cycles allow to average over a number of samples.
   - 0.3.9 calls yield() every 2nd iteration to improve behaviour under RTOS.
 
+
+#### Experimental 0.4.1
+
+**Experimental function** to read the average DC current of a PWM signal.
+
+- **float mA_DC_PWM(float threshold, uint16_t cycles = 1)** See #58
+This function averages a number of whole cycles (LOW and HIGH part) of a PWM signal.
+The default number of cycles is 1.
+To discriminate between the two levels the function needs a threshold e.g. 50 mA,
+the user must provide this value.
+Internally the function uses mA_DC() for individual measurements.
+
+Note: this function has a timeout of 100 ms max hard coded.
+
+
+Feedback on this function is welcome.
+  
 
 ### mA_AC_sampling performance trick.
 
@@ -414,7 +452,6 @@ for this "voltage divider effect".
 
 ### Examples:
 
-
 For a 5 A type sensor, 185 mV/A would be the normal value.
 After using a voltage divider one need to adjust the mVperAmp.
 
@@ -423,7 +460,7 @@ After using a voltage divider one need to adjust the mVperAmp.
 |  10200   |  4745     |  4745 / (10200 + 4745) = 0.3175 | 185 \* 0.3175 =  31.75  |
 |  4745    |  10200    | 10200 / (10200 + 4745) = 0.6825 | 185 \* 0.6825 =  68.25  |
 |  10200   |  9800     |  9800 / (10200 + 9800) = 0.4900 | 185 \* 0.4900 =  49.00  |
-|  1000    |  2200     |  2200 / (1000 + 2200)  = 0.6875 | 185 \* 0.6875 = 127.19  | 5V -> 3V3 ADC
+|  1000    |  2200     |  2200 / (1000 + 2200)  = 0.6875 | 185 \* 0.6875 = 127.19  |  5V -> 3V3 ADC
 |  300     |  75       |  75   / (300 + 75)     = 0.2000 | 185 \* 0.2000 =  37.00  |  5V -> 1V ADC
 
 
@@ -523,7 +560,7 @@ The examples show the basic working of the functions.
   - need to buy extra hardware
 
 
-#### Should - 0.3.x
+#### Should
 
 - investigate **estimateMidPoint(confidence)** See issue #35
   - is less blocking by spreading the sampling over many calls.
@@ -539,7 +576,7 @@ The examples show the basic working of the functions.
 
 #### Could
 
-- merge **mA_AC()** and **mA_AC_sampling()** into one. (0.4.0)
+- merge **mA_AC()** and **mA_AC_sampling()** into one
   - or remove - depreciate - the worst one
 - add range check to (all) set functions?
 - add unit test for **autoMidPointDC()** (needed?)

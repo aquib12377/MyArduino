@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2025 Ryan Powell <ryan@nable-embedded.io> and
+ * Copyright 2020-2026 Ryan Powell <ryan@nable-embedded.io> and
  * esp-nimble-cpp, NimBLE-Arduino contributors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,10 +21,10 @@
 #include "nimconfig.h"
 #if CONFIG_BT_ENABLED
 
-# if defined(CONFIG_NIMBLE_CPP_IDF)
-#  include "nimble/ble.h"
-# else
+# ifdef USING_NIMBLE_ARDUINO_HEADERS
 #  include "nimble/nimble/include/nimble/ble.h"
+# else
+#  include "nimble/ble.h"
 # endif
 
 /****  FIX COMPILATION ****/
@@ -63,8 +63,8 @@ class NimBLEAddress : private ble_addr_t {
     const NimBLEAddress& reverseByteOrder();
     bool                 operator==(const NimBLEAddress& rhs) const;
     bool                 operator!=(const NimBLEAddress& rhs) const;
-    operator std::string() const;
-    operator uint64_t() const;
+                         operator std::string() const;
+                         operator uint64_t() const;
 };
 
 #endif // CONFIG_BT_ENABLED

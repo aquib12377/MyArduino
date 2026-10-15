@@ -1,11 +1,16 @@
 /*
- * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
+ * SPDX-FileCopyrightText: 2026 Suwatchai K. <suwatchai@outlook.com>
  *
  * SPDX-License-Identifier: MIT
  */
 
 #ifndef CORE_ASYNC_RESULT_RTDB_RESULT_H
 #define CORE_ASYNC_RESULT_RTDB_RESULT_H
+
+// SSE mode time out in milliseconds.
+#ifndef FIREBASE_SSE_TIMEOUT_MS
+#define FIREBASE_SSE_TIMEOUT_MS 40 * 1000
+#endif
 
 #include <Arduino.h>
 #include "./core/AsyncResult/AppLog.h"

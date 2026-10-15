@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Rider Dashboard · SmartRide{% endblock %}
+{% block head %}<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">RIDER CONTROL CENTRE</span><h1>Good ride starts here, {{ session.name.split()[0] }}.</h1><p>Live safety status from your helmet and bike.</p></div><div class="live-pill"><i></i><span id="connectionText">Connecting…</span></div></div>
+<section class="alert-banner hidden" id="accidentBanner"><div><b>🚨 Possible accident detected</b><span>Press the physical helmet button to cancel a false alert.</span></div><strong id="countdown">02:00</strong></section>
+<section class="status-grid">
+  <article class="status-card"><div class="card-icon cyan">⛑</div><span>HELMET</span><h3 id="helmetStatus">Checking…</h3><p id="helmetDetail">Waiting for device</p></article>
+  <article class="status-card"><div class="card-icon amber">◌</div><span>ALCOHOL</span><h3 id="alcoholStatus">Checking…</h3><p id="alcoholDetail">Sensor status</p></article>
+  <article class="status-card"><div class="card-icon violet">◆</div><span>RIDE</span><h3 id="rideStatus">Stopped</h3><p id="rideDetail">Ignition locked</p></article>
+  <article class="status-card"><div class="card-icon green">ϟ</div><span>BATTERY</span><h3 id="batteryStatus">0%</h3><div class="battery-bar"><i id="batteryBar"></i></div></article>
+</section>
+<section class="dashboard-grid">
+  <article class="panel map-panel"><div class="panel-head"><div><span class="eyebrow">LIVE LOCATION</span><h2>Current position</h2></div><span id="coordinates">No GPS fix</span></div><div id="map" class="map"></div><div class="map-fallback">Map tiles need internet; coordinates continue working offline.</div></article>
+  <article class="panel score-panel"><span class="eyebrow">SAFETY SCORE</span><div class="score-ring" id="scoreRing"><strong id="scoreValue">100</strong><small>/100</small></div><h2 id="scoreLabel">Ready to ride</h2><p id="scoreExplanation">Your live score will update during the ride.</p><a href="{{ url_for('rides') }}">View ride history →</a></article>
+</section>
+<section class="panel"><div class="panel-head"><div><span class="eyebrow">RECENT ACTIVITY</span><h2>Safety events</h2></div></div><div id="events" class="event-list"><p class="empty">No events yet.</p></div></section>
+{% endblock %}
+{% block scripts %}<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>{% endblock %}
+

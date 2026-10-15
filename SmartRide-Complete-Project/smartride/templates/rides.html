@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Ride History · SmartRide{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">JOURNEY LOG</span><h1>Previous ride history</h1><p>Routes, performance and safety events from every ride.</p></div></div>
+<section class="panel table-panel">
+{% if rides %}
+<div class="ride-table"><div class="ride-row table-head"><span>Ride</span><span>Started</span><span>Distance</span><span>Duration</span><span>Max speed</span><span>Score</span><span></span></div>
+{% for ride in rides %}<div class="ride-row"><span><b>#{{ ride.id }}</b></span><span>{{ ride.started_at[:16].replace('T',' ') }}</span><span>{{ '%.2f'|format(ride.distance_km) }} km</span><span>{{ (ride.duration_seconds // 60) }}m {{ (ride.duration_seconds % 60) }}s</span><span>{{ '%.1f'|format(ride.max_speed) }} km/h</span><span><b class="score-badge {% if (ride.safety_score or 100) < 75 %}warn{% endif %}">{{ ride.safety_score if ride.safety_score is not none else 'Live' }}</b></span><span><a href="{{ url_for('ride_detail', ride_id=ride.id) }}">Details →</a></span></div>{% endfor %}</div>
+{% else %}<div class="empty-state"><strong>↗</strong><h2>No rides recorded</h2><p>Start the bike through the prototype controller to create the first ride.</p></div>{% endif %}
+</section>
+{% endblock %}

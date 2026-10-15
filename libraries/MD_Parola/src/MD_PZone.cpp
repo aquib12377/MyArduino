@@ -29,10 +29,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 MD_PZone::MD_PZone(void) :
   _MX(nullptr), _suspend(false), _lastRunTime(0),
-  _fsmState(END), _scrollDistance(0), _zoneEffect(0), 
-  _intensity(DEFAULT_INTENSITY), _zoneStart(0), _zoneEnd(0),
-  _pText(nullptr), 
-  _userChars(nullptr), _cBufSize(0), _cBuf(nullptr), _charSpacing(1), 
+  _fsmState(END), _moveIn(true), _inverted(false), 
+  _scrollDistance(0), _zoneEffect(0), _intensity(DEFAULT_INTENSITY), 
+  _zoneStart(0), _zoneEnd(0), 
+  _pText(nullptr), _userChars(nullptr), _cBufSize(0), _cBuf(nullptr), _charSpacing(1), 
   _fontDef(nullptr)
 #if ENA_SPRITE
   , _spriteInData(nullptr), _spriteOutData(nullptr)
@@ -509,11 +509,11 @@ bool MD_PZone::zoneAnimate(void)
     switch (_fsmState)
     {
       case END:   // do nothing in this state
-        PRINT_STATE("ANIMATE");
+        //PRINT_STATE("ANIMATE");
         break;
 
       case INITIALISE:
-        PRINT_STATE("ANIMATE");
+        //PRINT_STATE("ANIMATE");
 #if TIME_PROFILING
         cycleStartTime = millis();
 #endif
@@ -522,7 +522,7 @@ bool MD_PZone::zoneAnimate(void)
         // fall through to process the effect, first call will be with INITIALISE
 
       default: // All state except END are handled by the special effect functions
-        PRINT_STATE("ANIMATE");
+        //PRINT_STATE("ANIMATE");
         switch (_moveIn ? _effectIn : _effectOut)
         {
         case PA_PRINT:        effectPrint(_moveIn);           break;

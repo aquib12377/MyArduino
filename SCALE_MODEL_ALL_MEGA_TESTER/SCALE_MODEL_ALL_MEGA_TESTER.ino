@@ -1,120 +1,171 @@
-#include <FastLED.h>
+// ============================================================
+//  Arduino Mega - WS2812B ALL PINS White Test
+//  Adafruit NeoPixel | 62 Data Pins
+//  ↳ Change NUM_LEDS_PER_STRIP to match your strip length
+// ============================================================
 
-// ── Config ────────────────────────────────────────────────────────────────────
-#define NUM_LEDS    600
-#define BRIGHTNESS  150
-#define LED_TYPE    WS2812
-#define COLOR_ORDER GRB
+#include <Adafruit_NeoPixel.h>
 
-// ── Pin list (X-macro) ────────────────────────────────────────────────────────
-#define STRIP_PIN_LIST \
-  X(13)  X(12)  X(11)  X(10)  X(9)   X(8)   X(7)   X(6)   X(5)   X(4)   X(3)   X(2) 
-  //   X(14)  X(15)  X(16)  X(17)  X(18)  X(19)  X(22)  X(23)  X(25)  X(27)  X(29)  X(31) \
-  // X(33)  X(35)  X(37)  X(39)  X(41)  X(43)  X(45)  X(47)  X(49)  X(51)  X(53)  X(52) \
-  // X(A15) X(A14) X(A13) X(A12) X(A11) X(A10) X(A9)  X(A8)  X(A7)  X(A6)  X(A5)  X(A4) \
-  // X(A3)  X(A2)  X(A1)  X(A0)  \
-  // X(50)  X(48)  X(46)  X(44)  X(42)  X(40)  X(38)  X(36)  X(34)  X(32)
+// ── Change this to match your LED count per strip ─────────
+#define NUM_LEDS_PER_STRIP  130
 
-// ── Derived constants ─────────────────────────────────────────────────────────
-#define X(p) 1+
-constexpr uint8_t TOTAL_STRIPS = (STRIP_PIN_LIST 0);
-#undef X
+#define BRIGHTNESS          200    // Start LOW! (0–255)
+#define PIXEL_TYPE          (NEO_GRB + NEO_KHZ800)
 
-#define X(p) p,
-const uint8_t stripPins[TOTAL_STRIPS] = { STRIP_PIN_LIST };
-#undef X
+// ── All 62 pins ───────────────────────────────────────────
+// Analog pins A0–A15 = digital pins 54–69 on Mega
+const uint8_t PINS[] = {
+2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
+  // Serial TX/RX pins (14–19) — disconnect Serial if using these
+  14, 15, 16, 17, 18, 19,
+  // Odd side (22–53)
+  22, 23, 25, 27, 29, 31, 33, 35, 37, 39,
+  41, 43, 45, 47, 49, 51, 53,
+  // Even side (32–52)
+  32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52,
+  // Analog A0–A15 as digital 54–69
+  54, 55, 56, 57, 58, 59, 60, 61,   // A0–A7
+  62, 63, 64, 65, 66, 67, 68, 69    // A8–A15
+};
 
-// ── Memory ────────────────────────────────────────────────────────────────────
-CRGB leds[NUM_LEDS];
-CRGB dormant[1] = { CRGB::Black };
+const uint8_t NUM_STRIPS = sizeof(PINS) / sizeof(PINS[0]);
 
-CLEDController* controllers[TOTAL_STRIPS];
+// ── Strip object pool ─────────────────────────────────────
+Adafruit_NeoPixel* strips[62];
 
-// ── Setup ─────────────────────────────────────────────────────────────────────
+// ── Colors ────────────────────────────────────────────────
+const uint32_t WHITE = Adafruit_NeoPixel::Color(255, 255, 255);
+const uint32_t RED   = Adafruit_NeoPixel::Color(255,   0,   0);
+const uint32_t GREEN = Adafruit_NeoPixel::Color(  0, 255,   0);
+const uint32_t BLUE  = Adafruit_NeoPixel::Color(  0,   0, 255);
+const uint32_t OFF   = 0;
+
+// ── Globals ───────────────────────────────────────────────
+uint32_t currentColor = WHITE;
+uint8_t  brightness   = BRIGHTNESS;
+bool     ledsOn       = true;
+
+// ── Helper: set all strips to one color ───────────────────
+void allColor(uint32_t color) {
+  for (uint8_t s = 0; s < NUM_STRIPS; s++) {
+    strips[s]->fill(color);
+    strips[s]->show();
+  }
+}
+
+// ── Helper: set brightness on all strips ──────────────────
+void allBrightness(uint8_t b) {
+  for (uint8_t s = 0; s < NUM_STRIPS; s++) {
+    strips[s]->setBrightness(b);
+    strips[s]->show();
+  }
+}
+
+// ── Setup ─────────────────────────────────────────────────
 void setup() {
   Serial.begin(115200);
-  FastLED.setBrightness(BRIGHTNESS);
+  Serial.println(F("============================================"));
+  Serial.println(F("  WS2812B 62-Pin WHITE Test — Arduino Mega"));
+  Serial.println(F("============================================"));
+  Serial.print(F("Strips       : ")); Serial.println(NUM_STRIPS);
+  Serial.print(F("LEDs/strip   : ")); Serial.println(NUM_LEDS_PER_STRIP);
+  Serial.print(F("Total LEDs   : ")); Serial.println((uint32_t)NUM_STRIPS * NUM_LEDS_PER_STRIP);
+  Serial.print(F("Brightness   : ")); Serial.println(BRIGHTNESS);
+  Serial.println();
 
-  uint8_t idx = 0;
-  #define X(PIN) \
-    controllers[idx++] = &FastLED.addLeds<LED_TYPE, PIN, COLOR_ORDER>(dormant, 1);
-  STRIP_PIN_LIST
-  #undef X
-
-  Serial.print(F("Ready — "));
-  Serial.print(TOTAL_STRIPS);
-  Serial.println(F(" strips registered."));
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-void activateStrip(uint8_t i) {
-  controllers[i]->setLeds(leds, NUM_LEDS);
-}
-
-void parkStrip(uint8_t i) {
-  controllers[i]->setLeds(dormant, 1);
-}
-
-void parkAllStrips() {
-  for (uint8_t i = 0; i < TOTAL_STRIPS; i++) {
-    parkStrip(i);
-  }
-}
-
-// ── Phase 1: One strip at a time, 1 second each ───────────────────────────────
-void phase1() {
-  Serial.println(F("=== PHASE 1: One strip at a time ==="));
-
-  for (uint8_t i = 0; i < TOTAL_STRIPS; i++) {
-    Serial.print(F("Strip #"));
-    Serial.print(i);
-    Serial.print(F("  pin "));
-    Serial.println(stripPins[i]);
-
-    // Activate this strip and light it white
-    activateStrip(i);
-    fill_solid(leds, NUM_LEDS, CRGB::White);
-    FastLED.show();
-
-    delay(1000); // 1 second ON
-
-    // Blank and park before moving on
-    fill_solid(leds, NUM_LEDS, CRGB::Black);
-    FastLED.show();
-    delay(30); // short settle gap between strips
-    parkStrip(i);
-  }
-}
-
-// ── Phase 2: All strips ON simultaneously for 20 seconds ─────────────────────
-void phase2() {
-  Serial.println(F("=== PHASE 2: All strips ON for 20 s ==="));
-
-  // Point every controller at the shared leds[] buffer
-  for (uint8_t i = 0; i < TOTAL_STRIPS; i++) {
-    activateStrip(i);
+  // Init all strips
+  for (uint8_t s = 0; s < NUM_STRIPS; s++) {
+    strips[s] = new Adafruit_NeoPixel(
+      NUM_LEDS_PER_STRIP,
+      PINS[s],
+      PIXEL_TYPE
+    );
+    strips[s]->begin();
+    strips[s]->setBrightness(BRIGHTNESS);
+    strips[s]->clear();
+    strips[s]->show();
   }
 
-  fill_solid(leds, NUM_LEDS, CRGB::White);
-  FastLED.show(); // one show() drives all strips at once
+  Serial.println(F("All strips initialized. Running blink test...\n"));
+  delay(200);
 
-  delay(20000); // 20 seconds
+  // ── 3× blink startup test ─────────────────────────────
+  // for (uint8_t i = 0; i < 3; i++) {
+  //   Serial.print(F("Blink ")); Serial.println(i + 1);
+  //   allColor(WHITE);  delay(800);
+  //   allColor(OFF);    delay(400);
+  // }
 
-  // Blank everything
-  fill_solid(leds, NUM_LEDS, CRGB::Black);
-  FastLED.show();
-  delay(50);
-
-  // Park all strips back on dormant buffer
-  parkAllStrips();
+  // ── Steady WHITE ──────────────────────────────────────
+  allColor(WHITE);
+  Serial.println(F("All LEDs → Steady WHITE\n"));
+  //printHelp();
 }
 
-// ── Main loop ─────────────────────────────────────────────────────────────────
+// ── Loop ──────────────────────────────────────────────────
 void loop() {
-  phase1();
-  phase2();
+  if (!Serial.available()) return;
 
-  Serial.println(F("── Cycle complete. Restarting in 3 s ──"));
-  delay(500);
+  char cmd = Serial.read();
+
+  switch (cmd) {
+    case 'T': case 't':
+      ledsOn = !ledsOn;
+      allColor(ledsOn ? currentColor : OFF);
+      Serial.println(ledsOn ? F("→ ON") : F("→ OFF"));
+      break;
+
+    case 'W': case 'w':
+      currentColor = WHITE;
+      allColor(WHITE);
+      Serial.println(F("Color → WHITE"));
+      break;
+
+    case 'R': case 'r':
+      currentColor = RED;
+      allColor(RED);
+      Serial.println(F("Color → RED"));
+      break;
+
+    case 'G': case 'g':
+      currentColor = GREEN;
+      allColor(GREEN);
+      Serial.println(F("Color → GREEN"));
+      break;
+
+    case 'B': case 'b':
+      currentColor = BLUE;
+      allColor(BLUE);
+      Serial.println(F("Color → BLUE"));
+      break;
+
+    case '+':
+      brightness = (uint8_t)min(255, brightness + 10);
+      allBrightness(brightness);
+      Serial.print(F("Brightness → ")); Serial.println(brightness);
+      break;
+
+    case '-':
+      brightness = (uint8_t)max(5, brightness - 10);
+      allBrightness(brightness);
+      Serial.print(F("Brightness → ")); Serial.println(brightness);
+      break;
+
+    case '?':
+      printHelp();
+      break;
+  }
+}
+
+void printHelp() {
+  Serial.println(F("── Serial Commands (115200 baud) ──────────"));
+  Serial.println(F("  T  → Toggle all ON / OFF"));
+  Serial.println(F("  W  → White"));
+  Serial.println(F("  R  → Red"));
+  Serial.println(F("  G  → Green"));
+  Serial.println(F("  B  → Blue"));
+  Serial.println(F("  +  → Brightness up   (+10)"));
+  Serial.println(F("  -  → Brightness down (-10)"));
+  Serial.println(F("  ?  → Show this help"));
+  Serial.println(F("───────────────────────────────────────────"));
 }

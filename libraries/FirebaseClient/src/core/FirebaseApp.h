@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
+ * SPDX-FileCopyrightText: 2026 Suwatchai K. <suwatchai@outlook.com>
  *
  * SPDX-License-Identifier: MIT
  */
@@ -39,6 +39,10 @@ namespace firebase_ns
 
 #if defined(ENABLE_JWT)
         JWTClass *jwtClass = nullptr;
+        // Per-app default JWT processor. Each FirebaseApp signs with its own
+        // instance so multiple apps no longer share (and corrupt) the single
+        // global JWT signing state. setJWTProcessor() can still override this.
+        JWTClass jwtInstance;
 #endif
         async_data *sData = nullptr;
         AsyncClientClass *aClient = nullptr;
@@ -61,10 +65,7 @@ namespace firebase_ns
 #if defined(ENABLE_JWT)
             if (auth_data.user_auth.auth_type == auth_sa_access_token || auth_data.user_auth.auth_type == auth_sa_custom_token)
             {
-                if (jwtClass)
-                    jwtClass->loop(getAuth());
-                else
-                    JWT.loop(getAuth());
+                jwtProcessor()->loop(getAuth());
             }
 #endif
             auth_data.user_auth.jwt_loop = true;
@@ -351,14 +352,12 @@ namespace firebase_ns
                 return true;
 
             // Deinitialize
-            if (deinit && auth_data.user_auth.status._event == auth_event_uninitialized)
+            if (deinit && auth_data.user_auth.initialized)
             {
-                if (auth_data.user_auth.initialized)
-                {
-                    stop(aClient);
-                    deinitializeApp();
-                    auth_timer.stop();
-                }
+                setEvent(auth_event_deinitializing);
+                stop(aClient);
+                deinitializeApp();
+                auth_timer.stop();
                 return false;
             }
 
@@ -678,10 +677,12 @@ namespace firebase_ns
         {
             auth_data.app_token.clear();
             auth_data.user_auth.clear();
+            setEvent(auth_event_deinitialized);
+            setEvent(auth_event_uninitialized);
         }
 
 #if defined(ENABLE_JWT)
-        JWTClass *jwtProcessor() { return jwtClass ? jwtClass : &JWT; }
+        JWTClass *jwtProcessor() { return jwtClass ? jwtClass : &jwtInstance; }
 #endif
 
     public:
@@ -721,7 +722,11 @@ namespace firebase_ns
 #if defined(ENABLE_JWT)
         void loop(JWTClass *jwt = nullptr)
         {
-            jwtClass = jwt;
+            // Only override the JWT processor when a valid one is passed, so a
+            // previously assigned processor via setJWTProcessor() is not cleared
+            // on every loop() call.
+            if (jwt)
+                jwtClass = jwt;
             await(await_ms);
         }
 #else

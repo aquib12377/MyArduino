@@ -1,5 +1,7 @@
 #pragma once
 
+// IWYU pragma: private
+
 #define FASTLED_INTERNAL  
 #include "FastLED.h"
 
@@ -7,12 +9,23 @@ namespace fl {
 
 #ifdef ESP8266
 void esp8266_compile_tests() {
+// Pinned to 0, but note the flag is inert on ESP8266: fastled_progmem.h
+// selects progmem_esp8266.h from its `#elif defined(ESP8266)` arm, before
+// the `#if (FASTLED_USE_PROGMEM == 1)` test is ever reached. Tables are
+// flash-resident either way. This assert exists so the declared value and
+// the platform's real behavior don't drift further apart -- setting it to 1
+// would not move data, only make the header claim something new. See #743.
 #if FASTLED_USE_PROGMEM != 0
-#error "FASTLED_USE_PROGMEM should be 0 for ESP8266"
+#error "FASTLED_USE_PROGMEM must stay 0 on ESP8266 (it is inert there; PROGMEM is selected by platform dispatch in fastled_progmem.h, not by this flag)"
 #endif
 
-#if SKETCH_HAS_LOTS_OF_MEMORY != 0
-#error "SKETCH_HAS_LOTS_OF_MEMORY should be 0 for ESP8266"
+#if !defined(SKETCH_HAS_LARGE_MEMORY_OVERRIDDEN)
+#if SKETCH_HAS_LARGE_MEMORY != 0
+#error "SKETCH_HAS_LARGE_MEMORY should be 0 for ESP8266"
+#endif
+#if SKETCH_HAS_HUGE_MEMORY != 0
+#error "SKETCH_HAS_HUGE_MEMORY should be 0 for ESP8266"
+#endif
 #endif
 
 #if FASTLED_ALLOW_INTERRUPTS != 1
@@ -36,8 +49,22 @@ void esp8266_compile_tests() {
 #ifndef FASTLED_HAS_MILLIS
 #error "FASTLED_HAS_MILLIS should be defined for ESP8266"
 #endif
+
+// The Arduino NodeMCU variant defines D5 as the raw GPIO number 14. FastLED
+// must not select its legacy board-label mapping automatically, because that
+// mapping accepts only 0..10 and would reject D5 (and double-map D1..D4).
+#if defined(ARDUINO_ESP8266_NODEMCU) && defined(FL_ESP8266_PIN_ORDER_DEFAULTED)
+#ifndef FASTLED_ESP8266_RAW_PIN_ORDER
+#error "The default ESP8266 pin order must accept Arduino Dn constants as raw GPIO numbers"
+#endif
+#ifdef FASTLED_ESP8266_NODEMCU_PIN_ORDER
+#error "The legacy NodeMCU board-label mapping must remain opt-in"
+#endif
+    FL_STATIC_ASSERT(FastPin<14>::validpin(),
+                     "NodeMCU D5 (GPIO 14) must be a valid FastLED pin");
+#endif
 }
-#endif // ESP8266
+#endif // FL_IS_ESP8266
 
 #ifdef ESP32
 void esp32_compile_tests() {
@@ -53,8 +80,13 @@ void esp32_compile_tests() {
 #error "FASTLED_USE_PROGMEM should be 0 for ESP32 platforms"
 #endif
 
-#if SKETCH_HAS_LOTS_OF_MEMORY != 1
-#error "SKETCH_HAS_LOTS_OF_MEMORY should be 1 for ESP32 platforms"
+#if !defined(SKETCH_HAS_LARGE_MEMORY_OVERRIDDEN)
+#if SKETCH_HAS_LARGE_MEMORY != 1
+#error "SKETCH_HAS_LARGE_MEMORY should be 1 for ESP32 platforms"
+#endif
+#if SKETCH_HAS_HUGE_MEMORY != 1
+#error "SKETCH_HAS_HUGE_MEMORY should be 1 for ESP32 platforms"
+#endif
 #endif
 
 #if FASTLED_ALLOW_INTERRUPTS != 1
@@ -80,6 +112,13 @@ void esp32_compile_tests() {
 #error "FASTLED_HAS_MILLIS should be defined for ESP32"
 #endif
 
+// ESP32 variants without a true-SPI Channel driver must keep AUTO usable for
+// clocked chipsets through the portable GPIO fallback.
+#if defined(FL_IS_ESP_32C2) || defined(FL_IS_ESP_32C3) || defined(FL_IS_ESP_32S2)
+FL_STATIC_ASSERT(DefaultBus<SpiChipsetConfig>::value == Bus::BIT_BANG,
+                 "ESP32 variants without true-SPI Channel support must default to BIT_BANG");
+#endif
+
 // Check for ESP32 driver capabilities
 #if !defined(FASTLED_ESP32_HAS_RMT) && !defined(FASTLED_ESP32_HAS_CLOCKLESS_SPI)
 #warning "No clockless drivers defined - you may not be able to drive WS2812 and similar chipsets"
@@ -96,11 +135,8 @@ void esp32_compile_tests() {
     #error "ESP32-S3 F_CPU should be at least 80MHz"
     #endif
     
-    // ESP32-S3 specific features
-    #ifdef FASTLED_USES_ESP32S3_I2S
-    // I2S driver is being used - this is a valid configuration
-    #endif
+    // ESP32-S3 specific features (I2S_SPI and LCD_SPI channel drivers)
 #endif
 }
-#endif // ESP32
+#endif // FL_IS_ESP32
 }  // namespace fl

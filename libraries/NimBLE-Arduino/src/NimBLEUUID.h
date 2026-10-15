@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2025 Ryan Powell <ryan@nable-embedded.io> and
+ * Copyright 2020-2026 Ryan Powell <ryan@nable-embedded.io> and
  * esp-nimble-cpp, NimBLE-Arduino contributors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,10 +21,10 @@
 #include "nimconfig.h"
 #if CONFIG_BT_ENABLED
 
-# if defined(CONFIG_NIMBLE_CPP_IDF)
-#  include "host/ble_uuid.h"
-# else
+# ifdef USING_NIMBLE_ARDUINO_HEADERS
 #  include "nimble/nimble/host/include/host/ble_uuid.h"
+# else
+#  include "host/ble_uuid.h"
 # endif
 
 /****  FIX COMPILATION ****/
@@ -45,6 +45,7 @@ class NimBLEUUID {
      */
     NimBLEUUID() = default;
     NimBLEUUID(const ble_uuid_any_t& uuid);
+    NimBLEUUID(const ble_uuid_t* uuid);
     NimBLEUUID(const std::string& uuid);
     NimBLEUUID(uint16_t uuid);
     NimBLEUUID(uint32_t uuid);
@@ -64,7 +65,7 @@ class NimBLEUUID {
 
     bool operator==(const NimBLEUUID& rhs) const;
     bool operator!=(const NimBLEUUID& rhs) const;
-    operator std::string() const;
+         operator std::string() const;
 
   private:
     ble_uuid_any_t m_uuid{};

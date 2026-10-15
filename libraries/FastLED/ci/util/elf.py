@@ -1,13 +1,14 @@
 # pyright: reportUnknownMemberType=false
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
+
+from running_process import PIPE, RunningProcess
 
 
-def run_command(command: List[str], show_output: bool = False) -> str:
+def run_command(command: list[str], show_output: bool = False) -> str:
     """
-    Run a command using subprocess and capture the output.
+    Run a command and capture the output.
 
     Args:
         command (list): Command to run.
@@ -21,9 +22,9 @@ def run_command(command: List[str], show_output: bool = False) -> str:
     """
     if show_output:
         print(f"Running command: {' '.join(command)}")
-    result = subprocess.run(command, capture_output=True, text=True)
+    result = RunningProcess.run(command, cwd=None, check=False, timeout=60)
     if result.returncode != 0:
-        raise RuntimeError(f"Command failed: {' '.join(command)}\n{result.stderr}")
+        raise RuntimeError(f"Command failed: {' '.join(command)}\n{result.stdout}")
     if show_output and result.stdout:
         print(f"Command output: {result.stdout}")
     return result.stdout
@@ -59,17 +60,17 @@ def cpp_filt(cppfilt_path: Path, input_text: str) -> str:
     """
     command = [str(cppfilt_path), "-t", "-n"]
     print(f"Running c++filt on input text with {cppfilt_path}")
-    process = subprocess.Popen(
+    result = RunningProcess.run(
         command,
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
+        input=input_text,
+        stdout=PIPE,
+        stderr=PIPE,
+        encoding="utf-8",
+        errors="replace",
     )
-    stdout, stderr = process.communicate(input=input_text)
-    if process.returncode != 0:
-        raise RuntimeError(f"Error running c++filt: {stderr}")
-    return stdout
+    if result.returncode != 0:
+        raise RuntimeError(f"Error running c++filt: {result.stderr}")
+    return result.stdout
 
 
 def dump_symbol_sizes(nm_path: Path, cpp_filt_path: Path, elf_file: Path) -> str:
@@ -81,23 +82,25 @@ def dump_symbol_sizes(nm_path: Path, cpp_filt_path: Path, elf_file: Path) -> str
     ]
     print(f"Listing symbols and sizes in ELF file: {elf_file}")
     print("Running command: ", " ".join(nm_command))
-    nm_result = subprocess.run(
+    nm_result = RunningProcess.run(
         nm_command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
+        stdout=PIPE,
+        stderr=PIPE,
+        encoding="utf-8",
+        errors="replace",
     )
     if nm_result.returncode != 0:
         raise RuntimeError(f"Error running nm command: {nm_result.stderr}")
 
     cpp_filt_command = [str(cpp_filt_path), "--no-strip-underscore"]
     print("Running c++filt command: ", " ".join(cpp_filt_command))
-    cpp_filt_result = subprocess.run(
+    cpp_filt_result = RunningProcess.run(
         cpp_filt_command,
         input=nm_result.stdout,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
+        stdout=PIPE,
+        stderr=PIPE,
+        encoding="utf-8",
+        errors="replace",
     )
     if cpp_filt_result.returncode != 0:
         raise RuntimeError(f"Error running c++filt command: {cpp_filt_result.stderr}")
@@ -153,7 +156,7 @@ def list_symbols_and_sizes(objdump_path: Path, cppfilt_path: Path, elf_file: Pat
     print(f"Listing symbols and sizes in ELF file: {elf_file}")
     output = run_command(command, show_output=False)
 
-    symbols: List[Dict[str, Any]] = []
+    symbols: list[dict[str, Any]] = []
     for line in output.splitlines():
         parts = line.split()
         # Expected parts length can vary, check if size and section index (parts[2] & parts[4]) are valid

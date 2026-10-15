@@ -10,7 +10,8 @@
 * MPU6500 
 * MPU6050
 * ICM20689 
-* ICM20690 
+* ICM20690
+* ICM20948 
 * BMI055 
 * BMX055 (Magnetometer currently untested)
 * BMI160
@@ -24,6 +25,7 @@
 * AK8975
 * AK8963
 * AK09918
+* BMM150
 
 ### Using non default I2C ports:
 If you're planning on using an IMU on a non-default I2C port, you can specify the port in the constructor of your IMU, for example:
@@ -49,20 +51,18 @@ creates a hybrid `MPU6050` and `QMC5883L` IMU object that behaves as a single IM
 ### Planned:
 * BNO080 (probably soonish)
 * GY-85
-* BMM150 
 * BNO055 (the one I bought is DOA... might take a bit)
-* ICM20948 
 * BMI270 (if I can get my hands on one)
 
 ### Data types
 
-* ```AccelData``` Contains all three axis of Accelerometer data, these are named ```accelX```, ```accelY``` and ```accelZ```
+* ```AccelData``` Contains all three axis of Accelerometer data, these are named ```accelX```, ```accelY``` and ```accelZ```. Also contains a ```timestamp``` field (uint32_t, microseconds from ```micros()```) updated only when the sensor has new data.
 
-* ```GyroData``` Contains all three axis of Gyroscope data, these are named ```gyroX```, ```gyroY``` and ```gyroZ```
+* ```GyroData``` Contains all three axis of Gyroscope data, these are named ```gyroX```, ```gyroY``` and ```gyroZ```. Also contains a ```timestamp``` field updated independently of ```AccelData```.
 
-* ```MagData``` Contains all three axis of Magnetometer data, these are named ```magX```, ```magY``` and ```magZ```
+* ```MagData``` Contains all three axis of Magnetometer data, these are named ```magX```, ```magY``` and ```magZ```. Also contains a ```timestamp``` field updated only when the magnetometer has new data.
 
-* ```Quaternion``` Contains Quaternion data, the components are named ```qW```, ```qX```, ```qY``` and ```qZ```
+* ```Quaternion``` Contains Quaternion data, the components are named ```qW```, ```qX```, ```qY``` and ```qZ```. Also contains a ```timestamp``` field.
 
 * ```CalData``` Contains a boolean component named ```valid``` that must be set to ```true``` if the data is valid, it contains float array named ```accelBias``` for accelerometer biases, one named ```gyroBias``` for gyroscope bias, one named ```magBias``` for magnetometer biases and one named ```magScale``` for magnetometer scaling.
 
@@ -87,6 +87,26 @@ creates a hybrid `MPU6050` and `QMC5883L` IMU object that behaves as a single IM
 
 * ```setIMUGeometry``` Takes in an integer with the wanted geometry index, rotates IMU measurements to match vr headset IMU mount. (see chart below).
 
+* ```setAccelODR``` Takes in an integer target output data rate in Hz and sets the accelerometer ODR to the nearest supported rate greater than or equal to the requested value. Returns the actual ODR that was set, or -1 if the sensor does not support configurable ODR.
+
+* ```setGyroODR``` Same as ```setAccelODR``` but for the gyroscope. On some sensors (e.g. MPU6050-family) accel and gyro share a rate divider so setting one affects both.
+
+* ```setMagODR``` Same as ```setAccelODR``` but for the magnetometer. Returns -1 if the IMU has no magnetometer or if it does not support a configurable continuous ODR (e.g. AK8975).
+
+* ```getAccelODR``` Returns the current accelerometer ODR in Hz as last set by ```setAccelODR```, or -1 if not supported.
+
+* ```getGyroODR``` Returns the current gyroscope ODR in Hz as last set by ```setGyroODR```, or -1 if not supported.
+
+* ```getMagODR``` Returns the current magnetometer ODR in Hz as last set by ```setMagODR```, or -1 if not supported.
+
+* ```setAccelLPF``` Takes in an integer target low-pass filter cutoff frequency in Hz and sets the accelerometer LPF to the nearest available value. Returns the actual cutoff frequency that was set, 0 if the filter was disabled, or -1 if the sensor does not support a configurable accelerometer LPF (e.g. MPU6050, BMI055/BMX055 accel). Passing 0 disables the filter or sets the widest available bandwidth on sensors where bypass is not possible.
+
+* ```setGyroLPF``` Same as ```setAccelLPF``` but for the gyroscope. On sensors where the available bandwidths are ODR-dependent (e.g. LSM6DS3/DSL, QMI8658, BMI160, BMI055/BMX055), the nearest available bandwidth at the current ODR is selected without changing the ODR.
+
+* ```getAccelLPF``` Returns the accelerometer LPF cutoff frequency in Hz as last set by ```setAccelLPF```, 0 if disabled, or -1 if not supported.
+
+* ```getGyroLPF``` Returns the gyroscope LPF cutoff frequency in Hz as last set by ```setGyroLPF```, 0 if disabled, or -1 if not supported.
+
 * ```calibrateAccelGyro``` Takes in a pointer to calibration data and runs a Accelerometer and Gyroscope calibration, storing the new accelerometer and gyroscope calibration data in it. the IMU should be kept completely still and level during this.
 
 * ```calibrateMag``` Takes in a pointer to Calibration data and runs a Accelerometer and Gyroscope calibration, storing the new accelerometer and gyroscope calibration data in it. the IMU should be moved in a figure eight pattern while calibrating, calibration takes around 15 seconds.
@@ -108,7 +128,7 @@ creates a hybrid `MPU6050` and `QMC5883L` IMU object that behaves as a single IM
 
 ![2](MountIndex.png)
 
+##### TODO: VQF? built in filters?
 ##### TODO: get DMP working for pure quaternion output from invsense IMU's
 ##### TODO: get FIFO working for all IMU's that have it.
-##### TODO: get timestamping working 
 ##### TODO: get proper matrix magnetometer calibration working instead of the current scalar garbage.

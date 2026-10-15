@@ -13,13 +13,13 @@
  * - Repeats are sent as complete frames but in a 50 ms period / with a 21 ms distance.
  *
  *
- *  This file is part of IRMP https://github.com/IRMP-org/IRMP.
  *  This file is part of Arduino-IRremote https://github.com/Arduino-IRremote/Arduino-IRremote.
+ *  This file is also part of IRMP https://github.com/IRMP-org/IRMP.
  *
  ************************************************************************************
  * MIT License
  *
- * Copyright (c) 2022-2025 Armin Joachimsmeyer
+ * Copyright (c) 2022-2026 Armin Joachimsmeyer
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -48,11 +48,6 @@
 
 //#define ENABLE_NEC2_REPEATS // Instead of sending / receiving the NEC special repeat code, send / receive the original frame for repeat.
 
-#if defined(DEBUG)
-#define LOCAL_DEBUG
-#else
-//#define LOCAL_DEBUG // This enables debug output only for this file
-#endif
 //#define NO_LED_SEND_FEEDBACK_CODE     // Disables the LED feedback code for receive.
 //#define IR_FEEDBACK_LED_PIN     12    // Use this, to disable use of LED_BUILTIN definition for IR_FEEDBACK_LED_PIN
 #include "TinyIR.h" // Defines protocol timings
@@ -66,13 +61,21 @@
 #warning "IR_SEND_PIN is not defined, so it is set to 3"
 #define IR_SEND_PIN    3
 #endif
+#if !defined(NO_LED_SEND_FEEDBACK_CODE)
+#define LED_SEND_FEEDBACK_CODE // Resolve the double negative
+#endif
+
 /*
- * Generate 38 kHz IR signal by bit banging
+ * Generate 38 kHz IR signal by bit banging and using delayMicroseconds() and micros()
  */
 void sendMark(uint8_t aSendPin, unsigned int aMarkMicros) {
-    unsigned long tStartMicros = micros();
-    unsigned long tNextPeriodEnding = tStartMicros;
-    unsigned long tMicros;
+    unsigned long tMicros = micros();
+    unsigned long tNextPeriodEnding = tMicros;
+#if defined(F_CPU)
+    unsigned long tEndMicros = tMicros + (112 / (F_CPU / MICROS_IN_ONE_SECOND)) + aMarkMicros; // To compensate for call duration - 112 is an empirical value
+#else
+    unsigned long tEndMicros = tMicros + aMarkMicros;
+#endif
     do {
         /*
          * Generate pulse
@@ -87,19 +90,13 @@ void sendMark(uint8_t aSendPin, unsigned int aMarkMicros) {
          * PWM pause timing and end check
          * Minimal pause duration is 4.3 us
          */
-        tNextPeriodEnding += 26; // for 38 kHz
+        tNextPeriodEnding += 26; // 26.3 us period for 38 kHz; 26 us -> 38.48 kHz
         do {
             tMicros = micros(); // we have only 4 us resolution for AVR @16MHz
             /*
              * Exit the forever loop if aMarkMicros has reached
              */
-            unsigned int tDeltaMicros = tMicros - tStartMicros;
-#if defined(__AVR__)
-            // Just getting variables and check for end condition takes minimal 3.8 us
-            if (tDeltaMicros >= aMarkMicros - (112 / (F_CPU / MICROS_IN_ONE_SECOND))) { // To compensate for call duration - 112 is an empirical value
-#else
-                if (tDeltaMicros >= aMarkMicros) {
-    #endif
+            if (tMicros >= tEndMicros) {
                 return;
             }
         } while (tMicros < tNextPeriodEnding);
@@ -164,7 +161,7 @@ void sendONKYO(uint8_t aSendPin, uint16_t aAddress, uint16_t aCommand, uint_fast
             }
         }
     }
-#if !defined(NO_LED_SEND_FEEDBACK_CODE) && defined(IR_FEEDBACK_LED_PIN)
+#if defined(LED_SEND_FEEDBACK_CODE) && defined(IR_FEEDBACK_LED_PIN)
     pinModeFast(IR_FEEDBACK_LED_PIN, OUTPUT);
 #  if defined(FEEDBACK_LED_IS_ACTIVE_LOW)
     digitalWriteFast(IR_FEEDBACK_LED_PIN, HIGH);
@@ -187,7 +184,7 @@ void sendNECMinimal(uint8_t aSendPin, uint16_t aAddress, uint16_t aCommand, uint
 void sendNEC(uint8_t aSendPin, uint16_t aAddress, uint16_t aCommand, uint_fast8_t aNumberOfRepeats, bool aSendNEC2Repeats) {
     pinModeFast(aSendPin, OUTPUT);
 
-#if !defined(NO_LED_SEND_FEEDBACK_CODE) && defined(IR_FEEDBACK_LED_PIN)
+#if defined(LED_SEND_FEEDBACK_CODE) && defined(IR_FEEDBACK_LED_PIN)
     pinModeFast(IR_FEEDBACK_LED_PIN, OUTPUT);
 #  if defined(FEEDBACK_LED_IS_ACTIVE_LOW)
     digitalWriteFast(IR_FEEDBACK_LED_PIN, LOW);
@@ -250,7 +247,7 @@ void sendNEC(uint8_t aSendPin, uint16_t aAddress, uint16_t aCommand, uint_fast8_
             }
         }
     }
-#if !defined(NO_LED_SEND_FEEDBACK_CODE) && defined(IR_FEEDBACK_LED_PIN)
+#if defined(LED_SEND_FEEDBACK_CODE) && defined(IR_FEEDBACK_LED_PIN)
     pinModeFast(IR_FEEDBACK_LED_PIN, OUTPUT);
 #  if defined(FEEDBACK_LED_IS_ACTIVE_LOW)
     digitalWriteFast(IR_FEEDBACK_LED_PIN, HIGH);
@@ -270,7 +267,7 @@ void sendNEC(uint8_t aSendPin, uint16_t aAddress, uint16_t aCommand, uint_fast8_
 void sendExtendedNEC(uint8_t aSendPin, uint16_t aAddress, uint16_t aCommand, uint_fast8_t aNumberOfRepeats, bool aSendNEC2Repeats) {
     pinModeFast(aSendPin, OUTPUT);
 
-#if !defined(NO_LED_SEND_FEEDBACK_CODE) && defined(IR_FEEDBACK_LED_PIN)
+#if defined(LED_SEND_FEEDBACK_CODE) && defined(IR_FEEDBACK_LED_PIN)
     pinModeFast(IR_FEEDBACK_LED_PIN, OUTPUT);
 #  if defined(FEEDBACK_LED_IS_ACTIVE_LOW)
     digitalWriteFast(IR_FEEDBACK_LED_PIN, LOW);
@@ -324,7 +321,7 @@ void sendExtendedNEC(uint8_t aSendPin, uint16_t aAddress, uint16_t aCommand, uin
             }
         }
     }
-#if !defined(NO_LED_SEND_FEEDBACK_CODE) && defined(IR_FEEDBACK_LED_PIN)
+#if defined(LED_SEND_FEEDBACK_CODE) && defined(IR_FEEDBACK_LED_PIN)
     pinModeFast(IR_FEEDBACK_LED_PIN, OUTPUT);
 #  if defined(FEEDBACK_LED_IS_ACTIVE_LOW)
     digitalWriteFast(IR_FEEDBACK_LED_PIN, HIGH);
@@ -347,7 +344,7 @@ void sendFast8BitAndParity(uint8_t aSendPin, uint8_t aCommand, uint_fast8_t aNum
 void sendFAST(uint8_t aSendPin, uint16_t aCommand, uint_fast8_t aNumberOfRepeats) {
     pinModeFast(aSendPin, OUTPUT);
 
-#if !defined(NO_LED_SEND_FEEDBACK_CODE) && defined(IR_FEEDBACK_LED_PIN)
+#if defined(LED_SEND_FEEDBACK_CODE) && defined(IR_FEEDBACK_LED_PIN)
     pinModeFast(IR_FEEDBACK_LED_PIN, OUTPUT);
 #  if defined(FEEDBACK_LED_IS_ACTIVE_LOW)
     digitalWriteFast(IR_FEEDBACK_LED_PIN, LOW);
@@ -399,7 +396,7 @@ void sendFAST(uint8_t aSendPin, uint16_t aCommand, uint_fast8_t aNumberOfRepeats
             }
         }
     }
-#if !defined(NO_LED_SEND_FEEDBACK_CODE) && defined(IR_FEEDBACK_LED_PIN)
+#if defined(LED_SEND_FEEDBACK_CODE) && defined(IR_FEEDBACK_LED_PIN)
     pinModeFast(IR_FEEDBACK_LED_PIN, OUTPUT);
 #  if defined(FEEDBACK_LED_IS_ACTIVE_LOW)
     digitalWriteFast(IR_FEEDBACK_LED_PIN, HIGH);
@@ -411,7 +408,4 @@ void sendFAST(uint8_t aSendPin, uint16_t aCommand, uint_fast8_t aNumberOfRepeats
 
 /** @}*/
 
-#if defined(LOCAL_DEBUG)
-#undef LOCAL_DEBUG
-#endif
 #endif // _TINY_IR_SENDER_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2025 Ryan Powell <ryan@nable-embedded.io> and
+ * Copyright 2020-2026 Ryan Powell <ryan@nable-embedded.io> and
  * esp-nimble-cpp, NimBLE-Arduino contributors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,11 +18,12 @@
 #include "NimBLEAdvertising.h"
 #if (CONFIG_BT_ENABLED && CONFIG_BT_NIMBLE_ROLE_BROADCASTER && !CONFIG_BT_NIMBLE_EXT_ADV) || defined(_DOXYGEN_)
 
-# if defined(CONFIG_NIMBLE_CPP_IDF)
-#  include "services/gap/ble_svc_gap.h"
-# else
+#ifdef USING_NIMBLE_ARDUINO_HEADERS
 #  include "nimble/nimble/host/services/gap/include/services/gap/ble_svc_gap.h"
+# else
+#  include "services/gap/ble_svc_gap.h"
 # endif
+
 # include "NimBLEDevice.h"
 # include "NimBLEServer.h"
 # include "NimBLEUtils.h"
@@ -197,8 +198,9 @@ bool NimBLEAdvertising::start(uint32_t duration, const NimBLEAddress* dirAddr) {
 
 # if CONFIG_BT_NIMBLE_ROLE_PERIPHERAL
     NimBLEServer* pServer = NimBLEDevice::getServer();
-    if (pServer != nullptr) {
-        pServer->start(); // make sure the GATT server is ready before advertising
+    if (pServer != nullptr && !pServer->start()) { // make sure the GATT server is ready before advertising
+        NIMBLE_LOGE(LOG_TAG, "Failed to start GATT server");
+        return false;
     }
 # endif
 

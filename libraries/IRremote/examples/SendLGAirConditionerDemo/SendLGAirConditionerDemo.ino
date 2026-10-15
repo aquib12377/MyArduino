@@ -32,24 +32,27 @@
  */
 #include <Arduino.h>
 
+//#define NO_LED_FEEDBACK_CODE          // Saves 276 bytes program memory
+
 /*
- * LG2 has different header timing and a shorter bit time
- * Known LG remote controls, which uses LG2 protocol are:
+ * LG has different header timing and a shorter bit time
+ * Known LG remote controls, which uses LG protocol are:
  * AKB75215403
  * AKB74955603
  * AKB73757604:
  */
-//#define USE_LG2_PROTOCOL // Try it if you do not have success with the default LG protocol
 #define NUMBER_OF_COMMANDS_BETWEEN_PRINT_OF_MENU 5
 
 #if !defined(ARDUINO_ESP32C3_DEV) // This is due to a bug in RISC-V compiler, which requires unused function sections :-(.
 #define DISABLE_CODE_FOR_RECEIVER // Disables static receiver code like receive timer ISR handler and static IRReceiver and irparams data. Saves 450 bytes program memory and 269 bytes RAM if receiving functions are not required.
 #endif
 
+//#define NO_LED_FEEDBACK_CODE      // Saves 214 bytes program memory
+
 #define INFO // Deactivate this to save program memory and suppress info output from the LG-AC driver.
 //#define DEBUG // Activate this for more output from the LG-AC driver.
 
-#include "PinDefinitionsAndMore.h" // Define macros for input and output pin etc.
+#include "PinDefinitionsAndMore.h" // Define macros for input and output pin etc. Sets FLASHEND and RAMSIZE and evaluates value of SEND_PWM_BY_TIMER.
 #include <IRremote.hpp>
 
 #if defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__) || defined(__AVR_ATtiny87__) || defined(__AVR_ATtiny167__)
@@ -78,9 +81,10 @@ void setup() {
     Serial.println(F("Send IR signals at pin " STR(IR_SEND_PIN)));
 
     /*
-     * The IR library setup. That's all!
+     * No IR library setup required :-)
+     * Default is to use IR_SEND_PIN -which is defined in PinDefinitionsAndMore.h- as send pin
+     * and use feedback LED at default feedback LED pin if not disabled by #define NO_LED_SEND_FEEDBACK_CODE
      */
-    IrSender.begin(); // Start with IR_SEND_PIN -which is defined in PinDefinitionsAndMore.h- as send pin and enable feedback LED at default feedback LED pin
 
     Serial.println();
     MyLG_Aircondition.setType(LG_IS_WALL_TYPE);

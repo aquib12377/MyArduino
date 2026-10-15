@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
+ * SPDX-FileCopyrightText: 2026 Suwatchai K. <suwatchai@outlook.com>
  *
  * SPDX-License-Identifier: MIT
  */
@@ -86,8 +86,6 @@ namespace firebase_ns
          */
         bool loop(auth_data_t *auth_data);
     };
-
-    extern JWTClass JWT;
 }
 #endif
 #endif

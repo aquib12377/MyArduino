@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
+ * SPDX-FileCopyrightText: 2026 Suwatchai K. <suwatchai@outlook.com>
  *
  * SPDX-License-Identifier: MIT
  */
@@ -12,12 +12,13 @@
 
 #if defined(FIREBASE_OTA_STORAGE)
 
-OTAUpdaterClass::OTAUpdaterClass() {}
+inline OTAUpdaterClass::OTAUpdaterClass() {}
 
-OTAUpdaterClass::~OTAUpdaterClass() {}
+inline OTAUpdaterClass::~OTAUpdaterClass() {}
 
-bool OTAUpdaterClass::begin(int size)
+inline bool OTAUpdaterClass::begin(int size, int command)
 {
+    void(command);
 #if defined(FIREBASE_OTA_STORAGE)
     if (storage && storage->open(size) > 0)
         return true;
@@ -25,46 +26,45 @@ bool OTAUpdaterClass::begin(int size)
     return false;
 }
 
-bool OTAUpdaterClass::end()
+inline bool OTAUpdaterClass::end()
 {
     close();
     return true;
 }
 
-void OTAUpdaterClass::setOTAStorage(uint32_t addr)
+inline void OTAUpdaterClass::setOTAStorage(uint32_t addr)
 {
     this->addr = addr;
     storage = reinterpret_cast<OTAStorage *>(addr);
 }
 
-bool OTAUpdaterClass::isInit() { return addr > 0; }
+inline bool OTAUpdaterClass::isInit() { return addr > 0; }
 
-size_t OTAUpdaterClass::write(uint8_t *data, size_t len)
+inline size_t OTAUpdaterClass::write(uint8_t *data, size_t len)
 {
     for (size_t i = 0; i < len; i++)
         write(data[i]);
     return len;
 }
 
-size_t OTAUpdaterClass::write(uint8_t b)
+inline size_t OTAUpdaterClass::write(uint8_t b)
 {
     if (storage)
         storage->write(b);
     return 1;
 }
 
-void OTAUpdaterClass::close()
+inline void OTAUpdaterClass::close()
 {
     if (storage)
         storage->close();
 }
 
-void OTAUpdaterClass::apply()
+inline void OTAUpdaterClass::apply()
 {
     if (storage)
         storage->apply();
 }
 
-OTAUpdaterClass OTAUpdater;
 #endif
 #endif

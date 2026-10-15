@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Suwatchai K. <suwatchai@outlook.com>
+ * SPDX-FileCopyrightText: 2026 Suwatchai K. <suwatchai@outlook.com>
  *
  * SPDX-License-Identifier: MIT
  */
@@ -110,9 +110,6 @@ public:
 
     async_data *createSlot(slot_options_t &options)
     {
-        if (!options.auth_used)
-            sse_events_filter.remove(0, sse_events_filter.length());
-
         int slot_index = availableSlot(options);
         // Only one SSE mode is allowed
         if (slot_index == -2)
@@ -219,6 +216,19 @@ public:
         bool download_status = sData->download && sData->aResult.setDownloadProgress();
         bool upload_status = sData->upload && sData->upload_progress_enabled && sData->aResult.setUploadProgress();
 
+        if (sData->upload && sData->aResult.upload_data.progress == 100)
+        {
+            // Defer the complete upload progress when the payload does not set yet.
+            if (sData->aResult.val[ares_ns::data_payload].length() == 0)
+                upload_status = false;
+        }
+
+#if defined(ENABLE_FS)
+        // Close file when downloading complete.
+        if (sData->download && sData->aResult.download_data.progress == 100 && sData->request.file_data.file_status == file_config_data::file_status_opened)
+            sData->request.closeFile();
+#endif
+
         if (getResult(sData))
         {
             if (sseTimeout || setData || error_notify_timeout || download_status || upload_status)
@@ -253,7 +263,7 @@ public:
 
             // In case external async result was set, when upload complete,
             // we need to reset the internal async result upload status to prevent redundant complete messages.
-            if (sData->aResult.upload_data.progress == 100)
+            if (sData->aResult.upload_data.progress == 100 && upload_status)
                 sData->aResult.upload_data.reset();
         }
     }

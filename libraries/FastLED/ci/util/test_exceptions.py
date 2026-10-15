@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Custom exceptions for test failures that need to bubble up to callers."""
 
-import subprocess
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Optional
+
+from running_process.command_render import list2cmdline
 
 
 @dataclass
@@ -20,7 +21,7 @@ class TestFailureInfo:
 class FastLEDTestException(Exception):
     """Base exception for FastLED test failures"""
 
-    def __init__(self, message: str, failures: Optional[List[TestFailureInfo]] = None):
+    def __init__(self, message: str, failures: Optional[list[TestFailureInfo]] = None):
         super().__init__(message)
         self.failures = failures or []
         self.message = message
@@ -59,7 +60,7 @@ class FastLEDTestException(Exception):
 
         for i, failure in enumerate(self.failures, 1):
             cmd_str: str = (
-                subprocess.list2cmdline(failure.command)
+                list2cmdline(failure.command)
                 if isinstance(failure.command, list)
                 else failure.command
             )
@@ -68,7 +69,7 @@ class FastLEDTestException(Exception):
             details.append(f"   Command: {cmd_str}")
             details.append(f"   Error Type: {failure.error_type}")
             details.append(f"   Exit Code: {failure.return_code}")
-            details.append(f"   Output:")
+            details.append("   Output:")
             # Indent the output
             for line in failure.output.split("\n"):
                 details.append(f"     {line}")
@@ -82,7 +83,7 @@ class CompilationFailedException(FastLEDTestException):
     def __init__(
         self,
         message: str = "Compilation failed",
-        failures: Optional[List[TestFailureInfo]] = None,
+        failures: Optional[list[TestFailureInfo]] = None,
     ):
         super().__init__(message, failures)
 
@@ -93,7 +94,7 @@ class TestExecutionFailedException(FastLEDTestException):
     def __init__(
         self,
         message: str = "Test execution failed",
-        failures: Optional[List[TestFailureInfo]] = None,
+        failures: Optional[list[TestFailureInfo]] = None,
     ):
         super().__init__(message, failures)
 
@@ -104,6 +105,6 @@ class TestTimeoutException(FastLEDTestException):
     def __init__(
         self,
         message: str = "Test execution timed out",
-        failures: Optional[List[TestFailureInfo]] = None,
+        failures: Optional[list[TestFailureInfo]] = None,
     ):
         super().__init__(message, failures)

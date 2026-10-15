@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2025 Ryan Powell <ryan@nable-embedded.io> and
+ * Copyright 2020-2026 Ryan Powell <ryan@nable-embedded.io> and
  * esp-nimble-cpp, NimBLE-Arduino contributors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,10 +21,10 @@
 # include "NimBLEAddress.h"
 # include "NimBLELog.h"
 
-# if defined(CONFIG_NIMBLE_CPP_IDF)
-#  include "host/ble_hs.h"
-# else
+#ifdef USING_NIMBLE_ARDUINO_HEADERS
 #  include "nimble/nimble/host/include/host/ble_hs.h"
+#else
+#  include "host/ble_hs.h"
 # endif
 
 /****  FIX COMPILATION ****/

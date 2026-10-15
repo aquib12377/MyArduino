@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2025 Ryan Powell <ryan@nable-embedded.io> and
+ * Copyright 2020-2026 Ryan Powell <ryan@nable-embedded.io> and
  * esp-nimble-cpp, NimBLE-Arduino contributors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -125,7 +125,7 @@ void NimBLECharacteristic::addDescriptor(NimBLEDescriptor* pDescriptor) {
     }
 
     pDescriptor->setCharacteristic(this);
-    NimBLEDevice::getServer()->serviceChanged();
+    NimBLEDevice::getServer()->setServiceChanged();
 }
 
 /**
@@ -152,27 +152,33 @@ void NimBLECharacteristic::removeDescriptor(NimBLEDescriptor* pDescriptor, bool 
     }
 
     pDescriptor->setRemoved(deleteDsc ? NIMBLE_ATT_REMOVE_DELETE : NIMBLE_ATT_REMOVE_HIDE);
-    NimBLEDevice::getServer()->serviceChanged();
+    NimBLEDevice::getServer()->setServiceChanged();
 } // removeDescriptor
 
 /**
  * @brief Return the BLE Descriptor for the given UUID.
  * @param [in] uuid The UUID of the descriptor.
+ * @param [in] index The index of the descriptor to return (used when multiple descriptors have the same UUID).
  * @return A pointer to the descriptor object or nullptr if not found.
  */
-NimBLEDescriptor* NimBLECharacteristic::getDescriptorByUUID(const char* uuid) const {
-    return getDescriptorByUUID(NimBLEUUID(uuid));
+NimBLEDescriptor* NimBLECharacteristic::getDescriptorByUUID(const char* uuid, uint16_t index) const {
+    return getDescriptorByUUID(NimBLEUUID(uuid), index);
 } // getDescriptorByUUID
 
 /**
  * @brief Return the BLE Descriptor for the given UUID.
  * @param [in] uuid The UUID of the descriptor.
+ * @param [in] index The index of the descriptor to return (used when multiple descriptors have the same UUID).
  * @return A pointer to the descriptor object or nullptr if not found.
  */
-NimBLEDescriptor* NimBLECharacteristic::getDescriptorByUUID(const NimBLEUUID& uuid) const {
+NimBLEDescriptor* NimBLECharacteristic::getDescriptorByUUID(const NimBLEUUID& uuid, uint16_t index) const {
+    uint16_t position = 0;
     for (const auto& dsc : m_vDescriptors) {
         if (dsc->getUUID() == uuid) {
-            return dsc;
+            if (position == index) {
+                return dsc;
+            }
+            position++;
         }
     }
     return nullptr;
@@ -395,6 +401,18 @@ void NimBLECharacteristicCallbacks::onWrite(NimBLECharacteristic* pCharacteristi
  * any other value is an error.
  */
 void NimBLECharacteristicCallbacks::onStatus(NimBLECharacteristic* pCharacteristic, int code) {
+    NIMBLE_LOGD("NimBLECharacteristicCallbacks", "onStatus: default");
+} // onStatus
+
+/**
+ * @brief Callback function to support a Notify/Indicate Status report.
+ * @param [in] pCharacteristic The characteristic that is the source of the event.
+ * @param [in] connInfo A reference to a NimBLEConnInfo instance containing the peer info.
+ * @param [in] code Status return code from the NimBLE stack.
+ * @details The status code for success is 0 for notifications and BLE_HS_EDONE for indications,
+ * any other value is an error.
+ */
+void NimBLECharacteristicCallbacks::onStatus(NimBLECharacteristic* pCharacteristic, NimBLEConnInfo& connInfo, int code) {
     NIMBLE_LOGD("NimBLECharacteristicCallbacks", "onStatus: default");
 } // onStatus
 

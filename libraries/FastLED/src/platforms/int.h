@@ -1,17 +1,29 @@
+// ok no namespace fl
 #pragma once
 
 // Platform-specific integer type definitions
 // This file dispatches to the appropriate platform-specific int.h file
 
-#if defined(ESP32)
+// ARM platform detection
+#include "platforms/arm/is_arm.h"
+
+#if defined(ESP8266)
+    #include "platforms/esp/int_8266.h"
+#elif defined(ESP32)
     #include "platforms/esp/int.h"
+#elif defined(ARDUINO_ARCH_CI13XX)
+    #include "platforms/ci13xx/int.h"
 #elif defined(__AVR__)
     #include "platforms/avr/int.h"
-#elif defined(__SAM3X8E__) || defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__) || defined(__IMXRT1062__) || defined(ARDUINO_ARCH_RENESAS_UNO) || defined(STM32F1) || defined(ARDUINO_GIGA) || defined(ARDUINO_GIGA_M7) || defined(NRF52_SERIES) || defined(ARDUINO_ARCH_NRF52) || defined(NRF52840_XXAA) || defined(ARDUINO_ARCH_APOLLO3) || defined(FASTLED_APOLLO3)
-    // All ARM platforms (Due, Teensy, STM32, nRF52, Apollo3, etc.)
-    #include "platforms/arm/int.h"
-#elif defined(ARDUINO_ARCH_RP2040) || defined(TARGET_RP2040) || defined(PICO_32BIT) || defined(ARDUINO_RASPBERRY_PI_PICO)
-    // Raspberry Pi RP2040 (Pico) uses ARM-like type widths where uint32_t is 'unsigned long'
+#elif defined(__IMXRT1062__)
+    // Teensy 4.0/4.1 (IMXRT1062 Cortex-M7) - needs special handling for system headers
+    #include "platforms/arm/teensy/teensy4_common/int.h"
+#elif defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)
+    // Teensy 3.x family (MK20DX/MKL26Z Cortex-M4/M0+) - needs special handling for system headers
+    // - Teensy 3.0 (MK20DX128), Teensy 3.1/3.2 (MK20DX256), Teensy LC (MKL26Z64)
+    #include "platforms/arm/teensy/teensy3_common/int.h"
+#elif defined(FL_IS_ARM)
+    // All other ARM platforms (Due, STM32, nRF52, Apollo3, etc.)
     #include "platforms/arm/int.h"
 #elif defined(__EMSCRIPTEN__)
     // WebAssembly / Emscripten

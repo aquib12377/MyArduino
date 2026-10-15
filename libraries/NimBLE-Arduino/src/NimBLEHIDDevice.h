@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2025 Ryan Powell <ryan@nable-embedded.io> and
+ * Copyright 2020-2026 Ryan Powell <ryan@nable-embedded.io> and
  * esp-nimble-cpp, NimBLE-Arduino contributors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -49,7 +49,8 @@ class NimBLEHIDDevice {
     NimBLEHIDDevice(NimBLEServer* server);
 
     void                  setReportMap(uint8_t* map, uint16_t);
-    void                  startServices();
+    void                  startServices() __attribute__((deprecated("Services are now started by the server when start() is called, " 
+                                                         "this function is no longer needed and will be removed in a future release.")));
     bool                  setManufacturer(const std::string& name);
     void                  setPnp(uint8_t sig, uint16_t vid, uint16_t pid, uint16_t version);
     void                  setHidInfo(uint8_t country, uint8_t flags);

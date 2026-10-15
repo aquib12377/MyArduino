@@ -22,14 +22,13 @@ Otherwise all connected modules will receive the same custom address.
 
 
 #if !defined(PZEM_RX_PIN) && !defined(PZEM_TX_PIN)
-#define PZEM_RX_PIN 13
-#define PZEM_TX_PIN 15
+#define PZEM_RX_PIN 16
+#define PZEM_TX_PIN 17
 #endif
 
 /* Hardware Serial2 is only available on certain boards.
  * For example the Arduino MEGA 2560
 */
-#include <SoftwareSerial.h>
 /*************************
  *  Use SoftwareSerial for communication
  * ---------------------
@@ -65,7 +64,20 @@ void loop() {
 
     // Set the custom address
     Serial.print("Setting address to: 0x");
-    Serial.println(addr, HEX);
+    Serial.println(addr, HEX);HardwareSerial pzemSerial(2);
+#define RX2_PIN 16
+
+void setup() {
+  Serial.begin(115200);
+  pzemSerial.begin(9600, SERIAL_8N1, RX2_PIN, -1); // TX pin is disabled
+  Serial.println("Listening to PZEM...");
+}
+
+void loop() {
+  while (pzemSerial.available()) {
+    Serial.write(pzemSerial.read());
+  }
+}
     if(!pzem.setAddress(addr))
     {
       // Setting custom address failed. Probably no PZEM connected

@@ -140,6 +140,12 @@ esp_err_t esp_nimble_deinit(void)
     ble_hs_deinit();
 
     ble_transport_ll_deinit();
+
+#if CONFIG_BT_LE_CONTROLLER_NPL_OS_PORTING_SUPPORT
+    void na_npl_freertos_mempool_deinit(void);
+    na_npl_freertos_mempool_deinit();
+    ble_npl_eventq_deinit(&g_eventq_dflt);
+#endif
     return ESP_OK;
 }
 
@@ -233,10 +239,6 @@ nimble_port_deinit(void)
         ESP_LOGE(NIMBLE_PORT_LOG_TAG, "controller deinit failed\n");
         return ret;
     }
-#endif
-
-#if CONFIG_BT_LE_CONTROLLER_NPL_OS_PORTING_SUPPORT
-    na_hci_transport_deinit();
 #endif
 
 #if (BT_HCI_LOG_INCLUDED == TRUE)

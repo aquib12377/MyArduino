@@ -4,10 +4,12 @@
 import argparse
 import os
 import re
-import subprocess
 import sys
 from pathlib import Path
-from typing import Any, List, Match, Optional
+from typing import Optional
+
+from running_process import PIPE, CalledProcessError, CompletedProcess, RunningProcess
+from running_process.command_render import list2cmdline
 
 
 HERE = Path(__file__).resolve().parent
@@ -17,17 +19,24 @@ IS_GITHUB = "GITHUB_ACTIONS" in os.environ
 
 
 def run_command(
-    cmd_list: List[str],
+    cmd_list: list[str],
     capture_output: bool = True,
     shell: bool = False,
     check: Optional[bool] = None,
 ) -> Optional[str]:
     """Run a command and return its output."""
     actual_check = check if check is not None else False
-    cmd = cmd_list if not shell else subprocess.list2cmdline(cmd_list)
+    cmd = cmd_list if not shell else list2cmdline(cmd_list)
 
-    result: subprocess.CompletedProcess[str] = subprocess.run(
-        cmd, capture_output=capture_output, text=True, shell=shell, check=actual_check
+    result: CompletedProcess[str] = RunningProcess.run(
+        cmd,
+        stdout=PIPE if capture_output else None,
+        stderr=PIPE if capture_output else None,
+        text=True,
+        shell=shell,
+        check=actual_check,
+        encoding="utf-8",
+        errors="replace",
     )
 
     if not capture_output:
@@ -83,13 +92,28 @@ def main():
         ] + args.extra_args
         try:
             run_command(cmd_list, shell=True, capture_output=IS_GITHUB, check=True)
-        except subprocess.CalledProcessError:
+        except CalledProcessError:
             run_command(cmd_list, shell=True, capture_output=False, check=True)
 
     output = run_command(
-        ["uv", "run", "-m", "ci.compiled_size", "--board", args.board],
+        [
+            "uv",
+            "run",
+            "-m",
+            "ci.compiled_size",
+            "--board",
+            args.board,
+            "--example",
+            args.example,
+        ],
         capture_output=True,
     )
+    # Echo it. `ci.compiled_size` reports which ELF it measured ("measured
+    # fbuild ELF: <path>"), and capturing without printing threw that away,
+    # so the log recorded a number with no way to tell which binary produced
+    # it (FastLED#4402).
+    if output:
+        print(output)
     size_match = re.search(r": *(\d+)", output)  # type: ignore
 
     if not size_match:
@@ -97,11 +121,12 @@ def main():
         print(f"Output: {output}")
         sys.exit(1)
 
-    size_str = size_match.group(1)  # type: ignore
+    size_str = size_match.group(1)  # type: ignore[misc]
+    assert isinstance(size_str, str), "Size group must be a string"
     if not size_str:
         print("Error: Size group is empty")
         sys.exit(1)
-    size = int(size_str)  # type: ignore
+    size = int(size_str)
 
     if args.max_size is not None and args.max_size > 0:
         max_size = args.max_size

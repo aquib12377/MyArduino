@@ -6,7 +6,7 @@
 #define PERFORM_CALIBRATION //Comment to disable startup calibration
 ICM20689 IMU;               //Change to the name of any supported IMU!
 
-// Currently supported IMUS: MPU9255 MPU9250 MPU6886 MPU6500 MPU6050 ICM20689 ICM20690 BMI055 BMX055 BMI160 LSM6DS3 LSM6DSL QMI8658
+// Currently supported IMUS: MPU9255 MPU9250 MPU6886 MPU6500 MPU6050 ICM20689 ICM20690 ICM20948 BMI055 BMX055 BMI160 LSM6DS3 LSM6DSL QMI8658
 
 calData calib = { 0 };  //Calibration data
 AccelData IMUAccel;    //Sensor data
@@ -90,16 +90,34 @@ void setup() {
 }
 
 void loop() {
+  static uint32_t lastAccelTs = 0;
+  static uint32_t lastGyroTs  = 0;
+  static uint32_t lastMagTs   = 0;
+
   IMU.update();
   IMU.getAccel(&IMUAccel);
   IMU.getGyro(&IMUGyro);
-  if (IMU.hasMagnetometer()) {
-    IMU.getMag(&IMUMag);
-    filter.update(IMUGyro.gyroX, IMUGyro.gyroY, IMUGyro.gyroZ, IMUAccel.accelX, IMUAccel.accelY, IMUAccel.accelZ, IMUMag.magX, IMUMag.magY, IMUMag.magZ);
+
+  bool newAccel = (IMUAccel.timestamp != lastAccelTs);
+  bool newGyro  = (IMUGyro.timestamp  != lastGyroTs);
+
+  if (newAccel && newGyro) {
+    lastAccelTs = IMUAccel.timestamp;
+    lastGyroTs  = IMUGyro.timestamp;
+
+    if (IMU.hasMagnetometer()) {
+      IMU.getMag(&IMUMag);
+      if (IMUMag.timestamp != lastMagTs) {
+        lastMagTs = IMUMag.timestamp;
+        filter.update(IMUGyro.gyroX, IMUGyro.gyroY, IMUGyro.gyroZ, IMUAccel.accelX, IMUAccel.accelY, IMUAccel.accelZ, IMUMag.magX, IMUMag.magY, IMUMag.magZ);
+      } else {
+        filter.updateIMU(IMUGyro.gyroX, IMUGyro.gyroY, IMUGyro.gyroZ, IMUAccel.accelX, IMUAccel.accelY, IMUAccel.accelZ);
+      }
+    } else {
+      filter.updateIMU(IMUGyro.gyroX, IMUGyro.gyroY, IMUGyro.gyroZ, IMUAccel.accelX, IMUAccel.accelY, IMUAccel.accelZ);
+    }
   }
-  else {
-    filter.updateIMU(IMUGyro.gyroX, IMUGyro.gyroY, IMUGyro.gyroZ, IMUAccel.accelX, IMUAccel.accelY, IMUAccel.accelZ);
-  }
+
   Serial.print("QW: ");
   Serial.print(filter.getQuatW());
   Serial.print("\tQX: ");
@@ -108,5 +126,4 @@ void loop() {
   Serial.print(filter.getQuatY());
   Serial.print("\tQZ: ");
   Serial.println(filter.getQuatZ());
-  delay(50);
 }

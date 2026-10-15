@@ -70,7 +70,7 @@ const char* MQTT_PROJECT = "jpinfra";
 #define BTN_ALL_ON 2
 #define BTN_ALL_OFF 48
 #define BTN_AMENITIES 1 //
-#define BTN_PATTERN 47 //All lights
+#define BTN_PATTERN 4 //All lights
 
 // Status LED
 #define STATUS_LED 10
@@ -269,31 +269,21 @@ void setupButtons() {
 }
 
 void checkButtons() {
-  static uint32_t lastPrint = 0;  // ← ADD THIS
   uint32_t now = millis();
-  const uint32_t debounceDelay = 50;  // ← INCREASED
-  
-  // ← ADD THIS BLOCK
-  if (now - lastPrint > 2000) {
-    Serial.printf("[BTN] States: 47=%d 48=%d 1=%d 21=%d\n",
-                  digitalRead(47), digitalRead(48),
-                  digitalRead(1), digitalRead(21));
-    lastPrint = now;
-  }
-  
+  const uint32_t debounceDelay = 250;  // 250ms - generous to kill bouncing
+
   for (uint8_t i = 0; i < 4; i++) {
     bool currentReading = digitalRead(buttons[i].pin);
-    
-    if (currentReading != buttons[i].lastReading) {
-      buttons[i].lastDebounceTime = now;
-      Serial.printf("[BTN] GPIO%d changed to %d\n", buttons[i].pin, currentReading);  // ← ADD THIS
-    }
-    
-      if (currentReading == LOW && buttons[i].lastReading == HIGH) {
+
+    // Only act if enough time has passed since last trigger
+    if (currentReading == LOW && buttons[i].lastReading == HIGH) {
+      if ((now - buttons[i].lastDebounceTime) > debounceDelay) {
+        Serial.printf("[BTN] Button pressed on GPIO%d\n", buttons[i].pin);
         handleButtonPress(buttons[i].pin);
-      
+        buttons[i].lastDebounceTime = now;
+      }
     }
-    
+
     buttons[i].lastReading = currentReading;
   }
 }

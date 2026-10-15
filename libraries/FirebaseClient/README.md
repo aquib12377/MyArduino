@@ -111,6 +111,7 @@ See this Arduino-Pico SDK [documentation](https://arduino-pico.readthedocs.io/en
 > You cannot install Arduino IDE and Arduino library in Microsoft's `OneDrive` folder because the `OneDrive` folder is the sandbox or virtual folder instead of real folder which causes the path error when compilation.
 
 
+
 ## Usages
 
 For new `Firebase` users, please read the [Project Preparation and Setup](#project-preparation-and-setup) section for preparing the Firebase project.
@@ -143,7 +144,7 @@ The information (debug/error) can be obtained by the `AsyncClientClass` that ass
 
 The authentications support by this library covers user, service account (admin) and no authentications.
 
-There are authentication classes that store the sign-in and authentication credentials whuch can be used temporary as it will be duplicated to use later.
+There are authentication classes that store the sign-in and authentication credentials which can be used temporary as it will be duplicated to use later.
 
 The authentication tokens are also supported e.g. custom (signed JWT token), ID and access tokens. The refresh token also supports. User can use third party app/services to create these auth token when sign-in and authentication credentials are sensitive and not allowed to store in the sketch.
 
@@ -173,6 +174,8 @@ The details for all classes used in this library are available. Click the follow
 - [Firestore::Values Class](/resources//docs//firestore_database_values.md)
 
 - [Messaging Class](resources/docs/messaging.md)
+
+- [MessagingInstance Class](resources/docs/messaging_instance.md)
 
 - [Storage Class](resources/docs/storage.md)
 
@@ -704,9 +707,9 @@ ENABLE_LEGACY_TOKEN
 
 ### Slow Arduino IDE Compilation Speed
 
-Normally this issue can be existed due to large anount of files to be compiled and anti virus software interference.
+Normally this issue can be existed due to large amount of files to be compiled and anti virus software interference.
 
-This library contains the large anount of C files from `BearSSL` engine used in the internal `ESP_SSLClient` library which will be used only when the `ServiceAuth`, `CustomAuth` and `ESP_SSLClient` classes are used. This can increase the compilation time.
+This library contains the large amount of C files from `BearSSL` engine used in the internal `ESP_SSLClient` library which will be used only when the `ServiceAuth`, `CustomAuth` and `ESP_SSLClient` classes are used. This can increase the compilation time.
 
 If `ServiceAuth`, `CustomAuth` and `ESP_SSLClient` classes are not used in your code, you can remove or delete the `src/client` folder to reduce the Arduino IDE compilation time.  
 
@@ -714,7 +717,7 @@ If `ServiceAuth`, `CustomAuth` and `ESP_SSLClient` classes are not used in your 
 
 The codes and examples in this repository are licensed under the MIT License. 
 
-Copyright (c) 2025, Suwatchai K. All rights reserved.
+Copyright (c) 2026, Suwatchai K. All rights reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -722,4 +725,4 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 
 `THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.`
 
-*Last updated 2025-08-09 UTC.*
+*Last updated 2026-01-03 UTC.*

@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 # pyright: reportUnknownMemberType=false
 import os
-import subprocess
 import sys
 from pathlib import Path
-from typing import List
 
+from running_process import RunningProcess
+from running_process.command_render import list2cmdline
+
+from ci.util.global_interrupt_handler import handle_keyboard_interrupt
 from ci.util.paths import BUILD
 from ci.util.tools import load_tools
 
 
-def _list_builds() -> List[Path]:
+def _list_builds() -> list[Path]:
     str_paths = os.listdir(BUILD)
     paths = [BUILD / p for p in str_paths]
     dirs = [p for p in paths if p.is_dir()]
@@ -19,10 +21,10 @@ def _list_builds() -> List[Path]:
 
 def _check_build(build: Path) -> bool:
     # 1. should contain a build_info.json file
-    # 2. should contain a .pio/build directory
+    # 2. should contain a .fbuild/build directory
     has_build_info = (build / "build_info.json").exists()
-    has_pio_build = (build / ".pio" / "build").exists()
-    return has_build_info and has_pio_build
+    has_fbuild_build = (build / ".fbuild" / "build").exists()
+    return has_build_info and has_fbuild_build
 
 
 def _prompt_build() -> Path:
@@ -50,9 +52,9 @@ def _prompt_build() -> Path:
 
 
 def _prompt_object_file(build: Path) -> Path:
-    # Look for object files in .pio/build directory
-    build_dir = build / ".pio" / "build"
-    object_files: List[Path] = list(build_dir.rglob("*.o"))
+    # Look for object files in .fbuild/build directory
+    build_dir = build / ".fbuild" / "build"
+    object_files: list[Path] = list(build_dir.rglob("*.o"))
 
     if not object_files:
         print("Error: No object files found", file=sys.stderr)
@@ -111,14 +113,16 @@ def cli() -> None:
     cmd = [str(tools.objdump_path), "--syms", str(object_file)]
     if sys.platform == "win32":
         cmd = ["cmd", "/c"] + cmd
-    cmd_str = subprocess.list2cmdline(cmd)
-    subprocess.run(cmd, check=True)
+    cmd_str = list2cmdline(cmd)
+    RunningProcess.run(cmd, check=True)
     print("\nDone. Command used:", cmd_str)
 
 
 if __name__ == "__main__":
     try:
         cli()
-    except KeyboardInterrupt:
+    except KeyboardInterrupt as ki:
+        handle_keyboard_interrupt(ki)
+        raise
         print("Exiting...")
         sys.exit(1)

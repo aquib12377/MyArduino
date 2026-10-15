@@ -346,5 +346,22 @@ https://github.com/olikraus/u8g2 ChangeLog
   * Added unifont_jp (issue 2502)
   * Added BoutiqueBitmap fonts (issue 2265)
   * MUI: More features and examples
-  
+2026-05-17      v2.36.19        olikraus@gmail.com
+  * Arduino SW I2C: Changed logical 0 output sequence (issue 2744)
+  * SED1330 240x64 (issue 2518)
+  * SSD1309 128x128 (issue 2546)
+  * SSD1362 256x64 (PR 2749, issue2757)
+  * SSD1363 I2C support (issue 2298)
+  * ST7571 128x96 (issue 2575)
+  * SSD1320 128x72 (issue 2565)
+  * ST7586 240x64 (issue 2607)
+  * Gulim Korean Font (issue 2653)
+  * drawHB function (issue 2656)
+  * ST7305 200x200, 168x384, 300x400 (issue 2661)
+  * Added Celsius and Fahrenheit 8451/$2103, 8457$2109 to "e" fonts (issue 2701)
+  * Update t0 font, added symbols and font size 30/40 (issue 2447)
+  * ST7511 640x320 (issue 2737)
+  * UC1698 160x160 (issue 2164)
+  * New U8x8 example: Draw XBM image with u8x8 API (issue 2531)
+  * Tiny5 font: Updated and added Tiny5Duo (issue 2720)
   

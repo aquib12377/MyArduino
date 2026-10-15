@@ -1,0 +1,590 @@
+# Open items (TODO)
+
+Library-wide open items, one file per item. The list is not
+FasNAxis-specific: the ramp-generator arrival (110) is single-axis,
+and the rest is n-axis work.
+
+The filename prefix is the priority, three digits wide
+(`010_name.md`). Numbers step by 10, so a new item takes a free
+number between two existing ones (`025_` would sit between `020_` and
+`030_`). Items that share a priority share the prefix.
+
+Source of truth for the n-axis items: `extras/doc/n_axes_whitepaper.md`.
+Their test-driven implementation plan (Steps 0–14) is complete; its
+tests live in `extras/tests/pc_based/test_26.cpp`.
+
+## Tracked entries (priority order)
+
+Tokens = estimated LLM token cost to develop and test each item (input +
+output, including iterative refinement).  Effort = human time for a
+**professional embedded C++ developer** already familiar with the codebase.
+A hobbyist should multiply the effort column by **2–3×** (new items by
+**3–5×**) to account for ramp-up on platform-specific driver architecture,
+timer/PWM/PIO registers, and the ramp generator's log2 fixed-point math.
+
+| Priority | Item | Tokens | Effort | Why now |
+|----------|------|--------|--------|---------|
+| **040** | [ESP32 synchronized start](040_esp32_synchronized_start.md) | ~20 k | 1–2 d | Native per-driver release (I2S group, RMT group start, MCPWM/PCNT) pending. |
+| **040** | [Pico synchronized start](040_pico_synchronized_start.md) | ~20 k | 1–2 d | PIO block-start HW sync for multiple steppers to be verified. |
+| **040** | [AVR synchronized start](040_avr_synchronized_start.md) | ~10 k | 0.5 d | Shared-timer start likely final; verify and close. |
+| **040** | [SAM synchronized start](040_sam_synchronized_start.md) | ~20 k | 1–2 d | PWM/TC common release point to be identified. |
+| **040** | [SAMD51 synchronized start](040_samd51_synchronized_start.md) | ~20 k | 1–2 d | TCC cross-instance release to be identified. |
+| **040** | [Teensy synchronized start](040_teensy_synchronized_start.md) | ~20 k | 1–2 d | TMR within/cross-module release to be decided. |
+| **050** | [Cross-driver start skew — I2S dominates](050_cross_driver_skew.md) | ~100 k | 0.5 d | Medium: characterization. Up to **109 step periods** with an I2S driver; the old "cross-driver is 66% worse" ratio is withdrawn — the same-driver and cross-driver ranges overlap. |
+
+| **080** | [Cubic start (`s_h`) overlay](080_cubic_start.md) | ~200 k | 1–2 w | Later feature, not v1. |
+| **090** | [Common head speed](090_common_head_speed.md) | ~300 k | 1–2 w | Later planner. One acceleration and one max path speed for an x/y/z/… head. Waypoints are `dx, dy, dz, …, v`. |
+| **100** | [Delta steps](100_delta_steps.md) | ~400 k | 1–2 w | AFAP input variation: `int16_t` chunks instead of absolute waypoints. |
+| **110** | [Ramp time and moveTo eta](110_move_to_eta.md) | ~400 k | 1–2 w | Record ramp time next to performed ramp steps; `moveTo(position, eta_ticks)` caps speed so the move finishes by that tick. |
+| **120** | [Smooth stop at end of path](120_end_path_decel.md) | ~200 k | 1 w | Open: append a decel tail on `endPath()`, or hand the stop to the ramp generator. |
+| **130** | [Pipeline position estimate](130_position_pipeline_estimate.md) | ~100 k | 2–3 d | Low priority. Estimate how far a pipelined driver has played out, so `getCurrentPosition()` can lead the pin by less. A pulse counter remains the real position. |
+| **140** | [Modular ramp generator](140_modular_ramp_generator.md) | ~2 M | 3–4 w | Major refactor: extract 4 modules, write PC tests, documentation, regression suite. |
+| **150** | [GPIO set support (#316)](150_gpio_set_support.md) | ~300 k | 1 w | Audit toggle vs. set per platform, add `SUPPORT_GPIO_SET` flag, benchmark, test. |
+| **160** | [16-bit GPIO encoding](160_16bit_gpio_encoding.md) | ~800 k | 2–3 w | Cross-cutting type change: `pin_t` in every API, queue struct, platform init; 8-bit retained for AVR. |
+| **500** | [Interrupt steps in Hz range](500_interrupt_steps_in_Hz_range.md) | ~500 k | 1–2 w | Bug: slow steps (e.g. 1 step/s) are not interruptible — `abort()` / `reset()` effectively non-functional. |
+| **total** | 17 items | ~5.96 M | 16–24 w | Priorities 040–160, plus 500. |
+
+## Done
+
+- **026 — Pico `getCurrentPosition()` returned 0 during a run — fixed and
+  measured.** The PIO pushes the running position into its RX FIFO with a
+  *non-blocking* push, so once the 4-entry FIFO is full the push stops updating
+  it and the FIFO holds samples from the run's beginning — including 0 before
+  the first step. `getCurrentStepCount()` treated a stale sample as current, so
+  `XSTOP` (`forceStopAndNewPosition(getCurrentPosition())`) latched 0: measured
+  **`POS 0` in 15 of 40** RP2350 SR_30 runs while the wire carried ~1270 steps.
+  SR_30 asserts the pulses on purpose, so it passed either way; the position was
+  recorded and never read. The running read now discards the stale samples and
+  waits for a current push; the stopped path returns `queue_end.pos`, because
+  `forceStop()` restarts the SM (clearing the position in the shift register)
+  and zeroes `pos_offset`. SR_30 now asserts `POS` against the wire via
+  `check_commanded_position()`, and `TestPositionCheck` pins it. **0 of 70** runs
+  after the fix. Record:
+  [pico_position_read_returns_zero.md](../doc/implemented/pico_position_read_returns_zero.md).
+
+- **Pico ignored `addQueueEntry(cmd, start=false)` — fixed and measured.**
+  The PIO port's feeder was started unconditionally in the `SUPPORT_RP_PICO`
+  branch of `queue_add_entry.cpp`, so a `start=false` add began stepping an idle
+  queue. That made "fill the queue, then start it" impossible on RP2040/RP2350:
+  it broke `FasNAxis::pump()` → `synchronizedStart()` and the harness's `QFILL`,
+  which is why SR_25 and SR_30 failed on the RP2350 (the run started before
+  `QRUN`, so the stop landed after the fill and measured nothing). The re-arm is
+  now gated on `isRunning()`. Two companion fixes: `qe_pump()`'s prefill loop now
+  honours `no_topup` (it refilled a `QFILL`ed queue and overshot the reported
+  depth — latent on ESP32, exposed on Pico), and
+  `getCurrentStepCount()`'s read-before-test order was corrected. Measured on
+  RP2350: **SR_25 passes** (`steps_measured = 4080` = fill, stop interrupts the
+  run) and **SR_30 passes** (`steps_after_stop = 0`, `queue_discarded`).
+  Record: [pico_start_false.md](../doc/implemented/pico_start_false.md) — whose
+  still-open item (`getCurrentPosition()` on Pico intermittently returned 0
+  during a run) is now closed as **026** above.
+
+- **181 — MCPWM/PCNT overrun: by design, within limits (closed as not a defect).**
+  `mcpwm_pcnt` free-runs and is stopped from the PCNT interrupt, so a delayed ISR
+  lets one extra pulse out. Verified on hardware that this is the mechanism and
+  that the driver already deducts it from the **next** command: 64 steps @160
+  then 64 @320 measures **65 + 63 = 128**. The remedy needs a following command
+  with steps, so only the **last** command of a program can leak one — a system
+  limitation, not a bug, now documented in
+  [`extras/doc/platforms/esp32.md`](../doc/platforms/esp32.md#mcpwm-pcnt-overrun)
+  and classified as a scoped **known limitation** by the harness
+  (`scripts/known_limitations.py`) rather than a finding.
+
+- **023 — `i2s_mux` in `dir`: the harness counted the capture, not the move.**
+  `sync --imux --pin-mode dir` reported a driver emitting 51 steps it did not
+  emit: **every evaluator counted the whole capture**, and a capture starts
+  before the test is triggered over serial and outlives it, so it holds 285 ms
+  of pre-move idle on a 500 ms capture. 24 MS/s over an 8 MHz bclk is exactly
+  three samples per bit period and `dir` holds the direction bits high, so the
+  data line toggles in every frame and the decode races with those transitions —
+  a race no rate on this analyzer fixes, since 48 MS/s truncates an eight-channel
+  capture to 0.18 ms.
+
+  The race was not "fixed"; the harness stopped asking the wrong question. The
+  plan fixes the move's timeline exactly (`addQueueEntry()` is driven directly,
+  no ramp in the way), so `move_window()` measures **the first contiguous run of
+  as many steps as the plan commands whose gaps all match the command** — gaps
+  per gap, so a program with a pause still places its move, and derived from the
+  grid on a mux and from a quarter-period off one elsewhere. The five ways that
+  could have become a way to pass a bad run are each a test: a dropped step, an
+  extra step inside the move's span, a driver at the wrong rate, a clean capture
+  (unchanged numbers), and SR_13's zero-step assertion (untouched). Trimmed
+  pulses are **recorded** with their offsets from the move, never discarded; the
+  first-step skew is measured on the move's first step, which is why
+  `i2s_mux+i2s_mux` now reads 0.0 µs against the 242 334 µs it reported.
+
+  `extract_frames()`'s frame-alignment diagnostics were computed and thrown
+  away, so a run could not say the capture was at fault; they now travel in the
+  result as `decoded_from.frame_faults` — **98–103 on every 24 MS/s `dir`
+  capture, and 102 on a `nodir` one**, so the faults belong to three samples per
+  bit period and not to `dir`. One capture in 1250 decodes wrong, now stated
+  rather than counted as steps. Recorded, not gated: a threshold high enough to
+  be meaningful is one every mux run at this rate fails.
+
+  **Measured on hardware**, `--mode sync --pin-mode dir --imux`, one sweep per
+  I2S SDK: **all eight `i2s_mux` rows that were red now pass** on both, every
+  stepper 64/64 at its own period, `first_step_skew_us` 0.0 on the two
+  `i2s_mux`+`i2s_mux` rows against the 242 334 µs they reported, and 1–3 pulses
+  per capture recorded outside the move (the closest 4.5 ms, against a move
+  1.575 ms long). Before that, every recorded capture was re-run through the new
+  code as a check that nothing else moved: **212 SR catalogue, 16 `scale` and 28
+  non-mux `sync` verdicts unchanged**.
+
+  The hardware run also did two things the offline pass could not. It found the
+  window's **trailing knife-edge** — the `mcpwm_pcnt` overrun's extra step lands on the
+  tick boundary to within a sample, so a window cut at the last commanded pulse
+  would have hidden a real defect half the time; the window now extends through
+  any pulse that continues the move's rhythm. And it closed the **`i2s_mux` at
+  n = 32** row that had been "not yet measured on hardware": 32 accepted on the
+  first probe attempt, all 32 at 64/64, mean period spread **0.0000 µs**.
+
+  Full record, with the measurements:
+  [i2s_mux_dir_phantom_steps.md](../doc/implemented/i2s_mux_dir_phantom_steps.md).
+
+- **184 — the mux decoder's fixture launched its data at the wrong instant.**
+  11 unit-test failures, all correct to fail. `Bus._render()` drew each bit's
+  data cell starting *at* its bclk rising edge; real hardware launches it half a
+  cell *before* the edge that latches it, and the decoder samples at `edge - 1`.
+  So it read the previous cell and every bit landed one position out — slot 0
+  decoded as slot 31, uniformly, which is why every test in the file still
+  passed except the ones that happened to be sensitive to it.
+  Invisible because every existing test drove all 32 slots or a symmetric set: a
+  uniform shift is a consistent relabelling and those assertions are invariant
+  under it. Fixed in the fixture, one line. `i2s_mux_decoder.py` needed no
+  change and was right throughout — confirmed end-to-end on the real 24 MS/s
+  captures at 64/64 on the correct slots, mean period 24.931 us, identical to the
+  recorded results. Worth keeping: the first diagnosis blamed the decoder and was
+  built on a word read with bclk and data swapped, then "verified" with arithmetic
+  derived from it. The item records that, because the three confirmations were all
+  the same circular step. 023 (the 24 MS/s race in `dir`) was separate and is
+  now closed — see Done, which is also where `i2s_mux` at n = 32 got measured.
+
+- **183 — the catalogue now asks how many steppers a driver drives (SR_31).**
+  The gap was real and it had a mechanism: the catalogue's largest case was three
+  steppers, so a defect that only appears past n = 8 could not be caught by it,
+  and `--mode scale` — the only thing that reached n = 32 — sat outside
+  `ALL_TESTS` with no SR number, no per-test tag and no row of its own in a
+  matrix.
+
+  `SR_31` is wired in `run_tests.SCENARIOS`, and it is the one entry whose
+  stepper count is **not a literal**. How many steppers a driver drives is a
+  hardware fact that a driver answers by refusing, so `MaxCountProbe` asks:
+  `CONFIG` descending from the channel budget (8 in `nodir`, 32 for `i2s_mux`,
+  whose bound is the 32-bit word rather than the analyzer), and the first count
+  the firmware accepts is the maximum. `mcpwm_pcnt` yields
+  `ERR connect step 6` at n = 7 and `OK CONFIG 6` at n = 6 — the refusal names
+  the sixth queue, which is `QUEUES_MCPWM_PCNT` being right for a reason.
+
+  Three things are load-bearing and each is tested:
+
+  - **The refusals travel with the result.** `refused_above` records every count
+    tried and the board's own words for each, because "stops at 6" and "stops at
+    6 because the analyzer has no channel 7" are different answers.
+  - **One `CONFIG` per attempt, and the accepted one *is* the run's.** A second
+    `CONFIG` re-arms the drivers through `_initVars()` and would throw away the
+    very allocation the probe proved.
+  - **`nodir`, not `dir`.** `dir` spends two channels per stepper and stops at 4,
+    below MCPWM/PCNT's 6 — so it would report the analyzer as the driver. This is
+    why `SCENARIO_PIN_MODE` and `scenario_wire()` exist: `config_wire()`'s
+    hardcoded `dir` would otherwise have handed SR_31 a CONFIG the firmware
+    accepts and then scored stepper B against D2 instead of D1.
+
+  Judged by `eval_scale`, unchanged — each stepper's own count and its own
+  period from the capture, never `POS`, which would pass on a driver emitting
+  complete garbage. One shared program, so a driver that kept its own pace and
+  dragged the others off it cannot pass.
+
+  **Measured on hardware** (ESP32-DevKitC, ESP-IDF 5.5.3): `rmt` **8**,
+  `mcpwm_pcnt` **6**, `i2s_direct` **2** — each stepper's own step count and
+  period, period spread 0.000–0.004 µs, and the full 28-scenario catalogue green
+  on all three after the watchdog fix below. `i2s_mux` **32** was added later, by
+  the run that closed 023: 32 accepted on the first probe attempt, all 32 at
+  64/64, period spread 0.0000 µs.
+
+  **The first hardware run found two defects, and the second is the more
+  interesting one.**
+
+  - *The probe read acceptance off the reply, and the reply lies.* A `CONFIG`
+    refused partway through `connect_stepper()` leaves the steppers it did
+    connect in place, so the **next** `CONFIG` short-circuits to
+    `OK CONFIG n=6 mode=nodir already` — success, for a configuration never
+    established. Reproduced by hand: `CONFIG 8` → `ERR connect step 6 n=6`, then
+    `CONFIG 7` → `OK CONFIG n=6 already`. The probe recorded **7** for a board
+    running six, and the run **passed**, because `eval_scale` judges the six that
+    are really there — so nothing downstream would have noticed. Acceptance is
+    now MAP, which cannot be stale.
+  - *The board's own task watchdog reset it mid-capture, and SR_00 reported that
+    as eight dead pins.* Measured on 5.5.3: `open_board()`, nothing at all, six
+    `task_wdt` lines in ~5.3 s. A panic inside a capture window truncates the
+    run, and a truncated 1 Hz pattern reads as every channel's first high time
+    being a fragment (D0 19.3 ms against 50 ms, the pairs summing to exactly one
+    1000 ms period) — **the check whose job is to catch a dead cable, reporting a
+    firmware panic as a dead cable.** Two loops were at fault and both had to
+    change: the idle path was the sub-tick spin its own header forbids, and
+    SR_00's pattern spins 1 ms at a time for a whole second so it starves IDLE0
+    even with the idle path fixed — and its spin cannot simply go, because an
+    edge has to land within a 2 ms tolerance. It now sleeps between edges and
+    spins only for the 12 ms before one. The watchdog is subscribed before
+    `READY` and fed each pass; feeding without subscribing is worse than
+    nothing, since `esp_task_wdt_reset()` on an unsubscribed task logs an error
+    every call on the UART the protocol uses. `open_board()` also now raises if
+    the board never reports `READY`, instead of measuring a stale board.
+
+  Full account, with the measured numbers:
+  `extras/tests/saleae_based/AGENTS.md` → "SR_31" and "The ESP-IDF task
+  watchdog".
+
+- **`i2s_mux` "mangles any command from n ≥ 16" — closed as not reproducible;
+  the reported symptom does not exist on current HEAD.** Filed HIGH against
+  `CONFIG 16 i2s_mux,…` answering `ERR unknown '2s_mux,i2s_mux'`. It does not
+  reproduce, and two of the item's own conclusions were wrong:
+
+  - **The mechanism was head-loss, not tail-truncation.** `ERR unknown` prints
+    the `cmd` field (`common/saleae_app.cpp:2078`), which is 15 characters wide,
+    and `'2s_mux,i2s_mux'` is exactly 15. So the line arrived with `CONFIG 16 i`
+    gone — a *truncated driver list* would have answered `ERR CONFIG no such
+    driver` (`:1345`), which is not what was reported. The item read a tail
+    symptom as a receive-buffer overflow.
+  - **The receive buffer had already been fixed.** `setRxBufferSize(1024)`
+    landed in 961c75f8 (2026-10-04), a day *before* the item was filed
+    (87d1fbed), and the plain ESP-IDF HAL installs 1024 regardless
+    (`saleae_hal_espidf.cpp:74`). The item's `uint8_t linelen` theory was stale
+    in a different way too — it is `uint16_t`, as the item itself noted.
+
+  Measured on an ESP32-DevKitC, ESP-IDF 6.13, current HEAD: `nodir` accepts
+  n = 1…32 with 32 driver names and 32 `maxspeedN` fields in one 768-byte
+  reply, `MAP` reports `slots=0…31`, and n = 33 is refused
+  (`ERR CONFIG n=33 max=32`). `dir` accepts n = 16 and refuses 17
+  (`needs 34 slots, max=32`) — so **both** of the mux's documented claims
+  (32 in `nodir`, 16 in `dir`) now hold, where the item recorded zero
+  measurements above n = 8. Also hammered eight 271-character CONFIG lines in
+  one 2176-byte write, 2.1× the RX buffer: 8 OK, 0 mangled.
+
+  The item's *goal* — make the 32-stepper claim testable — was real and became
+  **183**, now **SR_31** (see Done), because the blocker was never the parser:
+  **no catalogue scenario stepped more than three steppers**, and `--mode scale`
+  was outside `ALL_TESTS`. What remained unmeasured at the time — the direction
+  slots on the wire, which 023's 24 MS/s sampling race blocked — is measured now:
+  the eight `syncdir_i2s_mux*dirn2` rows re-evaluate as passing, `dslots` and
+  `slots` agreeing on every one. See 023 in Done.
+
+- **`i2s_mux` in `dir` "loses the second stepper's slot" — closed, and it was
+  our own decoder config.** Filed HIGH as a functional defect in the shipped
+  driver on the strength of two matrix rows recording
+  `incomplete_capture: missing_channels: ["S2"]`. Measured off the bus wires of
+  those same two captures with **no slot map in the loop at all** — group the
+  bclk rising edges into 32s, read the data at each edge, count which positions
+  are high — two distinct wire positions each carry exactly 64 bits, mean gaps
+  **24.931 µs** and **49.925 µs** (400 and 800 ticks at 16 MHz) on the 4 µs
+  frame grid, interleaved 2:1 with the slower one continuing alone after the
+  faster stops. Two steppers, a shared start, both counts right. The decoded VCD
+  named the cause in its own header (`slots: A=S0`, one channel):
+  `_mux_map_with_slots()` built the config with `slots[j * stride]`, and
+  `slots=[0,2]` with `stride=2` is **one** stepper. The same one-entry-per-channel
+  misreading `read_map()` had, fixed with it in `36d71a12` — so this was a
+  result recorded *before* its own fix, and no file is kept for it, there being
+  no change in `src/` to document. The mapping check is in
+  `extras/tests/saleae_based/AGENTS.md`: the two bits held high from t=0 land on
+  MAP's reported direction slots under the wire order, which a wrong half-swap
+  would not.
+
+  What remained was 51 phantom steps per `dir` capture from the 24 MS/s sampling
+  race, one of which set a bit no code path in `src/` can set. That was
+  [023](i2s_mux_dir_phantom_steps.md), now in
+  [Done](#done): the race is unchanged and the harness now measures the
+  commanded move rather than the capture, which is what those 51 steps were
+  being added to. The matrix report rows and the recorded
+  `syncdir_i2s_mux*dirn2` results are still the pre-fix ones and are regenerated
+  by `run_matrix.py`.
+
+- **`i2s_direct` has 2 channels on the ESP32, not 3 — fixed.**
+  `QUEUES_I2S_DIRECT` was a hand-copied `3` where the ceiling is the chip's
+  I2S peripheral count. Each `I2sManager` takes one TX channel
+  (`i2s_new_channel(..., &chan, NULL)`, no RX), and `SOC_I2S_NUM` is 2, so the
+  third queue always failed at connect time with IDF's own
+  `ESP_ERR_NO_MEM` — measured n=1,2 pass and n=3..8 refused on IDF 5.5.3 and
+  6.1.0 alike. The constant now reads `SOC_I2S_NUM`, so it states the ceiling
+  instead of a number that has to be kept in step with the hardware.
+  `harness.DRIVER_MAXS` followed; the unit test cross-checking the host table
+  against the library's `QUEUES_*` pins the new value. Found only because R7
+  stopped trusting the constant — `i2s_direct` had until then only ever been
+  measured as a *partner* in a `sync` combination.
+
+- **`MAP` did not report a multiplexed stepper's direction slot — fixed.**
+  `MAP` names each mux stepper's STEP bit (`slots=`, one entry per stepper) but
+  not its DIRECTION bit, which in `dir` mode is a second bit of the same 32-bit
+  word. The host filled the gap with `step_slot + 1`, which held only because
+  `CONFIG` resets the slot cursor and connects in order, so the pairs came out
+  gapless (0/1, 2/3, ...) — a host that inferred the pairing was right by
+  coincidence. The firmware now reports it: `dslots=`, same indexing,
+  `CONFIG 2 i2s_mux,i2s_mux dir` answering `slots=0,2 dslots=1,3`. A reply
+  without the field is refused rather than guessed at.
+
+   The same one-per-channel misreading was also live in
+   `_mux_map_with_slots()`, which built the decoder config with
+   `slots[j * stride]` — so the decoder path and the evaluator path disagreed
+   about what the field meant, and only the `nodir` runs, where the two readings
+   coincide, had ever compared them. Both are on one indexing now, with the
+   non-gapless case (`slots=5,2 dslots=30,3`) pinned by a test, because it is
+   the case the stride arithmetic cannot produce. That one was measured as a
+   lost mux slot for a whole release-matrix run; see the first entry above.
+
+- **`stopMove()` does not stop a queued move — closed as a defect, by
+  design.** It sets a flag the ramp generator reads for its *next*
+  command; nothing already queued is touched, so the truncation point is
+  the prefill depth and is *not stable across runs*. Now asserted rather
+  than discovered: `SR_25` and `SR_30` send an identical program and
+  assert opposite outcomes, both passing on all six matrix rows. Three
+  claims this item once made were withdrawn — `forceStop()` does not
+  substitute for it, the behaviour is not documented in the library's
+  public API, and the emergency stop a caller wants is
+   `forceStopAndNewPosition()`, which works. Re-evaluating it is what
+   surfaced the queue admission latch defect behind it, since fixed
+   (`AQE_ERROR_COMMANDS_SUSPENDED`, `resumeCommands()`). Record:
+  `extras/doc/implemented/saleae_based_test_harness.md` (§ *stopMove
+  does not truncate queued motion*).
+
+- **Platform-release matrix, first hardware run — 6 firmwares, 350
+  measurements, and six harness bugs that had been hiding results.**
+  `extras/tests/saleae_based/scripts/run_matrix.py` flashes each
+  `RELEASE_MATRIX` row once (arduino 4.4.0/5.3.0/6.13.0, idf
+  5.3.0/6.13.0/7.1.2) and measures the SR catalogue, one `scale` sweep per
+  driver the board admits, and all ten `sync` combinations against that one
+  flash. First execution found the two open library items above, plus:
+
+  - **`read_map()` read `slots=` as one entry per channel; the firmware sends
+    one per stepper.** Agrees with itself in `nodir`, runs off the end of the
+    list in `dir`, and handed every multiplexed stepper past the first a GPIO
+    channel — so `sync --imux` reported 0 of 64 steps for a stepper the
+    capture shows stepping 64 times. Verified against the board
+    (`CONFIG 2 i2s_mux,i2s_mux dir` → `slots=0,2`); the two unit tests that
+    encoded the wrong rule were corrected to the measured reply.
+    The direction-slot half of the same gap is now fixed too — see the
+    `dslots=` entry above.
+  - **The I2S mux's 24 MS/s floor keyed off `--driver`, and `sync` has none** —
+    so `--imux` sampled the 8 MHz bus at 4 MS/s (0.5 samples/bit) and the
+    decode was not a wrong answer but not an answer. The floor now keys off
+    `--imux`, i.e. off whether the capture carries the bus.
+  - **The sample-rate log line mixed two numbers**: the ratio came from the
+    resolved rate, the printed rate from `args.sample_rate`, which is `0` for
+    "auto". It always read "0 MS/s would have read 0.5" when the truth was
+    4 MS/s.
+  - **A refused `IMUX` was fatal**, but the USB reset does not always fire; when
+    it does not, the mux from the previous point is still up and
+    `initI2sMux()` is correctly refused. Now resolved by asking the firmware
+    (`mux_init=` in `DRIVERS`).
+  - **One point's exception aborted the rest of a sweep**, so a transient at
+    n=3 cost n=4…8.
+  - **A narrowed `--targets` discarded the other rows**, so recovering one row
+    whose upload hit "wrong boot mode" meant re-flashing all six. Rows now
+    merge, and a report built across invocations carries a per-row timestamp.
+
+  And in the report generator: the scale and sync tables printed **empty**
+  (mode points key as `{run_tag}_{point}`; the report compared for equality),
+  and no capture link ever rendered (`capture_link` appended `.vcd` to a `.sr`
+  path, so it looked for `foo.sr.vcd`).
+
+- **140 — RMT V1/V2 split — resolved, the two RMT paths had one flag and
+  the umbrella was doing the work the version test should do.**
+  `SUPPORT_ESP32_RMT` is replaced by `SUPPORT_ESP32_RMT_V1` (IDF4 half
+  filler) and `SUPPORT_ESP32_RMT_V2` (IDF5/6 encoder translator), the six
+  sources are renamed to say which path they are, and no RMT source or RMT
+  branch tests `ESP_IDF_VERSION` any more. Verified by compiling the AVR,
+  Arduino (IDF 4.4.7), IDF 4.4.3 and IDF 5.5.3 builds and by the four
+  PC tests that include those sources directly.
+- **015 + 016 — IDF 5.5.3 panicked on RMT and `i2s_direct` was unstable —
+  resolved, and both were the harness overflowing the main task's stack.** One
+  defect, not two: `CONFIG_ESP_MAIN_TASK_STACK_SIZE` is 3584 B and every `CONFIG`
+  constructs its drivers on that task, so `stepperConnectToPin()` ran out of
+  budget before it started. Measured with `uxTaskGetStackHighWaterMark()` on the
+  board: **216 B** left on 5.5.3, **312 B** on 6.1 — both over budget, 6.1
+  merely shallow enough to escape. The overflow runs off the *top* of the stack,
+  which on ESP32 is where the DRAM tlsf pool begins, so it presented as a
+  corrupted free list (`LoadProhibited` in `block_locate_free`) rather than as a
+  stack fault. Confirmed by `CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192` changing
+  nothing in `src/` and making `CONFIG 1 rmt dir` answer `OK`.
+
+  The stack was spent on **reply buffers held as stack locals** (~1900 B — a
+  local array holds its slot for the whole function, so a 1152 B reply buffer was
+  resident while `rmt_new_tx_channel()` allocated) and on **libc `sscanf` (1496 B)
+  and `snprintf` (384 B)** for a protocol that only formats %s/%u/%d. Worth
+  recording that the libc fix alone bought nothing here: the buffers dominate.
+  Peak 4272 B → **2336 B** of the 3584 B default, so the cliff is gone rather
+  than moved and no Kconfig change was needed. `SAL_REPLY_BUF` decides static
+  off AVR and empty on AVR in one place, because on AVR the stack *is* SRAM and
+  `static` would commit ~640 B of a 2048 B part for the program's life.
+
+  Closed by `run_matrix.py --targets idf-6.13.0 --force`: catalogue **26/26**,
+  and in the sync table all four RMT combinations plus both `i2s_direct` pairs
+  went from panic/refused to measured passes. Two findings worth keeping:
+
+  - **The four RMT combinations used to be reported as `refused (bound)` with
+    the Guru Meditation text quoted as the reason** — a panic and a board
+    limit are the same refusal to the classifier, which is why this read as a
+    driver-capability question for as long as it did. Same gap as an all-skip
+    run still reporting `failed=0`.
+  - **`SR_00` ran twice on every catalogue run**, because
+    `if any(t != "SR_00" for t in tests)` is true for the default `--tests`, which
+    already starts with SR_00. The second run FAILED on one rerun, which skipped
+    all 26 scenarios while the run still exited 0 — so the matrix printed the
+    row `ok` having measured nothing.
+
+  Two measurements that did **not** become fixes, kept because the obvious fix is
+  wrong: blocking the idle loop for one tick does not fix the IDF 4.4.3 idle
+  watchdog (it fires with no command outstanding — `QINFO` alone reproduces
+  it, so it is IDF 4.4's own), and it grew trailing pulses on mcpwm_pcnt, so it
+  was reverted. And `MIN_CMD_TICKS` is a *duration* floor (`ticks × steps`),
+  not a floor on `ticks` — `maxspeed*` in `QINFO` is the fastest *period*, usable
+  only on a command long enough to clear it, which is what made the documented
+  `QSEG` example build commands the firmware refuses.
+
+  Full analysis, measurements and guards:
+  [idf55_main_task_stack_overflow.md](../doc/implemented/idf55_main_task_stack_overflow.md).
+  Two new items came out of the acceptance run and are **not** covered by it:
+  the MCPWM/PCNT overrun (now closed as a documented system limitation, see Done)
+  and **182** (since closed as not
+  reproducible — see Done — which in turn produced **183**, now **SR_31**; see
+  Done).
+
+- **010 — MCPWM/PCNT emitted continuously on every queue after the first —
+  resolved, `pcnt_new_unit()` was clearing the interrupt-enable bit.**
+  Measured `PCNT.int_ena == 0x39` with three queues connected (bits 1 and 2
+  cleared) and `0x3F` after the fix; `--mode scale --driver mcpwm_pcnt` now
+  passes n = 1…6 in `nodir` and n = 1…4 in `dir`, with n = 7/8 correctly
+  refused. The original lead — the `channel_num` / `pcnt_unit_id` indexing —
+  was *not* the cause but is a real latent defect of its own, so both
+  invariants are now written up in
+  [`extras/doc/platforms/esp32.md`](../doc/platforms/esp32.md).
+
+- **180 — i2s_mux short move "no output" — resolved, decoder fixed.**
+  The "64-step move puts nothing on the wire" reading was a decoder bug plus a
+  capture/QRUN sync misread: the decoder framed the word at the ws *rising*
+  edge and read it whole-word MSB-first, while the hardware sends two 16-bit
+  halves, low half (slots 0-15) first, each half MSB-first, starting at the ws
+  *fall* — so every word decoded half-swapped and one step looked like two
+  phase groups. `extract_frames()` is now a bclk-edge shift register anchored
+  at the first ws fall with the halves swapped back, and the test fixture
+  renders the measured wire order. The short move decodes 64 x `0x000FFFFF`
+  and the long control 327 675 words; the descriptor-seeding hypothesis was
+  refuted by measurement. The remaining real defect — an intermittent
+  single-step drop, reproduced once at n=28, slot 16, with the corrected
+  decoder — is recorded in the saleae `AGENTS.md` known finding and in
+  [r7_virtual_i2s_mux.md](../doc/implemented/r7_virtual_i2s_mux.md)
+  §5.
+
+- **R7 — Virtual I2S mux: 37-channel test harness — implemented.**
+  `scripts/i2s_mux_decoder.py` turns an 8-channel capture into a 37-channel one
+  (5 passthrough + 32 mux slots, the 3 bus wires consumed) and the existing
+  evaluators read it with no mux-specific code. The firmware can now connect
+  `i2s_mux` steppers (`PIN_I2S_FLAG` slots) and the bus is the last three
+  analyzer channels, so D0..D4 keep their names on both sides of a decode.
+  `--mode scale --driver i2s_mux --pin-mode nodir` sweeps 1…32 multiplexed
+  steppers; with the corrected decoder **31 of 32 pass**, the one failure an
+  intermittent dropped step (see the 180 entry above). Three design assumptions
+  were wrong and are corrected with measurements: a slot is high for one bclk
+  period (125 ns), not for the frame; the bus needs ≥ 3 samples per bit period
+  so 24 MS/s and not 8 — while 48 MS/s truncates the capture below a scenario's
+  duration; and the word goes out as two 16-bit halves, low half first, not
+  MSB-first. Also found and fixed: a `uint8_t` serial line length that
+  corrupted any command over 255 characters, and a `sorted()` channel map that
+  handed stepper 27 another stepper's channel. See
+  [r7_virtual_i2s_mux.md](../doc/implemented/r7_virtual_i2s_mux.md).
+
+- **IDF 6 RMT sequence 02 slow — implemented.** F2 caps every RMT sub-entry
+  (`rmt_encode_fill()`), so the RMT buffer spans less time than the ramp
+  lookahead and the queue is no longer drained mid-move. HW (IDF 5.3.1, M1 RMT)
+  `seq_03_02` dropped 123 s -> 94 s. See
+  [idf6_rmt_slow.md](../doc/implemented/idf6_rmt_slow.md).
+- **ESP32 RMT extra step — implemented.** IDF5/6 translates queue
+  commands in `StepperISR_rmt_v2_encode.cpp` instead of filling
+  fixed RMT halves. 20× `seq_02` and 20× `seq_03` passed on IDF5 RMT.
+  See [esp32_rmt_extra_step.md](../doc/implemented/esp32_rmt_extra_step.md).
+- **Faithful timed trajectory — implemented.** Separate from
+  `FasNAxis`: `FasTimed::addDelta` takes per-axis delta steps in
+  [-128, 128] and one shared duration in [MIN_CMD_TICKS, 65535]
+  ticks. One call is one rate. A rate the motors cannot reach is
+  `TimingNotAchievable`. PC test `extras/tests/pc_based/test_29.cpp`.
+  See [timed_trajectory.md](../doc/implemented/timed_trajectory.md).
+- **Engine synchronized start (generic layer) — implemented.** The engine
+  exposes a plain non-static `synchronizedStart()` member, `FasNAxis`
+  receives the engine in its constructor (defaulted `Engine` template
+  parameter), and the kick-off releases all active queues in one engine
+  operation. The per-platform native mechanisms remain tracked above. See
+  [engine_synchronized_start.md](../doc/implemented/engine_synchronized_start.md).
+- **NaxesAFAP example smoothness — implemented.** simavr `test_NaxesAFAP` passes
+  with 11 legitimate stops (`MAX_PATH_STOPS = 11`); no helix chord stops.
+  P3 also found and fixed the block ring not sliding past `HORIZON`
+  (`FasNAxis::compact_ring()`), which had chunked any path longer than
+  `HORIZON` into per-ring ramp-to-rest segments. See
+  [NaxesAFAP_example_smoothness.md](../doc/implemented/NaxesAFAP_example_smoothness.md).
+- **naxes log2 product compares — implemented.** The production naxes
+  planner has no 64-bit type and no fake 64-bit emulation: the `binder_axis`
+  tie-break, the Overshoot uniform schedule, and the Overshoot cap compare
+  products as log2 sums (`Remaining::log2_mul_cmp` / `log2_mul_diff`, sums
+  of `log2_from`, the sanctioned slack per section 6.3). `outside_cap` uses
+  the conservative bound `abs(nb*k - ns*x) <= cap*max(nb,ns)` (>= the exact
+  cap) with a four-unit log2 margin, so the realized distance stays under
+  the hard `overshoot_max` bound (6.5 / 12.4.1 G7). The 2 deg
+  `collinear_same_sense` diagnostic moved to the PC test harness
+  (`test_26.cpp`, double); `u32_twice_ge` is a shift, not a product. The F2b
+  rebind neighbourhood, all F11/F12/F14 cap bounds, and the
+  `FAS_NAXIS_NO_REBIND` / `FAS_NAXIS_NO_REST_CAP` mutation proofs still
+  hold. See whitepaper §6.3 / §6.6.
+- **Linear junction carry — implemented.** `R` ends at a master-sense
+  reversal, an idle or tied outgoing axis, a dwell, or the path end.
+  `P` carries across every other joint, so a sampled helix cruises and
+  the axis-aligned square still stops. See
+  [linear_junction_carry.md](../doc/implemented/linear_junction_carry.md) and whitepaper
+  §8.5.
+- **Feeder command batching — implemented.** The ramp generator's
+  command size: one step when the period is already at least 1 ms, and
+  about 2 ms of equal-period steps when it is shorter. Productive code
+  uses 32-bit integers only; `NaxesAFAP` on the ATmega328 is 27384 bytes
+  (limit 30720). See
+  [feeder_command_batching.md](../doc/implemented/feeder_command_batching.md) and
+  whitepaper §4.3.1.
+
+## Out-of-scope log
+
+Decisions taken item by item. Items without an entry are documented as
+non-goals in the whitepaper §3.2 and are not tracked separately.
+
+- **Raising `pd_test` `MAX_STEPPER` — dropped.** Not debt but a design
+  decision: n > 2 PC tests use `FasNAxis<N, HORIZON, SimPort>`;
+  1- and 2-axis golden paths use real FAS queues (whitepaper §4.7).
+- **simavr / hardware / PlatformIO jobs for FasNAxis — implemented.**
+  `examples/NaxesAFAP/` (helix → hexagon → square → origin, one
+  `FastAccelStepper` per axis) builds for every CI architecture;
+  `extras/tests/simavr_based/test_NaxesAFAP/` runs it on the ATmega328p and
+  `detect_geometry.py` judges the reconstructed curve. The 16 KB
+  ATmega168 and the ATmega32u4 are skipped by `build-platformio.sh` for
+  space.
+- **Per-block feedrate `F` — not a separate item.** It is a requested
+  speed, hence timed-world input; it belongs to
+  `extras/doc/implemented/timed_trajectory.md`
+  (no AFAP `F`-as-cap variant).
+- **Inverse kinematics — not tracked.** Application concern, not a
+  library feature. Keep the whitepaper §3.2 non-goal, but clarify that
+  the affine motor-map is caller-side too (the caller transforms
+  waypoints; FasNAxis stays in step space).
+- **Running `pump()` from `manageSteppers()` and generalizing the ramp
+  generator / naxes — implemented.** Design record moved to
+  `extras/doc/engine_sources.md` (Path A single driver + stop hook).
+- **AFAP vs timed — decided.** `FasNAxis` stays AFAP-only; the faithful
+  timed trajectory is a separate implementation. Design record
+  moved to `extras/doc/implemented/timed_trajectory.md` and
+  `extras/doc/planner_modes.md`.
+- **A Linear oracle that is faster by leaving the chord / cutting a
+  corner / skipping a vertex — not tracked.** Not a backlog item: such a
+  track is not constraint-faithful, so it is not a faster Linear
+  reference at all (§12.4.1). The sanctioned mode that may leave the
+  chord is Overshoot; a deliberate corner-blend geometry stays a §3.2
+  later overlay (G1/G2), not an oracle.
+
+## Under discussion
+
+- **How a short path comes to rest.** `endPath()` today can freeze
+  fewer steps than the current ramp, and the last steps then go out
+  at speed. The coordinated fix is a decel tail after the last
+  waypoint; handing each axis to the ramp generator leaves the chord.
+  See [120_end_path_decel.md](120_end_path_decel.md).
